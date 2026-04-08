@@ -3,6 +3,35 @@ import { parseCSV } from "@/lib/csv-parser"
 import { createClient } from "@/lib/supabase/server"
 import { readSnapshot } from "@/lib/server/supabase-store"
 
+type ParsedDay = {
+  date: string
+  ca_caisse: number
+  ca_soir: number
+  pct_soir: number
+  tickets_count: number
+}
+
+function sanitizeParsedRows(input: unknown): ParsedDay[] {
+  if (!Array.isArray(input)) return []
+
+  return input
+    .map((row) => {
+      if (!row || typeof row !== "object") return null
+      const candidate = row as Record<string, unknown>
+      const date = typeof candidate.date === "string" ? candidate.date : ""
+      if (!date) return null
+
+      return {
+        date,
+        ca_caisse: Number(candidate.ca_caisse || 0),
+        ca_soir: Number(candidate.ca_soir || 0),
+        pct_soir: Number(candidate.pct_soir || 0),
+        tickets_count: Number(candidate.tickets_count || 0),
+      }
+    })
+    .filter((row): row is ParsedDay => !!row)
+}
+
 export async function GET() {
   const supabase = createClient()
 
@@ -29,13 +58,14 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
   const content = String(body?.content || "")
   const filename = String(body?.filename || "import.csv")
+  const parsedFromBody = sanitizeParsedRows(body?.parsed)
 
-  if (!content) {
+  if (!content && parsedFromBody.length === 0) {
     return NextResponse.json({ error: "Contenu CSV requis." }, { status: 400 })
   }
 
   try {
-    const parsed = parseCSV(content)
+    const parsed = parsedFromBody.length > 0 ? parsedFromBody : parseCSV(content)
     const db = await readSnapshot(supabase, { seedIfEmpty: true, userId: user.id })
     const existingDates = new Set(db.daily_sales.map((item) => item.date))
     const duplicates = parsed.filter((row) => existingDates.has(row.date)).map((row) => row.date)

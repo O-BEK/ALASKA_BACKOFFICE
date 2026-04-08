@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { parseImportHistoryPayload } from "@/lib/contracts"
+import { parseCSV } from "@/lib/csv-parser"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -40,6 +41,20 @@ export default function ImportPage() {
       .catch(() => setHistory([]))
   }, [])
 
+  const readJsonSafely = async (response: Response) => {
+    const raw = await response.text()
+    try {
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {
+        error:
+          response.status === 413
+            ? "Le fichier est trop volumineux pour être envoyé tel quel."
+            : `Réponse serveur invalide (${response.status}).`,
+      }
+    }
+  }
+
   const handleFile = async (selected: File) => {
     if (!selected.name.endsWith(".csv")) {
       setError("Format non supporté. Veuillez importer un fichier .csv")
@@ -50,34 +65,35 @@ export default function ImportPage() {
     setError("")
 
     try {
+      const parsed = parseCSV(await selected.text())
       const response = await fetch("/api/import-csv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: selected.name, content: await selected.text() }),
+        body: JSON.stringify({ filename: selected.name, parsed }),
       })
-      const payload = await response.json()
+      const payload = await readJsonSafely(response)
       if (!response.ok) {
         setError(payload.error || "Format CSV non reconnu.")
         return
       }
 
-      setPreview(Array.isArray(payload.parsed) ? payload.parsed as ParsedDay[] : [])
+      setPreview(parsed)
       setDuplicates(Array.isArray(payload.duplicates) ? payload.duplicates as string[] : [])
       setStep("preview")
     } catch {
-      setError("Impossible d'analyser le fichier pour le moment.")
+      setError("Format CSV non reconnu. Vérifie que c'est bien un export caisse valide.")
     }
   }
 
   const handleConfirm = async () => {
-    if (!file) return
+    if (!file || safePreview.length === 0) return
 
     const response = await fetch("/api/import-csv", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: file.name, content: await file.text(), commit: true }),
+      body: JSON.stringify({ filename: file.name, parsed: safePreview, commit: true }),
     })
-    const payload = await response.json()
+    const payload = await readJsonSafely(response)
     if (!response.ok) {
       setError(payload.error || "Import impossible.")
       return
