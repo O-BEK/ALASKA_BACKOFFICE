@@ -38,10 +38,31 @@ export function useDashboard(month: string) {
     setLoading(true)
 
     fetch(`/api/dashboard?month=${month}`)
-      .then((response) => response.json())
-      .then((data: DashboardState) => {
+      .then(async (response) => {
+        const payload = (await response.json()) as Partial<DashboardState>
+        return {
+          kpis: payload.kpis
+            ? {
+                ...emptyKpis,
+                ...payload.kpis,
+                month: payload.kpis.month || month,
+              }
+            : { ...emptyKpis, month },
+          delta_ca: typeof payload.delta_ca === "number" ? payload.delta_ca : 0,
+          last12: Array.isArray(payload.last12) ? payload.last12 : [],
+        } satisfies DashboardState
+      })
+      .then((data) => {
         if (!active) return
         setState(data)
+      })
+      .catch(() => {
+        if (!active) return
+        setState({
+          kpis: { ...emptyKpis, month },
+          delta_ca: 0,
+          last12: [],
+        })
       })
       .finally(() => {
         if (active) setLoading(false)

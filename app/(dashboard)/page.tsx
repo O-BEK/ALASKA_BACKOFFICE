@@ -30,6 +30,9 @@ export default function DashboardPage() {
   const { kpis, delta_ca, last12 } = useDashboard(month)
   const [actions, setActions] = useState<ActionItem[]>([])
   const [imports, setImports] = useState<ImportRecord[]>([])
+  const safeActions = Array.isArray(actions) ? actions : []
+  const safeImports = Array.isArray(imports) ? imports : []
+  const safeLast12 = Array.isArray(last12) ? last12 : []
   const soldeCaisse = kpis.ca_caisse - kpis.total_expenses
   const tauxSolde = kpis.ca_caisse > 0 ? (soldeCaisse / kpis.ca_caisse) * 100 : 0
 
@@ -54,8 +57,8 @@ export default function DashboardPage() {
   }, [])
 
   const bColor = getBreakevenColor(kpis.pct_breakeven)
-  const topActions = actions.filter((a) => a.status !== "done").slice(0, 3)
-  const csvMissing = !imports.some((i) => i.date_range_start.startsWith(month))
+  const topActions = safeActions.filter((a) => a.status !== "done").slice(0, 3)
+  const csvMissing = !safeImports.some((i) => i.date_range_start.startsWith(month))
 
   return (
     <div className="space-y-6">
@@ -107,7 +110,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={last12} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+            <AreaChart data={safeLast12} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradSage" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#4a6741" stopOpacity={0.15}/>

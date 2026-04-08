@@ -26,13 +26,17 @@ export default function ObjectifsPage() {
   const { actions, updateActionStatus, cumulativeReal, yearlyTarget, pctAnnuel, byLever, monthlyObjectives, monthlyReal } = useObjectives()
   const [filterLever, setFilterLever] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
+  const safeActions = Array.isArray(actions) ? actions : []
+  const safeByLever = Array.isArray(byLever) ? byLever : []
+  const safeMonthlyObjectives = Array.isArray(monthlyObjectives) ? monthlyObjectives : []
+  const safeMonthlyReal = Array.isArray(monthlyReal) ? monthlyReal : []
 
-  const monthlyData = monthlyObjectives.map((mo, i) => {
-    const current = monthlyReal.find((item) => item.year === mo.year && item.month === mo.month)
+  const monthlyData = safeMonthlyObjectives.map((mo, i) => {
+    const current = safeMonthlyReal.find((item) => item.year === mo.year && item.month === mo.month)
     return { month: MONTHS_FR[i], target: mo.target_ca, real: current?.real || null }
   })
 
-  const filteredActions = actions.filter(a =>
+  const filteredActions = safeActions.filter(a =>
     (filterLever === "all" || a.lever === filterLever) &&
     (filterStatus === "all" || a.status === filterStatus)
   )
@@ -104,8 +108,8 @@ export default function ObjectifsPage() {
             </CardHeader>
             <CardContent className="pb-4">
               <div className="space-y-2">
-                {monthlyObjectives.slice(0,4).map((mo, i) => {
-                  const real = monthlyReal.find((item) => item.year === mo.year && item.month === mo.month)?.real || 0
+                {safeMonthlyObjectives.slice(0,4).map((mo, i) => {
+                  const real = safeMonthlyReal.find((item) => item.year === mo.year && item.month === mo.month)?.real || 0
                   const pct = mo.target_ca > 0 ? (real / mo.target_ca) * 100 : 0
                   const done = real > 0
                   return (
@@ -133,7 +137,7 @@ export default function ObjectifsPage() {
       {tab === "Plan d'action" && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {byLever.map(({ lever, total, done, pct }) => (
+            {safeByLever.map(({ lever, total, done, pct }) => (
               <button key={lever} onClick={() => setFilterLever(f => f === lever ? "all" : lever)}
                 className={cn("p-3 rounded-xl border text-left transition bg-white",
                   filterLever === lever ? "border-alaska-sage bg-alaska-sage-lt" : "border-alaska-sage-lt hover:bg-alaska-sage-lt/50")}>
