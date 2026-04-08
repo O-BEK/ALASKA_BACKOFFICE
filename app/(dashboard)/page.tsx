@@ -45,10 +45,12 @@ export default function DashboardPage() {
   useEffect(() => {
     fetch("/api/objectives")
       .then((response) => response.json())
-      .then((payload) => setActions(payload.actions as ActionItem[]))
+      .then((payload) => setActions(Array.isArray(payload.actions) ? (payload.actions as ActionItem[]) : []))
+      .catch(() => setActions([]))
     fetch("/api/import-csv")
       .then((response) => response.json())
-      .then((payload) => setImports(payload.history as ImportRecord[]))
+      .then((payload) => setImports(Array.isArray(payload.history) ? (payload.history as ImportRecord[]) : []))
+      .catch(() => setImports([]))
   }, [])
 
   const bColor = getBreakevenColor(kpis.pct_breakeven)

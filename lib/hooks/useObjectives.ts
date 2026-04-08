@@ -20,8 +20,24 @@ export function useObjectives() {
 
   useEffect(() => {
     fetch("/api/objectives")
-      .then((response) => response.json())
-      .then((payload: ObjectivePayload) => setData(payload))
+      .then(async (response) => {
+        const payload = (await response.json()) as Partial<ObjectivePayload>
+        return {
+          actions: Array.isArray(payload.actions) ? payload.actions : [],
+          objectives: Array.isArray(payload.objectives) ? payload.objectives : [],
+          monthlyObjectives: Array.isArray(payload.monthlyObjectives) ? payload.monthlyObjectives : [],
+          monthlyReal: Array.isArray(payload.monthlyReal) ? payload.monthlyReal : [],
+        } satisfies ObjectivePayload
+      })
+      .then((payload) => setData(payload))
+      .catch(() =>
+        setData({
+          actions: [],
+          objectives: [],
+          monthlyObjectives: [],
+          monthlyReal: [],
+        })
+      )
   }, [])
 
   const updateActionStatus = async (id: string, status: ActionItem["status"]) => {
@@ -30,8 +46,9 @@ export function useObjectives() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
     })
+    if (!response.ok) return
     const payload = await response.json()
-    setData((prev) => ({ ...prev, actions: payload.actions as ActionItem[] }))
+    setData((prev) => ({ ...prev, actions: Array.isArray(payload.actions) ? (payload.actions as ActionItem[]) : prev.actions }))
   }
 
   const cumulativeReal = data.monthlyReal.reduce((sum, item) => sum + item.real, 0)

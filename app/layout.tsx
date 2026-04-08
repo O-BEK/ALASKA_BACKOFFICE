@@ -9,6 +9,11 @@ const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans" })
 export const metadata: Metadata = {
   title: "Alaska Pilot",
   description: "Pilotage Alaska Neo Bistrot",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { buildMonthlyKpis } from "@/lib/server/analytics"
+import { ACTION_ITEMS, MONTHLY_OBJECTIVES_2026, OBJECTIVES } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/server"
 import { readSnapshot, updateActionStatus } from "@/lib/server/supabase-store"
 
@@ -30,7 +31,19 @@ export async function GET() {
       monthlyReal,
     })
   } catch {
-    return NextResponse.json({ error: "Impossible de charger les objectifs." }, { status: 500 })
+    return NextResponse.json({
+      actions: ACTION_ITEMS,
+      objectives: OBJECTIVES,
+      monthlyObjectives: MONTHLY_OBJECTIVES_2026,
+      monthlyReal: MONTHLY_OBJECTIVES_2026.map((item) => ({
+        year: item.year,
+        month: item.month,
+        real: 0,
+        target: item.target_ca,
+        notes: item.notes || "",
+      })),
+      degraded: true,
+    })
   }
 }
 
