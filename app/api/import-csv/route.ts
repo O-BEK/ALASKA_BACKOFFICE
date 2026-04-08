@@ -64,8 +64,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Contenu CSV requis." }, { status: 400 })
   }
 
+  let parsed: ParsedDay[]
+
   try {
-    const parsed = parsedFromBody.length > 0 ? parsedFromBody : parseCSV(content)
+    parsed = parsedFromBody.length > 0 ? parsedFromBody : parseCSV(content)
+  } catch {
+    return NextResponse.json(
+      { error: "Format CSV non reconnu. Vérifiez que c'est bien un export caisse valide." },
+      { status: 400 }
+    )
+  }
+
+  try {
     const db = await readSnapshot(supabase, { seedIfEmpty: true, userId: user.id })
     const existingDates = new Set(db.daily_sales.map((item) => item.date))
     const duplicates = parsed.filter((row) => existingDates.has(row.date)).map((row) => row.date)
@@ -92,7 +102,10 @@ export async function POST(request: Request) {
       .single()
 
     if (importResult.error) {
-      return NextResponse.json({ error: "Impossible d'enregistrer l'import." }, { status: 500 })
+      return NextResponse.json(
+        { error: `Impossible d'enregistrer l'import. ${importResult.error.message}` },
+        { status: 500 }
+      )
     }
 
     const upsertRows = parsed.map((row) => {
@@ -114,7 +127,10 @@ export async function POST(request: Request) {
 
     const salesResult = await supabase.from("daily_sales").upsert(upsertRows, { onConflict: "date" })
     if (salesResult.error) {
-      return NextResponse.json({ error: "Impossible de mettre à jour les ventes importées." }, { status: 500 })
+      return NextResponse.json(
+        { error: `Impossible de mettre à jour les ventes importées. ${salesResult.error.message}` },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
@@ -122,10 +138,8 @@ export async function POST(request: Request) {
       duplicates,
       result: importResult.data,
     })
-  } catch {
-    return NextResponse.json(
-      { error: "Format CSV non reconnu. Vérifiez que c'est bien un export caisse valide." },
-      { status: 400 }
-    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur serveur inconnue."
+    return NextResponse.json({ error: `Import impossible. ${message}` }, { status: 500 })
   }
 }
