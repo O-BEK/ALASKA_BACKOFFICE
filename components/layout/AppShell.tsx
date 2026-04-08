@@ -35,7 +35,7 @@ export function AppShell({
   const router = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const navItems = navByRole[user.role]
+  const navItems = navByRole[user.role] ?? navByRole.manager
 
   const signOut = async () => {
     const supabase = createClient()

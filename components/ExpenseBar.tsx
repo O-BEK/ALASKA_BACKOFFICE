@@ -9,7 +9,8 @@ interface ExpenseBarProps {
 }
 
 export function ExpenseBar({ items, maxItems = 10 }: ExpenseBarProps) {
-  const visible = items.slice(0, maxItems)
+  const safeItems = Array.isArray(items) ? items.filter((item): item is ExpenseBarItem => !!item && typeof item.label === "string" && typeof item.amount === "number") : []
+  const visible = safeItems.slice(0, maxItems)
   const maxAmount = Math.max(...visible.map(i => i.amount), 1)
 
   if (visible.length === 0) {

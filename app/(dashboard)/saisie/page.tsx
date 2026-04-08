@@ -44,19 +44,21 @@ export default function SaisiePage() {
   const { kpis: monthKpis } = useDashboard(viewMonth)
   const weekData = useWeekView(weekStart)
   const { entries: weekEntries, dates: weekDates, updateCA: updateWeekCA, updateExpense: updateWeekExpense } = useWeekEntries(weekStart)
+  const safeExpenses = Array.isArray(entry.expenses) ? entry.expenses : []
+  const safeWeekDays = Array.isArray(weekData.days) ? weekData.days : []
 
   const staff = FIXED_CHARGES.filter(c => c.is_staff && c.is_active)
   const visibleStaff = showAllStaff ? staff : staff.filter(s => {
-    const exp = entry.expenses.find(e => e.label === s.name)
+    const exp = safeExpenses.find(e => e.label === s.name)
     return exp && exp.amount > 0
   })
 
   const getOrCreateExpense = (label: string, category: "MP" | "RH" | "CHARGES" | "AUTRE") => {
-    return entry.expenses.find(e => e.label === label) || { id: `${label}-${dateStr}`, category, label, amount: 0 }
+    return safeExpenses.find(e => e.label === label) || { id: `${label}-${dateStr}`, category, label, amount: 0 }
   }
 
   const handleExpenseChange = (label: string, category: "MP" | "RH" | "CHARGES" | "AUTRE", amount: number) => {
-    const existing = entry.expenses.find(e => e.label === label)
+    const existing = safeExpenses.find(e => e.label === label)
     if (existing) {
       updateExpense(existing.id, Math.max(0, amount))
     } else if (amount > 0) {
@@ -64,7 +66,7 @@ export default function SaisiePage() {
     }
   }
 
-  const totalExpenses = entry.expenses.reduce((s, e) => s + e.amount, 0)
+  const totalExpenses = safeExpenses.reduce((s, e) => s + e.amount, 0)
   const soldeCaisse = entry.ca_caisse - totalExpenses
   const statusIcon = entry.ca_caisse > 0 && totalExpenses > 0 ? "✅"
     : entry.ca_caisse > 0 || totalExpenses > 0 ? "🟡" : "⬜"
@@ -227,7 +229,7 @@ export default function SaisiePage() {
             </div>
             <Card className="bg-white border border-alaska-sage-lt rounded-xl">
               <CardContent className="pt-4 pb-2 space-y-2">
-                {weekData.days.map(day => (
+                {safeWeekDays.map(day => (
                   <button key={day.date} onClick={() => { setDate(new Date(day.date)); setTab("Saisie") }}
                     className="w-full flex items-center justify-between p-3 bg-alaska-sage-lt/40 hover:bg-alaska-sage-lt rounded-lg transition text-left">
                     <div className="flex items-center gap-3">

@@ -21,6 +21,8 @@ export default function SemainePage() {
 
   const weekData = useWeekView(weekStart)
   const { entries, dates, updateCA, updateExpense } = useWeekEntries(weekStart)
+  const safeDays = Array.isArray(weekData.days) ? weekData.days : []
+  const safeExpensesByLabel = Array.isArray(weekData.expensesByLabel) ? weekData.expensesByLabel : []
 
   const weeklyBreakeven = getWeeklyBreakeven()
   const soldeSemaine = weekData.totalCA - weekData.totalDep
@@ -103,7 +105,7 @@ export default function SemainePage() {
             <CardTitle className="text-sm text-alaska-dark">7 jours</CardTitle>
           </CardHeader>
           <CardContent className="pb-4 space-y-2">
-                {weekData.days.map(day => (
+                {safeDays.map(day => (
                   <button key={day.date} onClick={() => router.push(`/saisie?date=${day.date}`)}
                 className="w-full flex items-center justify-between p-3 bg-alaska-sage-lt/40 hover:bg-alaska-sage-lt rounded-lg transition text-left">
                 <div className="flex items-center gap-3">
@@ -127,13 +129,13 @@ export default function SemainePage() {
       </div>
 
       {/* Dépenses par poste */}
-      {weekData.expensesByLabel.length > 0 && (
+      {safeExpensesByLabel.length > 0 && (
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardHeader className="pb-2 pt-4">
             <CardTitle className="text-base text-alaska-dark">Dépenses par poste — cette semaine</CardTitle>
           </CardHeader>
           <CardContent className="pb-5">
-            <ExpenseBar items={weekData.expensesByLabel} maxItems={6}/>
+            <ExpenseBar items={safeExpensesByLabel} maxItems={6}/>
           </CardContent>
         </Card>
       )}

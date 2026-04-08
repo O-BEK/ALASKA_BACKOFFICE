@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { parseImportHistoryPayload } from "@/lib/contracts"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,11 +29,15 @@ export default function ImportPage() {
   const [history, setHistory] = useState<ImportRecord[]>([])
   const [error, setError] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  const safePreview = Array.isArray(preview) ? preview : []
+  const safeDuplicates = Array.isArray(duplicates) ? duplicates : []
+  const safeHistory = Array.isArray(history) ? history : []
 
   useEffect(() => {
     fetch("/api/import-csv")
-      .then((response) => response.json())
-      .then((payload) => setHistory(payload.history as ImportRecord[]))
+      .then(async (response) => parseImportHistoryPayload(await response.json()))
+      .then((payload) => setHistory(payload.history))
+      .catch(() => setHistory([]))
   }, [])
 
   const handleFile = async (selected: File) => {
@@ -56,8 +61,8 @@ export default function ImportPage() {
         return
       }
 
-      setPreview(payload.parsed as ParsedDay[])
-      setDuplicates(payload.duplicates as string[])
+      setPreview(Array.isArray(payload.parsed) ? payload.parsed as ParsedDay[] : [])
+      setDuplicates(Array.isArray(payload.duplicates) ? payload.duplicates as string[] : [])
       setStep("preview")
     } catch {
       setError("Impossible d'analyser le fichier pour le moment.")
@@ -141,7 +146,7 @@ export default function ImportPage() {
               <CardTitle className="text-sm text-alaska-dark">Derniers imports</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 pb-4">
-              {history.map((imp) => (
+              {safeHistory.map((imp) => (
                 <div key={imp.id} className="flex items-center gap-3 p-2 bg-alaska-sage-lt/30 rounded-lg">
                   <CheckCircle2 size={16} className="text-alaska-sage flex-shrink-0" />
                   <div className="flex-1 min-w-0">
@@ -166,21 +171,21 @@ export default function ImportPage() {
               <div>
                 <p className="font-semibold text-sm text-alaska-dark">{file?.name}</p>
                 <p className="text-xs text-alaska-sage">
-                  {preview.length} jours · {preview.reduce((sum, row) => sum + row.tickets_count, 0)} tickets
+                  {safePreview.length} jours · {safePreview.reduce((sum, row) => sum + row.tickets_count, 0)} tickets
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          {duplicates.length > 0 && (
+          {safeDuplicates.length > 0 && (
             <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
-              Les dates suivantes seront mises à jour: {duplicates.join(", ")}
+              Les dates suivantes seront mises à jour: {safeDuplicates.join(", ")}
             </div>
           )}
 
           <Card className="bg-white border border-alaska-sage-lt rounded-xl">
             <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm text-alaska-dark">Aperçu — {preview.length} jours</CardTitle>
+              <CardTitle className="text-sm text-alaska-dark">Aperçu — {safePreview.length} jours</CardTitle>
             </CardHeader>
             <CardContent className="pb-4">
               <div className="overflow-x-auto">
@@ -194,7 +199,7 @@ export default function ImportPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-alaska-sage-lt">
-                    {preview.slice(0, 10).map((row) => (
+                    {safePreview.slice(0, 10).map((row) => (
                       <tr key={row.date} className="hover:bg-alaska-sage-lt/30">
                         <td className="py-1.5 text-alaska-dark">{row.date}</td>
                         <td className="text-right font-playfair font-medium text-alaska-dark">{formatMAD(row.ca_caisse)}</td>
@@ -204,7 +209,7 @@ export default function ImportPage() {
                     ))}
                   </tbody>
                 </table>
-                {preview.length > 10 && <p className="text-xs text-alaska-muted text-center pt-2">+ {preview.length - 10} jours supplémentaires</p>}
+                {safePreview.length > 10 && <p className="text-xs text-alaska-muted text-center pt-2">+ {safePreview.length - 10} jours supplémentaires</p>}
               </div>
             </CardContent>
           </Card>
