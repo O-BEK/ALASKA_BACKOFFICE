@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { parseCSV } from "@/lib/csv-parser"
 import { createClient } from "@/lib/supabase/server"
-import { readSnapshot } from "@/lib/server/supabase-store"
 import type { ImportRecord } from "@/lib/types"
 
 type ParsedDay = {
@@ -42,14 +41,43 @@ export async function GET() {
   const supabase = createClient()
 
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    const db = await readSnapshot(supabase, { seedIfEmpty: Boolean(user), userId: user?.id || null })
-    return NextResponse.json({ history: db.import_history })
-  } catch {
-    return NextResponse.json({ error: "Impossible de charger l'historique d'import." }, { status: 500 })
+    const result = await supabase
+      .from("pos_imports")
+      .select("id, filename, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
+      .order("imported_at", { ascending: false })
+
+    if (isMissingPosImportsTable(result.error)) {
+      return NextResponse.json({ history: [] })
+    }
+
+    if (result.error) {
+      return NextResponse.json({ error: `Impossible de charger l'historique d'import. ${result.error.message}` }, { status: 500 })
+    }
+
+    return NextResponse.json({ history: result.data || [] })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur serveur inconnue."
+    return NextResponse.json({ error: `Impossible de charger l'historique d'import. ${message}` }, { status: 500 })
   }
+}
+
+type ExistingSale = {
+  date: string
+  ca_b2b: number | null
+  notes: string | null
+  created_by: string | null
+}
+
+async function readExistingSales(supabase: ReturnType<typeof createClient>) {
+  const result = await supabase
+    .from("daily_sales")
+    .select("date, ca_b2b, notes, created_by")
+
+  if (result.error) {
+    throw new Error(result.error.message)
+  }
+
+  return (result.data || []) as ExistingSale[]
 }
 
 export async function POST(request: Request) {
@@ -81,9 +109,17 @@ export async function POST(request: Request) {
     )
   }
 
+  if (parsed.length === 0) {
+    return NextResponse.json(
+      { error: "Format CSV non reconnu. Vérifiez que c'est bien un export caisse valide." },
+      { status: 400 }
+    )
+  }
+
   try {
-    const db = await readSnapshot(supabase, { seedIfEmpty: true, userId: user.id })
-    const existingDates = new Set(db.daily_sales.map((item) => item.date))
+    const existingSales = await readExistingSales(supabase)
+    const existingSalesByDate = new Map(existingSales.map((item) => [item.date, item]))
+    const existingDates = new Set(existingSales.map((item) => item.date))
     const duplicates = parsed.filter((row) => existingDates.has(row.date)).map((row) => row.date)
 
     if (body?.commit !== true) {
@@ -127,7 +163,7 @@ export async function POST(request: Request) {
     }
 
     const upsertRows = parsed.map((row) => {
-      const existing = db.daily_sales.find((item) => item.date === row.date)
+      const existing = existingSalesByDate.get(row.date)
       return {
         date: row.date,
         ca_caisse: row.ca_caisse,
