@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { parseCSV } from "@/lib/csv-parser"
 import { createClient } from "@/lib/supabase/server"
 import { readSnapshot } from "@/lib/server/supabase-store"
+import type { ImportRecord } from "@/lib/types"
 
 type ParsedDay = {
   date: string
@@ -30,6 +31,11 @@ function sanitizeParsedRows(input: unknown): ParsedDay[] {
       }
     })
     .filter((row): row is ParsedDay => !!row)
+}
+
+function isMissingPosImportsTable(error: { message?: string } | null | undefined) {
+  const message = error?.message || ""
+  return message.includes("Could not find the table 'public.pos_imports'") || message.includes('relation "public.pos_imports" does not exist')
 }
 
 export async function GET() {
@@ -85,7 +91,7 @@ export async function POST(request: Request) {
     }
 
     const importedAt = new Date().toISOString()
-    const importResult = await supabase
+    const importInsertResult = await supabase
       .from("pos_imports")
       .insert({
         filename,
@@ -101,11 +107,23 @@ export async function POST(request: Request) {
       .select("id, filename, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
       .single()
 
-    if (importResult.error) {
+    if (importInsertResult.error && !isMissingPosImportsTable(importInsertResult.error)) {
       return NextResponse.json(
-        { error: `Impossible d'enregistrer l'import. ${importResult.error.message}` },
+        { error: `Impossible d'enregistrer l'import. ${importInsertResult.error.message}` },
         { status: 500 }
       )
+    }
+
+    const importRecord: ImportRecord = importInsertResult.data || {
+      id: `legacy-${Date.now()}`,
+      filename,
+      imported_at: importedAt,
+      rows_processed: parsed.reduce((sum, row) => sum + row.tickets_count, 0),
+      days_imported: parsed.length,
+      date_range_start: parsed[0]?.date || "",
+      date_range_end: parsed[parsed.length - 1]?.date || "",
+      ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse, 0),
+      status: duplicates.length > 0 ? "partial" : "success",
     }
 
     const upsertRows = parsed.map((row) => {
@@ -119,7 +137,7 @@ export async function POST(request: Request) {
         tickets_count: row.tickets_count,
         notes: existing?.notes || "",
         source: "csv_import",
-        import_id: importResult.data.id,
+        import_id: importInsertResult.data?.id || null,
         created_by: existing?.created_by || user.id,
         updated_at: importedAt,
       }
@@ -136,7 +154,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       parsed,
       duplicates,
-      result: importResult.data,
+      result: importRecord,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur serveur inconnue."

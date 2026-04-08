@@ -24,6 +24,11 @@ type SupabaseClientLike = {
   from: (_table: string) => any
 }
 
+function isMissingTableError(error: { message?: string } | null | undefined, table: string) {
+  const message = error?.message || ""
+  return message.includes(`Could not find the table 'public.${table}'`) || message.includes(`relation "public.${table}" does not exist`)
+}
+
 function nowIso() {
   return new Date().toISOString()
 }
@@ -270,8 +275,11 @@ export async function ensureSeedData(client: SupabaseClientLike, userId: string 
 
   const payloads = buildSeedPayloads(userId)
 
+  const optionalInserts = []
+  const posImportsInsert = client.from("pos_imports").insert(payloads.imports)
+  optionalInserts.push(posImportsInsert)
+
   const inserts = [
-    client.from("pos_imports").insert(payloads.imports),
     client.from("fixed_charges").insert(payloads.fixedCharges),
     client.from("objectives").upsert(payloads.objectives, { onConflict: "year,type,scenario" }),
     client.from("monthly_objectives").upsert(payloads.monthlyObjectives, { onConflict: "year,month" }),
@@ -280,7 +288,14 @@ export async function ensureSeedData(client: SupabaseClientLike, userId: string 
     client.from("expenses").insert(payloads.expenses),
   ]
 
-  const results = await Promise.all(inserts)
+  const [optionalResults, results] = await Promise.all([
+    Promise.all(optionalInserts),
+    Promise.all(inserts),
+  ])
+
+  const optionalFailed = optionalResults.find((result) => result.error && !isMissingTableError(result.error, "pos_imports"))
+  if (optionalFailed?.error) throw new Error(optionalFailed.error.message)
+
   const failed = results.find((result) => result.error)
   if (failed?.error) throw new Error(failed.error.message)
 }
@@ -308,7 +323,9 @@ export async function readSnapshot(client: SupabaseClientLike, options?: { seedI
     objectives: requireData(objectivesRes.data, objectivesRes.error, []).map(mapObjective),
     monthly_objectives: requireData(monthlyRes.data, monthlyRes.error, []).map(mapMonthlyObjective),
     action_items: requireData(actionsRes.data, actionsRes.error, []).map(mapActionItem),
-    import_history: requireData(importsRes.data, importsRes.error, []).map(mapImportRecord),
+    import_history: isMissingTableError(importsRes.error, "pos_imports")
+      ? []
+      : requireData(importsRes.data, importsRes.error, []).map(mapImportRecord),
   }
 }
 
