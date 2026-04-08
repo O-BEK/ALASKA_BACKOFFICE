@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { parseDailyEntry } from "@/lib/contracts"
 import type { DailyEntry, ExpenseItem } from "@/lib/types"
 
 function emptyEntry(date: string): DailyEntry {
@@ -25,7 +26,7 @@ async function persistEntry(entry: DailyEntry) {
   })
 
   if (!response.ok) throw new Error("Erreur de sauvegarde")
-  return (await response.json()) as DailyEntry
+  return parseDailyEntry(await response.json())
 }
 
 export function useDailyEntry(date: string) {
@@ -36,10 +37,16 @@ export function useDailyEntry(date: string) {
   useEffect(() => {
     let active = true
     fetch(`/api/daily-entry?date=${date}`)
-      .then((response) => response.json())
-      .then((data: DailyEntry) => {
+      .then(async (response) => parseDailyEntry(await response.json()))
+      .then((data) => {
         if (active) {
           setEntry(data)
+          setSaved(true)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setEntry(emptyEntry(date))
           setSaved(true)
         }
       })

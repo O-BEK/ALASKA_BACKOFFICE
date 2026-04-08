@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { parseChargesPayload } from "@/lib/contracts"
 import type { FixedCharge } from "@/lib/types"
 import { calcBreakeven } from "@/lib/calculations"
 
@@ -10,8 +11,9 @@ export function useCharges() {
 
   useEffect(() => {
     fetch("/api/charges")
-      .then((response) => response.json())
-      .then((data) => setCharges(data.charges as FixedCharge[]))
+      .then(async (response) => parseChargesPayload(await response.json()))
+      .then((data) => setCharges(data.charges))
+      .catch(() => setCharges([]))
   }, [])
 
   const totalActive = useMemo(
@@ -28,8 +30,8 @@ export function useCharges() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, amount }),
     })
-    const data = await response.json()
-    setCharges(data.charges as FixedCharge[])
+    const data = parseChargesPayload(await response.json())
+    setCharges(data.charges)
   }
 
   const deactivateCharge = async (id: string) => {
@@ -38,8 +40,8 @@ export function useCharges() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, is_active: false }),
     })
-    const data = await response.json()
-    setCharges(data.charges as FixedCharge[])
+    const data = parseChargesPayload(await response.json())
+    setCharges(data.charges)
   }
 
   const byCategory = useMemo(

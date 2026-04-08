@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
+import { parseImportHistoryPayload, parseObjectivesPayload } from "@/lib/contracts"
 import { useDashboard } from "@/lib/hooks/useDashboard"
 import type { ActionItem, ImportRecord } from "@/lib/types"
 import { formatMAD, formatPct } from "@/lib/utils"
@@ -47,12 +48,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetch("/api/objectives")
-      .then((response) => response.json())
-      .then((payload) => setActions(Array.isArray(payload.actions) ? (payload.actions as ActionItem[]) : []))
+      .then(async (response) => parseObjectivesPayload(await response.json()))
+      .then((payload) => setActions(payload.actions))
       .catch(() => setActions([]))
     fetch("/api/import-csv")
-      .then((response) => response.json())
-      .then((payload) => setImports(Array.isArray(payload.history) ? (payload.history as ImportRecord[]) : []))
+      .then(async (response) => parseImportHistoryPayload(await response.json()))
+      .then((payload) => setImports(payload.history))
       .catch(() => setImports([]))
   }, [])
 

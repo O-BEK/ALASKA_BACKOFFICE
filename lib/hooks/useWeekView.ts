@@ -2,6 +2,7 @@
 
 import { format } from "date-fns"
 import { useEffect, useState } from "react"
+import { parseWeekPayload } from "@/lib/contracts"
 
 interface WeekSummary {
   days: {
@@ -36,19 +37,10 @@ export function useWeekView(weekStart: Date) {
     let active = true
     const start = format(weekStart, "yyyy-MM-dd")
     fetch(`/api/week?start=${start}`)
-      .then((response) => response.json())
+      .then(async (response) => parseWeekPayload(await response.json()))
       .then((payload) => {
         if (!active) return
-        const summary = payload?.summary as Partial<WeekSummary> | undefined
-        setData({
-          days: Array.isArray(summary?.days) ? summary.days : [],
-          totalCA: typeof summary?.totalCA === "number" ? summary.totalCA : 0,
-          totalDep: typeof summary?.totalDep === "number" ? summary.totalDep : 0,
-          marge: typeof summary?.marge === "number" ? summary.marge : 0,
-          weeklyBreakeven: typeof summary?.weeklyBreakeven === "number" ? summary.weeklyBreakeven : 0,
-          pctBreakeven: typeof summary?.pctBreakeven === "number" ? summary.pctBreakeven : 0,
-          expensesByLabel: Array.isArray(summary?.expensesByLabel) ? summary.expensesByLabel : [],
-        })
+        setData(payload.summary)
       })
       .catch(() => {
         if (active) setData(emptySummary)

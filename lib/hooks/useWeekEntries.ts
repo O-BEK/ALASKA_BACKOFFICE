@@ -2,6 +2,7 @@
 
 import { addDays, format } from "date-fns"
 import { useEffect, useState } from "react"
+import { parseDailyEntry, parseWeekPayload } from "@/lib/contracts"
 import type { DailyEntry, ExpenseItem } from "@/lib/types"
 
 async function saveEntry(entry: DailyEntry) {
@@ -11,7 +12,7 @@ async function saveEntry(entry: DailyEntry) {
     body: JSON.stringify(entry),
   })
   if (!response.ok) throw new Error("Erreur de sauvegarde semaine")
-  return (await response.json()) as DailyEntry
+  return parseDailyEntry(await response.json())
 }
 
 export function useWeekEntries(weekStart: Date) {
@@ -22,9 +23,12 @@ export function useWeekEntries(weekStart: Date) {
     let active = true
     const start = format(weekStart, "yyyy-MM-dd")
     fetch(`/api/week?start=${start}`)
-      .then((response) => response.json())
+      .then(async (response) => parseWeekPayload(await response.json()))
       .then((payload) => {
-        if (active) setEntries(payload.entries as Record<string, DailyEntry>)
+        if (active) setEntries(payload.entries)
+      })
+      .catch(() => {
+        if (active) setEntries({})
       })
 
     return () => {

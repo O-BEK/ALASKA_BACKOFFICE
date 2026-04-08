@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { parseDashboardState } from "@/lib/contracts"
 import type { MonthlyKPIs } from "@/lib/types"
 
 interface DashboardState {
@@ -38,20 +39,7 @@ export function useDashboard(month: string) {
     setLoading(true)
 
     fetch(`/api/dashboard?month=${month}`)
-      .then(async (response) => {
-        const payload = (await response.json()) as Partial<DashboardState>
-        return {
-          kpis: payload.kpis
-            ? {
-                ...emptyKpis,
-                ...payload.kpis,
-                month: payload.kpis.month || month,
-              }
-            : { ...emptyKpis, month },
-          delta_ca: typeof payload.delta_ca === "number" ? payload.delta_ca : 0,
-          last12: Array.isArray(payload.last12) ? payload.last12 : [],
-        } satisfies DashboardState
-      })
+      .then(async (response) => parseDashboardState(await response.json(), month))
       .then((data) => {
         if (!active) return
         setState(data)

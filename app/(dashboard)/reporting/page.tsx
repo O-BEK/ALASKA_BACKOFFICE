@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { parseReportingPayload } from "@/lib/contracts"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -43,19 +44,7 @@ export default function ReportingPage() {
 
   useEffect(() => {
     fetch(`/api/reporting?month=${month}`)
-      .then(async (response) => {
-        const data = (await response.json()) as Partial<ReportingPayload>
-        return {
-          monthCA: typeof data.monthCA === "number" ? data.monthCA : 0,
-          prevCA: typeof data.prevCA === "number" ? data.prevCA : 0,
-          monthExp: typeof data.monthExp === "number" ? data.monthExp : 0,
-          expByLabel: Array.isArray(data.expByLabel) ? data.expByLabel : [],
-          byCategory: Array.isArray(data.byCategory) ? data.byCategory : [],
-          pctSeuil: typeof data.pctSeuil === "number" ? data.pctSeuil : 0,
-          soldeMois: typeof data.soldeMois === "number" ? data.soldeMois : 0,
-          last6: Array.isArray(data.last6) ? data.last6 : [],
-        } satisfies ReportingPayload
-      })
+      .then(async (response) => parseReportingPayload(await response.json()))
       .then((data) => setPayload(data))
       .catch(() =>
         setPayload({

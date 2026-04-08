@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { parseObjectivesPayload } from "@/lib/contracts"
 import type { ActionItem, MonthlyObjective, Objective } from "@/lib/types"
 
 interface ObjectivePayload {
@@ -20,15 +21,7 @@ export function useObjectives() {
 
   useEffect(() => {
     fetch("/api/objectives")
-      .then(async (response) => {
-        const payload = (await response.json()) as Partial<ObjectivePayload>
-        return {
-          actions: Array.isArray(payload.actions) ? payload.actions : [],
-          objectives: Array.isArray(payload.objectives) ? payload.objectives : [],
-          monthlyObjectives: Array.isArray(payload.monthlyObjectives) ? payload.monthlyObjectives : [],
-          monthlyReal: Array.isArray(payload.monthlyReal) ? payload.monthlyReal : [],
-        } satisfies ObjectivePayload
-      })
+      .then(async (response) => parseObjectivesPayload(await response.json()))
       .then((payload) => setData(payload))
       .catch(() =>
         setData({
@@ -47,8 +40,8 @@ export function useObjectives() {
       body: JSON.stringify({ id, status }),
     })
     if (!response.ok) return
-    const payload = await response.json()
-    setData((prev) => ({ ...prev, actions: Array.isArray(payload.actions) ? (payload.actions as ActionItem[]) : prev.actions }))
+    const payload = parseObjectivesPayload(await response.json())
+    setData((prev) => ({ ...prev, actions: payload.actions }))
   }
 
   const cumulativeReal = data.monthlyReal.reduce((sum, item) => sum + item.real, 0)
