@@ -1,0 +1,101 @@
+import { NextResponse } from "next/server"
+import { parseCSV } from "@/lib/csv-parser"
+import { createClient } from "@/lib/supabase/server"
+import { readSnapshot } from "@/lib/server/supabase-store"
+
+export async function GET() {
+  const supabase = createClient()
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const db = await readSnapshot(supabase, { seedIfEmpty: Boolean(user), userId: user?.id || null })
+    return NextResponse.json({ history: db.import_history })
+  } catch {
+    return NextResponse.json({ error: "Impossible de charger l'historique d'import." }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user || user.user_metadata?.role !== "admin") {
+    return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+  }
+
+  const body = await request.json().catch(() => null)
+  const content = String(body?.content || "")
+  const filename = String(body?.filename || "import.csv")
+
+  if (!content) {
+    return NextResponse.json({ error: "Contenu CSV requis." }, { status: 400 })
+  }
+
+  try {
+    const parsed = parseCSV(content)
+    const db = await readSnapshot(supabase, { seedIfEmpty: true, userId: user.id })
+    const existingDates = new Set(db.daily_sales.map((item) => item.date))
+    const duplicates = parsed.filter((row) => existingDates.has(row.date)).map((row) => row.date)
+
+    if (body?.commit !== true) {
+      return NextResponse.json({ parsed, duplicates, rowsIgnored: 0 })
+    }
+
+    const importedAt = new Date().toISOString()
+    const importResult = await supabase
+      .from("pos_imports")
+      .insert({
+        filename,
+        imported_by: user.id,
+        imported_at: importedAt,
+        rows_processed: parsed.reduce((sum, row) => sum + row.tickets_count, 0),
+        days_imported: parsed.length,
+        date_range_start: parsed[0]?.date || null,
+        date_range_end: parsed[parsed.length - 1]?.date || null,
+        ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse, 0),
+        status: duplicates.length > 0 ? "partial" : "success",
+      })
+      .select("id, filename, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
+      .single()
+
+    if (importResult.error) {
+      return NextResponse.json({ error: "Impossible d'enregistrer l'import." }, { status: 500 })
+    }
+
+    const upsertRows = parsed.map((row) => {
+      const existing = db.daily_sales.find((item) => item.date === row.date)
+      return {
+        date: row.date,
+        ca_caisse: row.ca_caisse,
+        ca_b2b: existing?.ca_b2b || 0,
+        ca_soir: row.ca_soir,
+        pct_soir: row.pct_soir,
+        tickets_count: row.tickets_count,
+        notes: existing?.notes || "",
+        source: "csv_import",
+        import_id: importResult.data.id,
+        created_by: existing?.created_by || user.id,
+        updated_at: importedAt,
+      }
+    })
+
+    const salesResult = await supabase.from("daily_sales").upsert(upsertRows, { onConflict: "date" })
+    if (salesResult.error) {
+      return NextResponse.json({ error: "Impossible de mettre à jour les ventes importées." }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      parsed,
+      duplicates,
+      result: importResult.data,
+    })
+  } catch {
+    return NextResponse.json(
+      { error: "Format CSV non reconnu. Vérifiez que c'est bien un export caisse valide." },
+      { status: 400 }
+    )
+  }
+}
