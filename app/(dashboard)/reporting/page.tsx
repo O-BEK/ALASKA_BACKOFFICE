@@ -43,8 +43,32 @@ export default function ReportingPage() {
 
   useEffect(() => {
     fetch(`/api/reporting?month=${month}`)
-      .then((response) => response.json())
-      .then((data: ReportingPayload) => setPayload(data))
+      .then(async (response) => {
+        const data = (await response.json()) as Partial<ReportingPayload>
+        return {
+          monthCA: typeof data.monthCA === "number" ? data.monthCA : 0,
+          prevCA: typeof data.prevCA === "number" ? data.prevCA : 0,
+          monthExp: typeof data.monthExp === "number" ? data.monthExp : 0,
+          expByLabel: Array.isArray(data.expByLabel) ? data.expByLabel : [],
+          byCategory: Array.isArray(data.byCategory) ? data.byCategory : [],
+          pctSeuil: typeof data.pctSeuil === "number" ? data.pctSeuil : 0,
+          soldeMois: typeof data.soldeMois === "number" ? data.soldeMois : 0,
+          last6: Array.isArray(data.last6) ? data.last6 : [],
+        } satisfies ReportingPayload
+      })
+      .then((data) => setPayload(data))
+      .catch(() =>
+        setPayload({
+          monthCA: 0,
+          prevCA: 0,
+          monthExp: 0,
+          expByLabel: [],
+          byCategory: [],
+          pctSeuil: 0,
+          soldeMois: 0,
+          last6: [],
+        })
+      )
   }, [month])
 
   const [year, rawMonth] = month.split("-").map(Number)
@@ -131,7 +155,7 @@ export default function ReportingPage() {
           <CardTitle className="text-base text-alaska-dark">Répartition des dépenses</CardTitle>
         </CardHeader>
         <CardContent>
-          {payload.byCategory.some((item) => item.value > 0) ? (
+          {Array.isArray(payload.byCategory) && payload.byCategory.some((item) => item && item.value > 0) ? (
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <ResponsiveContainer width={180} height={180}>
                 <PieChart>

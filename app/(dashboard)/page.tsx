@@ -58,7 +58,11 @@ export default function DashboardPage() {
 
   const bColor = getBreakevenColor(kpis.pct_breakeven)
   const topActions = safeActions.filter((a) => a.status !== "done").slice(0, 3)
-  const csvMissing = !safeImports.some((i) => i.date_range_start.startsWith(month))
+  const csvMissing = !safeImports.some((item) => {
+    if (!item || typeof item !== "object") return false
+    const start = typeof item.date_range_start === "string" ? item.date_range_start : ""
+    return start.startsWith(month)
+  })
 
   return (
     <div className="space-y-6">

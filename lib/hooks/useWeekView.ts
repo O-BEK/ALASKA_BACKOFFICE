@@ -38,7 +38,20 @@ export function useWeekView(weekStart: Date) {
     fetch(`/api/week?start=${start}`)
       .then((response) => response.json())
       .then((payload) => {
-        if (active) setData(payload.summary as WeekSummary)
+        if (!active) return
+        const summary = payload?.summary as Partial<WeekSummary> | undefined
+        setData({
+          days: Array.isArray(summary?.days) ? summary.days : [],
+          totalCA: typeof summary?.totalCA === "number" ? summary.totalCA : 0,
+          totalDep: typeof summary?.totalDep === "number" ? summary.totalDep : 0,
+          marge: typeof summary?.marge === "number" ? summary.marge : 0,
+          weeklyBreakeven: typeof summary?.weeklyBreakeven === "number" ? summary.weeklyBreakeven : 0,
+          pctBreakeven: typeof summary?.pctBreakeven === "number" ? summary.pctBreakeven : 0,
+          expensesByLabel: Array.isArray(summary?.expensesByLabel) ? summary.expensesByLabel : [],
+        })
+      })
+      .catch(() => {
+        if (active) setData(emptySummary)
       })
 
     return () => {
