@@ -6,6 +6,7 @@ import { useDailyEntry } from "@/lib/hooks/useDailyEntry"
 import { useDashboard } from "@/lib/hooks/useDashboard"
 import { useWeekView } from "@/lib/hooks/useWeekView"
 import { useWeekEntries } from "@/lib/hooks/useWeekEntries"
+import { useCaisseBalance } from "@/lib/hooks/useCaisseBalance"
 import { FIXED_CHARGES } from "@/lib/mock-data"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,6 +45,8 @@ export default function SaisiePage() {
   const { kpis: monthKpis } = useDashboard(viewMonth)
   const weekData = useWeekView(weekStart)
   const { entries: weekEntries, dates: weekDates, updateCA: updateWeekCA, updateExpense: updateWeekExpense } = useWeekEntries(weekStart)
+  const { balance, toDeposit, refetch: refetchBalance } = useCaisseBalance()
+  const [virementOpen, setVirementOpen] = useState(false)
   const safeExpenses = Array.isArray(entry.expenses) ? entry.expenses : []
   const safeWeekDays = Array.isArray(weekData.days) ? weekData.days : []
 
@@ -86,6 +89,23 @@ export default function SaisiePage() {
 
       {tab === "Saisie" && (
         <div className="space-y-4">
+          <Card className="bg-alaska-dark text-white rounded-xl">
+            <CardContent className="pt-4 pb-4 space-y-2">
+              <p className="text-[11px] text-alaska-muted uppercase tracking-wide mb-1">Solde caisse cumulé</p>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-alaska-muted">En caisse</span>
+                <span className="font-playfair font-bold text-lg text-white">{formatMAD(balance)}</span>
+              </div>
+              <div className="border-t border-white/20 pt-2 flex justify-between items-center">
+                <span className="text-sm text-alaska-muted">À déposer</span>
+                <span className={cn("font-playfair font-bold text-lg", toDeposit > 0 ? "text-alaska-gold" : "text-alaska-muted")}>
+                  {formatMAD(toDeposit)}
+                </span>
+              </div>
+              <p className="text-[10px] text-alaska-muted text-right">Réserve 1 000 MAD · Fonds permanent 1 500 MAD hors app</p>
+            </CardContent>
+          </Card>
+
           <Card className="bg-white border border-alaska-sage-lt rounded-xl">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between">
@@ -168,6 +188,25 @@ export default function SaisiePage() {
             })}
           </ExpenseGroup>
 
+          <Card className="bg-white border-l-4 border-alaska-gold border border-alaska-sage-lt rounded-xl">
+            <button
+              onClick={() => setVirementOpen(v => !v)}
+              className="w-full flex items-center justify-between p-4 text-left"
+            >
+              <span className="font-semibold text-alaska-dark text-sm">🏦 Virement banque</span>
+              {virementOpen ? <ChevronUp size={18} className="text-alaska-muted"/> : <ChevronDown size={18} className="text-alaska-muted"/>}
+            </button>
+            {virementOpen && (
+              <CardContent className="pt-0 pb-4">
+                <ExpenseRow
+                  label="Virement banque"
+                  value={getOrCreateExpense("Virement banque", "CHARGES").amount}
+                  onChange={v => handleExpenseChange("Virement banque", "CHARGES", v)}
+                />
+              </CardContent>
+            )}
+          </Card>
+
           <Card className="bg-alaska-dark text-white rounded-xl">
             <CardContent className="pt-4 pb-4 space-y-2">
               <div className="flex justify-between text-sm">
@@ -185,7 +224,7 @@ export default function SaisiePage() {
                   {soldeCaisse < 0 && " ⚠"}
                 </span>
               </div>
-              <Button onClick={save} className="w-full mt-3 bg-white text-alaska-dark hover:bg-alaska-sage-lt font-semibold">
+              <Button onClick={async () => { await save(); refetchBalance() }} className="w-full mt-3 bg-white text-alaska-dark hover:bg-alaska-sage-lt font-semibold">
                 {saved ? <><CheckCircle2 size={16} className="mr-2"/>Enregistré</> : <><Save size={16} className="mr-2"/>Enregistrer</>}
               </Button>
               {!saved && <p className="text-center text-xs text-alaska-muted flex items-center justify-center gap-1"><Clock size={10}/>Sauvegarde auto dans 2s</p>}
