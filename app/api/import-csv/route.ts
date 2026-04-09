@@ -63,6 +63,7 @@ export async function GET() {
 
 type ExistingSale = {
   date: string
+  ca_caisse: number | null
   ca_b2b: number | null
   notes: string | null
   created_by: string | null
@@ -71,7 +72,7 @@ type ExistingSale = {
 async function readExistingSales(supabase: ReturnType<typeof createClient>) {
   const result = await supabase
     .from("daily_sales")
-    .select("date, ca_b2b, notes, created_by")
+    .select("date, ca_caisse, ca_b2b, notes, created_by")
 
   if (result.error) {
     throw new Error(result.error.message)
@@ -166,7 +167,7 @@ export async function POST(request: Request) {
       const existing = existingSalesByDate.get(row.date)
       return {
         date: row.date,
-        ca_caisse: row.ca_caisse,
+        ca_caisse: existing?.ca_caisse || 0,
         ca_b2b: existing?.ca_b2b || 0,
         ca_soir: row.ca_soir,
         pct_soir: row.pct_soir,
