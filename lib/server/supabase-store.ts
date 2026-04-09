@@ -487,3 +487,70 @@ export async function updateActionStatus(client: SupabaseClientLike, payload: { 
   if (error) throw new Error(error.message)
   return (data || []).map(mapActionItem)
 }
+
+export async function applyAlcoolLicenseUplift(
+  client: SupabaseClientLike,
+  payload: { actionId: string; effectMonth: string; upliftPct: number }
+) {
+  // 1. Fetch all monthly_objectives
+  const { data: rows, error } = await client
+    .from("monthly_objectives")
+    .select("*")
+    .order("year", { ascending: true })
+    .order("month", { ascending: true })
+  if (error) throw new Error(error.message)
+
+  // 2. Apply uplift to months >= effectMonth
+  const [effYear, effMonth] = payload.effectMonth.split("-").map(Number)
+  const multiplier = 1 + payload.upliftPct / 100
+
+  const toUpdate = (rows || []).filter((row: any) => {
+    if (row.year > effYear) return true
+    if (row.year === effYear && row.month >= effMonth) return true
+    return false
+  })
+
+  for (const row of toUpdate) {
+    const newTarget = Math.round(Number(row.target_ca) * multiplier)
+    const { error: updateErr } = await client
+      .from("monthly_objectives")
+      .update({ target_ca: newTarget, notes: `${row.notes || ""} [+${payload.upliftPct}% alcool]`.trim() })
+      .eq("year", row.year)
+      .eq("month", row.month)
+    if (updateErr) throw new Error(updateErr.message)
+  }
+
+  // 3. Recalculate realistic annual objective for effYear
+  const { data: updatedRows } = await client
+    .from("monthly_objectives")
+    .select("*")
+    .eq("year", effYear)
+  const annualSum = (updatedRows || []).reduce((s: number, r: any) => s + Number(r.target_ca), 0)
+  await client
+    .from("objectives")
+    .update({ target_amount: annualSum, updated_at: nowIso() })
+    .eq("year", effYear)
+    .eq("scenario", "realistic")
+    .eq("type", "ca_total")
+
+  // 4. Mark action as done + store metadata
+  const { error: actionErr } = await client
+    .from("action_items")
+    .update({
+      status: "done",
+      completed_at: nowIso(),
+      updated_at: nowIso(),
+      metadata: { alcool_uplift_pct: payload.upliftPct, alcool_effect_month: payload.effectMonth },
+    })
+    .eq("id", payload.actionId)
+  if (actionErr) throw new Error(actionErr.message)
+
+  // 5. Return updated monthly_objectives
+  const { data: finalRows, error: finalErr } = await client
+    .from("monthly_objectives")
+    .select("*")
+    .order("year", { ascending: true })
+    .order("month", { ascending: true })
+  if (finalErr) throw new Error(finalErr.message)
+  return (finalRows || []).map(mapMonthlyObjective)
+}
