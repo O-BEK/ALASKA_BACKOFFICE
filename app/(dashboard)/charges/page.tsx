@@ -5,7 +5,7 @@ import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Edit2, UserX, Zap } from "lucide-react"
+import { Edit2, UserX, Zap, Plus, X } from "lucide-react"
 
 const CAT_LABELS: Record<string, string> = {
   IMMOBILIER: "🏠 Immobilier", PERSONNEL: "👥 Personnel",
@@ -13,11 +13,36 @@ const CAT_LABELS: Record<string, string> = {
 }
 
 export default function ChargesPage() {
-  const { byCategory, totalActive, breakeven, simExtra, setSimExtra, simulatedBreakeven, updateCharge, deactivateCharge } = useCharges()
+  const { byCategory, totalActive, breakeven, simExtra, setSimExtra, simulatedBreakeven, updateCharge, deactivateCharge, createCharge } = useCharges()
   const [editId, setEditId] = useState<string | null>(null)
   const [editVal, setEditVal] = useState("")
   const [showSim, setShowSim] = useState(false)
   const [simSalaire, setSimSalaire] = useState(5000)
+
+  const [addingCat, setAddingCat] = useState<string | null>(null)
+  const [newName, setNewName] = useState("")
+  const [newAmount, setNewAmount] = useState("")
+  const [newType, setNewType] = useState<"fixed" | "variable" | "semi-fixed">("fixed")
+  const [newPayDay, setNewPayDay] = useState("")
+  const [addingNew, setAddingNew] = useState(false)
+  const [newCatName, setNewCatName] = useState("")
+
+  const resetAddForm = () => {
+    setNewName(""); setNewAmount(""); setNewType("fixed"); setNewPayDay(""); setAddingCat(null)
+  }
+
+  const handleCreate = async (cat: string) => {
+    if (!newName || !newAmount) return
+    await createCharge({
+      name: newName,
+      category: cat,
+      amount: parseFloat(newAmount) || 0,
+      type: newType,
+      payment_day: newPayDay ? parseInt(newPayDay) : null,
+      is_staff: cat === "PERSONNEL",
+    })
+    resetAddForm()
+  }
 
   const handleSave = (id: string) => {
     updateCharge(id, parseFloat(editVal) || 0)
@@ -94,7 +119,7 @@ export default function ChargesPage() {
 
       {Object.entries(CAT_LABELS).map(([cat, label]) => {
         const items = byCategory[cat as keyof typeof byCategory] || []
-        if (items.length === 0) return null
+        if (items.length === 0 && addingCat !== cat) return null
         const catTotal = items.reduce((s, c) => s + c.amount, 0)
         const maxAmt = Math.max(...items.map(c => c.amount), 1)
         return (
@@ -141,10 +166,105 @@ export default function ChargesPage() {
                   </div>
                 </div>
               ))}
+
+              {/* Inline add form or add button */}
+              {addingCat === cat ? (
+                <div className="mt-3 pt-3 border-t border-alaska-sage-lt space-y-2">
+                  <Input
+                    placeholder={cat === "PERSONNEL" ? "Nom du salarié" : "Libellé"}
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Montant MAD"
+                      value={newAmount}
+                      onChange={e => setNewAmount(e.target.value)}
+                      className="flex-1 h-8 text-sm"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Jour"
+                      value={newPayDay}
+                      onChange={e => setNewPayDay(e.target.value)}
+                      className="w-16 h-8 text-sm"
+                      min={1}
+                      max={31}
+                    />
+                  </div>
+                  {cat !== "PERSONNEL" && (
+                    <select
+                      value={newType}
+                      onChange={e => setNewType(e.target.value as "fixed" | "variable" | "semi-fixed")}
+                      className="w-full h-8 text-sm border border-input rounded-md px-2 bg-background"
+                    >
+                      <option value="fixed">Fixe</option>
+                      <option value="variable">Variable</option>
+                      <option value="semi-fixed">Semi-fixe</option>
+                    </select>
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" className="flex-1 h-8 text-xs bg-alaska-sage hover:bg-alaska-sage/90" onClick={() => handleCreate(cat)}>
+                      Créer
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={resetAddForm}>
+                      <X size={14}/>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingCat(cat)}
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-alaska-muted border border-dashed border-alaska-sage-lt rounded-lg hover:bg-alaska-sage-lt/50 hover:text-alaska-sage transition"
+                >
+                  <Plus size={12}/> Ajouter {cat === "PERSONNEL" ? "un salarié" : "une charge"}
+                </button>
+              )}
             </CardContent>
           </Card>
         )
       })}
+
+      {addingNew ? (
+        <Card className="bg-white border border-dashed border-alaska-sage rounded-xl">
+          <CardContent className="pt-4 pb-4 space-y-2">
+            <Input
+              placeholder="Nom de la catégorie (ex: ASSURANCES)"
+              value={newCatName}
+              onChange={e => setNewCatName(e.target.value.toUpperCase())}
+              className="h-8 text-sm"
+            />
+            <Input placeholder="Libellé" value={newName} onChange={e => setNewName(e.target.value)} className="h-8 text-sm"/>
+            <div className="flex gap-2">
+              <Input type="number" placeholder="Montant MAD" value={newAmount} onChange={e => setNewAmount(e.target.value)} className="flex-1 h-8 text-sm"/>
+              <Input type="number" placeholder="Jour" value={newPayDay} onChange={e => setNewPayDay(e.target.value)} className="w-16 h-8 text-sm" min={1} max={31}/>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="flex-1 h-8 text-xs bg-alaska-sage hover:bg-alaska-sage/90"
+                onClick={async () => {
+                  if (!newCatName || !newName || !newAmount) return
+                  await handleCreate(newCatName)
+                  setAddingNew(false)
+                  setNewCatName("")
+                }}>
+                Créer
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setAddingNew(false); resetAddForm() }}>
+                <X size={14}/>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <button
+          onClick={() => setAddingNew(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 text-sm text-alaska-muted border border-dashed border-alaska-sage-lt rounded-xl hover:bg-alaska-sage-lt/50 hover:text-alaska-sage transition"
+        >
+          <Plus size={14}/> Nouvelle catégorie
+        </button>
+      )}
     </div>
   )
 }

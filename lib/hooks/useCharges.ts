@@ -46,6 +46,24 @@ export function useCharges() {
     setCharges(data.charges)
   }
 
+  const createCharge = async (payload: {
+    name: string
+    category: string
+    amount: number
+    type: "fixed" | "variable" | "semi-fixed"
+    payment_day: number | null
+    is_staff: boolean
+  }) => {
+    const response = await fetch("/api/charges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) return
+    const data = parseChargesPayload(await response.json())
+    setCharges(data.charges)
+  }
+
   const byCategory = useMemo(
     () =>
       charges.filter((item) => item.is_active).reduce((acc, item) => {
@@ -67,5 +85,6 @@ export function useCharges() {
     simulatedBreakeven,
     updateCharge,
     deactivateCharge,
+    createCharge,
   }
 }
