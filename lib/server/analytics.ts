@@ -253,3 +253,10 @@ export function buildMonthlyExportRows(db: PilotDb, month: string) {
     }
   })
 }
+
+export function buildCaisseBalance(db: PilotDb): { balance: number; toDeposit: number } {
+  const totalCA = db.daily_sales.reduce((sum, r) => sum + r.ca_caisse, 0)
+  const totalExp = db.expenses.reduce((sum, e) => sum + e.amount, 0)
+  const balance = totalCA - totalExp
+  return { balance, toDeposit: Math.max(0, balance - 1000) }
+}
