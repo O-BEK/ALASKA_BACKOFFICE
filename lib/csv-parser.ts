@@ -1,6 +1,7 @@
 interface ParsedDay {
   date: string
-  ca_caisse: number
+  ca_caisse: number   // espèces POS (référence) — jamais écrit dans daily_sales.ca_caisse
+  ca_b2b: number      // carte + autres paiements non-cash
   ca_soir: number
   pct_soir: number
   tickets_count: number
@@ -40,10 +41,11 @@ export function parseCSV(content: string): ParsedDay[] {
   const ticketIdx    = headers.findIndex(h => h === "numticket")
   const prixIdx      = headers.findIndex(h => h === "prixdevente")
   const qteIdx       = headers.findIndex(h => h === "quantite")
+  const paymentIdx   = headers.findIndex(h => h === "moyensdepaiements" || h === "moyensdepaiement")
 
   if (dateIdx === -1 || prixIdx === -1) throw new Error("Format non reconnu")
 
-  const grouped: Record<string, { total: number; soir: number; tickets: Set<string> }> = {}
+  const grouped: Record<string, { cash: number; card: number; soir: number; tickets: Set<string> }> = {}
 
   for (const line of lines.slice(1)) {
     const cols = parseCSVLine(line, sep)
@@ -54,6 +56,7 @@ export function parseCSV(content: string): ParsedDay[] {
     const ticket    = ticketIdx >= 0 ? cols[ticketIdx]?.trim() : ""
     const rawPrix   = cols[prixIdx]?.trim().replace(",", ".")
     const rawQte    = qteIdx >= 0 ? cols[qteIdx]?.trim().replace(",", ".") : "1"
+    const rawPay    = paymentIdx >= 0 ? cols[paymentIdx]?.trim().toLowerCase() : ""
 
     if (!rawDate || !rawPrix) continue
     const prix = parseFloat(rawPrix)
@@ -72,8 +75,15 @@ export function parseCSV(content: string): ParsedDay[] {
       date = rawDate
     }
 
-    if (!grouped[date]) grouped[date] = { total: 0, soir: 0, tickets: new Set() }
-    grouped[date].total += amount
+    if (!grouped[date]) grouped[date] = { cash: 0, card: 0, soir: 0, tickets: new Set() }
+
+    const isCash = rawPay.includes("esp") || rawPay.includes("cash")
+    if (paymentIdx >= 0 && isCash) {
+      grouped[date].cash += amount
+    } else {
+      grouped[date].card += amount
+    }
+
     if (ticket) grouped[date].tickets.add(ticket)
 
     // Soir = heure >= 19:00
@@ -84,12 +94,16 @@ export function parseCSV(content: string): ParsedDay[] {
   }
 
   return Object.entries(grouped)
-    .map(([date, { total, soir, tickets }]) => ({
-      date,
-      ca_caisse:    Math.round(total * 100) / 100,
-      ca_soir:      Math.round(soir * 100) / 100,
-      pct_soir:     total > 0 ? (soir / total) * 100 : 0,
-      tickets_count: tickets.size,
-    }))
+    .map(([date, { cash, card, soir, tickets }]) => {
+      const total = cash + card
+      return {
+        date,
+        ca_caisse:     Math.round(cash * 100) / 100,
+        ca_b2b:        Math.round(card * 100) / 100,
+        ca_soir:       Math.round(soir * 100) / 100,
+        pct_soir:      total > 0 ? (soir / total) * 100 : 0,
+        tickets_count: tickets.size,
+      }
+    })
     .sort((a, b) => a.date.localeCompare(b.date))
 }

@@ -45,9 +45,15 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 function mapCategory(raw) {
   if (raw === "MP") return "MP"
-  if (raw === "RH" || raw === "Boss") return "RH"
+  if (raw === "RH") return "RH"
+  if (raw === "Boss") return "CHARGES"
   if (raw === "CHARGES") return "CHARGES"
   return "AUTRE"
+}
+
+function mapLabel(rawCat, rawLabel) {
+  if (rawCat === "Boss") return "Virement banque"
+  return rawLabel
 }
 
 // ─── Parse Excel ──────────────────────────────────────────────────────────────
@@ -72,9 +78,10 @@ for (const sheetName of sheetNames) {
     (r) => r[0] && typeof r[0] === "number" && r[0] > 40000
   )
 
-  // Lignes dépenses (index 15+)
+  // Lignes dépenses (index 15+) — uniquement les catégories connues pour éviter les sections récap en bas de feuille
+  const VALID_CATEGORIES = new Set(["MP", "RH", "Boss", "CHARGES", "AUTRE"])
   const expRows = rows.slice(15).filter(
-    (r) => r[0] && r[1] && typeof r[0] === "string" && String(r[0]).trim() !== ""
+    (r) => r[0] && r[1] && typeof r[0] === "string" && VALID_CATEGORIES.has(String(r[0]).trim())
   )
 
   for (const row of dailyRows) {
@@ -92,7 +99,7 @@ for (const sheetName of sheetNames) {
     if (colIdx >= 0) {
       for (const expRow of expRows) {
         const rawCat = String(expRow[0] || "").trim()
-        const label = String(expRow[1] || "").trim()
+        const label = mapLabel(rawCat, String(expRow[1] || "").trim())
         const amount = Number(expRow[colIdx] || 0)
 
         if (!label || amount <= 0) continue
