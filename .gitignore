@@ -10,3 +10,6 @@ coverage
 dist
 *.log
 tsconfig.tsbuildinfo
+.mcp.json
+.agents/
+skills-lock.json

@@ -25,6 +25,7 @@ const dailyEntrySchema = z.object({
   ca_soir: z.coerce.number().catch(0),
   pct_soir: z.coerce.number().catch(0),
   tickets_count: z.coerce.number().catch(0),
+  mouvement_caisse: z.coerce.number().catch(0),
   notes: z.string().catch(""),
   source: z.enum(["manual", "csv_import"]).catch("manual"),
   expenses: z.array(expenseItemSchema).catch([]),

@@ -12,6 +12,7 @@ function emptyEntry(date: string): DailyEntry {
     ca_soir: 0,
     pct_soir: 0,
     tickets_count: 0,
+    mouvement_caisse: 0,
     notes: "",
     source: "manual",
     expenses: [],
