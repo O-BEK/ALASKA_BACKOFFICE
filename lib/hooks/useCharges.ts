@@ -30,6 +30,7 @@ export function useCharges() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, amount }),
     })
+    if (!response.ok) return
     const data = parseChargesPayload(await response.json())
     setCharges(data.charges)
   }
@@ -40,6 +41,7 @@ export function useCharges() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, is_active: false }),
     })
+    if (!response.ok) return
     const data = parseChargesPayload(await response.json())
     setCharges(data.charges)
   }

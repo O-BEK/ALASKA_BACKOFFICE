@@ -18,7 +18,7 @@ export async function GET() {
       return {
         year: item.year,
         month: item.month,
-        real: monthly.ca_total,
+        real: monthly.ca_caisse,
         target: item.target_ca,
         notes: item.notes || "",
       }

@@ -31,9 +31,9 @@ export default function ObjectifsPage() {
   const safeMonthlyObjectives = Array.isArray(monthlyObjectives) ? monthlyObjectives : []
   const safeMonthlyReal = Array.isArray(monthlyReal) ? monthlyReal : []
 
-  const monthlyData = safeMonthlyObjectives.map((mo, i) => {
+  const monthlyData = safeMonthlyObjectives.map((mo) => {
     const current = safeMonthlyReal.find((item) => item.year === mo.year && item.month === mo.month)
-    return { month: MONTHS_FR[i], target: mo.target_ca, real: current?.real || null }
+    return { month: MONTHS_FR[mo.month - 1], target: mo.target_ca, real: current?.real || null }
   })
 
   const filteredActions = safeActions.filter(a =>
@@ -108,13 +108,13 @@ export default function ObjectifsPage() {
             </CardHeader>
             <CardContent className="pb-4">
               <div className="space-y-2">
-                {safeMonthlyObjectives.slice(0,4).map((mo, i) => {
+                {safeMonthlyObjectives.slice(0,4).map((mo) => {
                   const real = safeMonthlyReal.find((item) => item.year === mo.year && item.month === mo.month)?.real || 0
                   const pct = mo.target_ca > 0 ? (real / mo.target_ca) * 100 : 0
                   const done = real > 0
                   return (
                     <div key={i} className="flex items-center gap-3 p-2 hover:bg-alaska-sage-lt/40 rounded-lg">
-                      <span className="text-sm w-10 text-alaska-muted">{MONTHS_FR[i]}</span>
+                      <span className="text-sm w-10 text-alaska-muted">{MONTHS_FR[mo.month - 1]}</span>
                       <div className="flex-1 bg-alaska-sage-lt rounded-full h-2">
                         <div className={cn("h-2 rounded-full", pct >= 100 ? "bg-alaska-sage" : pct >= 70 ? "bg-amber-400" : "bg-red-400")}
                           style={{ width: `${Math.min(pct,100)}%` }}/>

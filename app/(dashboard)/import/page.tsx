@@ -6,7 +6,7 @@ import { parseCSV } from "@/lib/csv-parser"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { AlertCircle, CheckCircle2, FileText, UploadCloud, X } from "lucide-react"
+import { AlertCircle, AlertTriangle, CheckCircle2, FileText, UploadCloud, X, XCircle } from "lucide-react"
 import type { ImportRecord } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -164,7 +164,13 @@ export default function ImportPage() {
             <CardContent className="space-y-2 pb-4">
               {safeHistory.map((imp) => (
                 <div key={imp.id} className="flex items-center gap-3 p-2 bg-alaska-sage-lt/30 rounded-lg">
-                  <CheckCircle2 size={16} className="text-alaska-sage flex-shrink-0" />
+                  {imp.status === "error" ? (
+                    <XCircle size={16} className="text-red-500 flex-shrink-0" />
+                  ) : imp.status === "partial" ? (
+                    <AlertTriangle size={16} className="text-amber-500 flex-shrink-0" />
+                  ) : (
+                    <CheckCircle2 size={16} className="text-alaska-sage flex-shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-alaska-dark truncate">{imp.filename}</p>
                     <p className="text-xs text-alaska-muted">

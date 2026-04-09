@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { format, addDays, subDays, startOfWeek, addWeeks, subWeeks } from "date-fns"
+import { format, addDays, subDays, startOfWeek, addWeeks, subWeeks, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
 import { useDailyEntry } from "@/lib/hooks/useDailyEntry"
 import { useDashboard } from "@/lib/hooks/useDashboard"
@@ -24,7 +24,7 @@ const AUTRES_POSTES = ["Loyer","Électricité","Gaz","Internet","Autre"]
 export default function SaisiePage() {
   const today = new Date()
   const initialRequestedDate = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("date") : null
-  const initialDate = initialRequestedDate ? new Date(initialRequestedDate) : today
+  const initialDate = initialRequestedDate ? parseISO(initialRequestedDate) : today
   const [tab, setTab] = useState<Tab>("Saisie")
   const [date, setDate] = useState(initialDate)
   const [weekStart, setWeekStart] = useState(startOfWeek(initialDate, { weekStartsOn: 1 }))
@@ -34,7 +34,7 @@ export default function SaisiePage() {
   useEffect(() => {
     const requestedDate = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("date") : null
     if (!requestedDate) return
-    const nextDate = new Date(requestedDate)
+    const nextDate = parseISO(requestedDate)
     setDate(nextDate)
     setWeekStart(startOfWeek(nextDate, { weekStartsOn: 1 }))
   }, [])
