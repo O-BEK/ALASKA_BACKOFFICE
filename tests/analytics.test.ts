@@ -23,8 +23,8 @@ describe("buildCaisseBalance", () => {
   it("computes balance and toDeposit from all sales and expenses", () => {
     const db = makeDb({
       daily_sales: [
-        { id: "s1", date: "2026-01-01", ca_caisse: 5000, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 30, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
-        { id: "s2", date: "2026-01-02", ca_caisse: 3000, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 20, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
+        { id: "s1", date: "2026-01-01", ca_caisse: 5000, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 30, mouvement_caisse: 0, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
+        { id: "s2", date: "2026-01-02", ca_caisse: 3000, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 20, mouvement_caisse: 0, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
       ],
       expenses: [
         { id: "e1", date: "2026-01-01", category: "MP", label: "Poissonnier", amount: 2000, notes: "", created_by: null, updated_at: "" },
@@ -41,7 +41,7 @@ describe("buildCaisseBalance", () => {
   it("returns toDeposit 0 when balance is below 1000 MAD reserve", () => {
     const db = makeDb({
       daily_sales: [
-        { id: "s1", date: "2026-01-01", ca_caisse: 800, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 5, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
+        { id: "s1", date: "2026-01-01", ca_caisse: 800, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 5, mouvement_caisse: 0, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
       ],
     })
     const result = buildCaisseBalance(db, "2026-01")

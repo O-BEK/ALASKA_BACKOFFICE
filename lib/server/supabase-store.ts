@@ -187,6 +187,7 @@ function mapDailySale(row: any): DailySaleRecord {
     ca_soir: Number(row.ca_soir || 0),
     pct_soir: Number(row.pct_soir || 0),
     tickets_count: Number(row.tickets_count || 0),
+    mouvement_caisse: Number(row.mouvement_caisse || 0),
     notes: String(row.notes || ""),
     source: row.source === "csv_import" ? "csv_import" : "manual",
     import_id: row.import_id ? String(row.import_id) : null,
@@ -359,6 +360,7 @@ export function toDailyEntry(sale: DailySaleRecord | null, expenses: ExpenseReco
     ca_soir: sale?.ca_soir ?? 0,
     pct_soir: sale?.pct_soir ?? 0,
     tickets_count: sale?.tickets_count ?? 0,
+    mouvement_caisse: sale?.mouvement_caisse ?? 0,
     notes: sale?.notes ?? "",
     source: sale?.source ?? "manual",
     expenses: expenses.map((expense) => ({
@@ -391,6 +393,7 @@ export async function saveDailyEntry(client: SupabaseClientLike, entry: DailyEnt
     ca_soir: entry.ca_soir,
     pct_soir: entry.pct_soir,
     tickets_count: entry.tickets_count,
+    mouvement_caisse: entry.mouvement_caisse ?? 0,
     notes: entry.notes,
     source: entry.source,
     created_by: userId,

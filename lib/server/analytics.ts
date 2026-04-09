@@ -116,6 +116,7 @@ export function buildWeekData(db: PilotDb, weekStart: Date) {
           ca_soir: sale.ca_soir,
           pct_soir: sale.pct_soir,
           tickets_count: sale.tickets_count,
+          mouvement_caisse: sale.mouvement_caisse,
           notes: sale.notes,
           source: sale.source,
           expenses: dayExpenses.map((item) => ({
@@ -166,6 +167,7 @@ export function buildWeekEntries(db: PilotDb, weekStart: Date) {
       ca_soir: 0,
       pct_soir: 0,
       tickets_count: 0,
+      mouvement_caisse: 0,
       notes: "",
       source: "manual",
       expenses: [],
@@ -262,7 +264,8 @@ export function buildCaisseBalance(db: PilotDb, sinceOverride?: string): { balan
   monday.setDate(now.getDate() - dayOfWeek)
   const since = sinceOverride ?? monday.toISOString().slice(0, 10)
   const totalCA = db.daily_sales.filter((r) => r.date >= since).reduce((sum, r) => sum + r.ca_caisse, 0)
+  const totalMvt = db.daily_sales.filter((r) => r.date >= since).reduce((sum, r) => sum + r.mouvement_caisse, 0)
   const totalExp = db.expenses.filter((e) => e.date >= since).reduce((sum, e) => sum + e.amount, 0)
-  const balance = totalCA - totalExp
+  const balance = totalCA - totalMvt - totalExp
   return { balance, toDeposit: Math.max(0, balance - CAISSE_RESERVE), since }
 }

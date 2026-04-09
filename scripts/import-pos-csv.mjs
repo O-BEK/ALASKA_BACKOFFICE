@@ -129,22 +129,9 @@ console.log(`\n📊  ${days.length} jours (${first} → ${last})`)
 console.log(`   CA Espèces total  : ${days.reduce((s, d) => s + d.ca_caisse, 0).toLocaleString("fr-MA")} MAD`)
 console.log(`   CA Carte total    : ${days.reduce((s, d) => s + d.ca_b2b, 0).toLocaleString("fr-MA")} MAD`)
 
-// ─── Récupérer ca_caisse existants pour les préserver ────────────────────────
-
-console.log("\n🔍  Lecture des CA caisse existants...")
-const dates = days.map(d => d.date)
-const existingMap = {}
-for (let i = 0; i < dates.length; i += 200) {
-  const { data } = await supabase
-    .from("daily_sales")
-    .select("date, ca_caisse")
-    .in("date", dates.slice(i, i + 200))
-  for (const row of data || []) existingMap[row.date] = row.ca_caisse
-}
-
 // ─── Upsert daily_sales ───────────────────────────────────────────────────────
 
-console.log("\n⬆️   Upsert daily_sales (ca_caisse préservé si déjà saisi)...")
+console.log("\n⬆️   Upsert daily_sales...")
 const now = new Date().toISOString()
 const BATCH = 100
 let ok = 0
@@ -152,8 +139,8 @@ let ok = 0
 for (let i = 0; i < days.length; i += BATCH) {
   const batch = days.slice(i, i + BATCH).map(d => ({
     date: d.date,
-    ca_caisse: existingMap[d.date] ?? 0,  // préservé si saisi, sinon 0
-    ca_b2b: d.ca_b2b,  // carte uniquement depuis CSV
+    ca_caisse: d.ca_caisse,  // espèces POS
+    ca_b2b: d.ca_b2b,        // carte POS
     ca_soir: d.ca_soir,
     pct_soir: d.pct_soir,
     tickets_count: d.tickets_count,

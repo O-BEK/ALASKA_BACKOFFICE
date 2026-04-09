@@ -7,6 +7,7 @@ export interface DailyEntry {
   ca_soir: number
   pct_soir: number
   tickets_count: number
+  mouvement_caisse: number
   notes: string
   source: "manual" | "csv_import"
   expenses: ExpenseItem[]

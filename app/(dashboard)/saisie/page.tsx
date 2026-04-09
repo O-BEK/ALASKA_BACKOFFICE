@@ -154,6 +154,13 @@ export default function SaisiePage() {
                   </button>
                 ))}
               </div>
+              <div className="flex items-center gap-2 pt-1 border-t border-alaska-sage-lt">
+                <span className="text-sm text-alaska-muted flex-1">Mouvement caisse</span>
+                <Input type="number" value={entry.mouvement_caisse || ""}
+                  onChange={e => update({ mouvement_caisse: parseFloat(e.target.value) || 0 })}
+                  placeholder="0" className="w-32 text-right text-sm focus:ring-alaska-sage focus:border-alaska-sage"/>
+                <span className="text-alaska-muted text-sm">MAD</span>
+              </div>
               <Input placeholder="Notes (Ramadan, groupe, événement...)" value={entry.notes}
                 onChange={e => update({ notes: e.target.value })}
                 className="text-sm focus:ring-alaska-sage focus:border-alaska-sage"/>
