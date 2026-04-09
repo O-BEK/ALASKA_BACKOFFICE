@@ -107,6 +107,7 @@ Hooks principaux:
 - `lib/hooks/useWeekEntries.ts`
 - `lib/hooks/useCharges.ts`
 - `lib/hooks/useObjectives.ts`
+- `lib/hooks/useCaisseBalance.ts`
 
 ### Main API Routes
 
@@ -116,8 +117,10 @@ Hooks principaux:
 - `app/api/import-csv/route.ts`
 - `app/api/charges/route.ts`
 - `app/api/objectives/route.ts`
+- `app/api/objectives/alcool-validate/route.ts`
 - `app/api/reporting/route.ts`
 - `app/api/reporting/export/route.ts`
+- `app/api/caisse/balance/route.ts`
 
 ## Key Business Rules
 
@@ -132,6 +135,10 @@ Règles importantes:
 - seuil de rentabilité basé sur `0.28` de coûts variables
 - `solde caisse` est l'indicateur opérationnel principal dans la saisie et la semaine
 - la marge nette reste un indicateur analytique
+- `CAISSE_RESERVE = 1 000 MAD` : réserve semaine conservée dans le tiroir-caisse lors d'un virement banque
+- fonds de caisse permanent (1 500 MAD) est physique et hors app
+- `buildCaisseBalance(db)` dans `analytics.ts` calcule le solde cumulé historique : `Σ(ca_caisse) - Σ(expenses)`
+- les virements banque sont saisis comme dépense label `"Virement banque"`, catégorie `CHARGES`
 
 ### Daily Sales Import Rules
 
@@ -165,6 +172,7 @@ Tests Vitest dans:
 - `tests/csv-parser.test.ts`
 - `tests/pilot-store.test.ts`
 - `tests/middleware.test.ts`
+- `tests/analytics.test.ts`
 
 Configuration:
 
