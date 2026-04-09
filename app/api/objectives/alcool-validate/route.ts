@@ -24,6 +24,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Uplift doit être entre 1 et 200%." }, { status: 400 })
     }
 
+    // Idempotency guard: reject if action already validated
+    const { data: actionRow } = await supabase.from("action_items").select("status, metadata").eq("id", actionId).limit(1).single()
+    if (actionRow?.status === "done" && actionRow?.metadata?.alcool_uplift_pct) {
+      return NextResponse.json({ error: "La licence alcool a déjà été validée." }, { status: 409 })
+    }
+
     const monthlyObjectives = await applyAlcoolLicenseUplift(supabase, {
       actionId,
       effectMonth,

@@ -117,7 +117,10 @@ export default function ChargesPage() {
         </Card>
       )}
 
-      {Object.entries(CAT_LABELS).map(([cat, label]) => {
+      {[
+        ...Object.entries(CAT_LABELS),
+        ...Object.keys(byCategory).filter(k => !(k in CAT_LABELS)).map(k => [k, `📌 ${k}`] as [string, string]),
+      ].map(([cat, label]) => {
         const items = byCategory[cat as keyof typeof byCategory] || []
         if (items.length === 0 && addingCat !== cat) return null
         const catTotal = items.reduce((s, c) => s + c.amount, 0)
