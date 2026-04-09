@@ -42,6 +42,7 @@ export default function ObjectifsPage() {
     return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`
   })
   const [alcoolLoading, setAlcoolLoading] = useState(false)
+  const [alcoolError, setAlcoolError] = useState<string | null>(null)
   const [alcoolPreview, setAlcoolPreview] = useState<{ month: string; before: number; after: number }[]>([])
 
   const computePreview = (uplift: number, effectMonth: string) => {
@@ -58,6 +59,7 @@ export default function ObjectifsPage() {
 
   const handleAlcoolValidate = async () => {
     setAlcoolLoading(true)
+    setAlcoolError(null)
     try {
       const res = await fetch("/api/objectives/alcool-validate", {
         method: "POST",
@@ -67,7 +69,12 @@ export default function ObjectifsPage() {
       if (res.ok) {
         setAlcoolDialogue(false)
         window.location.reload()
+      } else {
+        const json = await res.json().catch(() => ({}))
+        setAlcoolError(json.error || `Erreur ${res.status}`)
       }
+    } catch {
+      setAlcoolError("Erreur réseau — réessaie.")
     } finally {
       setAlcoolLoading(false)
     }
@@ -326,6 +333,10 @@ export default function ObjectifsPage() {
                   </div>
                 ))}
               </div>
+            )}
+
+            {alcoolError && (
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{alcoolError}</p>
             )}
 
             <div className="flex gap-2 pt-2">
