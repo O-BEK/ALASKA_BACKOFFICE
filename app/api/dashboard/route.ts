@@ -15,6 +15,8 @@ export async function GET(request: Request) {
     const db = await readSnapshot(supabase, { seedIfEmpty: Boolean(user), userId: user?.id || null })
     return NextResponse.json(buildDashboardData(db, month))
   } catch (error) {
-    return NextResponse.json({ error: "Impossible de charger le dashboard." }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/dashboard]", message)
+    return NextResponse.json({ error: `Impossible de charger le dashboard. ${message}` }, { status: 500 })
   }
 }

@@ -28,7 +28,7 @@ const LEVER_COLORS: Record<string, string> = {
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
-  const { kpis, delta_ca, last12 } = useDashboard(month)
+  const { kpis, delta_ca, last12, error: dashboardError } = useDashboard(month)
   const [actions, setActions] = useState<ActionItem[]>([])
   const [imports, setImports] = useState<ImportRecord[]>([])
   const safeActions = Array.isArray(actions) ? actions : []
@@ -81,6 +81,13 @@ export default function DashboardPage() {
           <button onClick={nextMonth} className="p-1.5 hover:bg-alaska-sage-lt rounded-md transition"><ChevronRight size={16}/></button>
         </div>
       </div>
+
+      {dashboardError && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-800 text-sm">
+          <AlertTriangle size={16}/>
+          <span>Erreur de chargement : {dashboardError}</span>
+        </div>
+      )}
 
       {csvMissing && (
         <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-amber-800 text-sm">

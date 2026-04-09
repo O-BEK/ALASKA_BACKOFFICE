@@ -33,24 +33,28 @@ export function useDashboard(month: string) {
     last12: [],
   })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
     setLoading(true)
+    setError(null)
 
     fetch(`/api/dashboard?month=${month}`)
-      .then(async (response) => parseDashboardState(await response.json(), month))
+      .then(async (response) => {
+        const json = await response.json()
+        if (!response.ok) throw new Error(json.error || `Erreur ${response.status}`)
+        return parseDashboardState(json, month)
+      })
       .then((data) => {
         if (!active) return
         setState(data)
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!active) return
-        setState({
-          kpis: { ...emptyKpis, month },
-          delta_ca: 0,
-          last12: [],
-        })
+        const message = err instanceof Error ? err.message : "Erreur de chargement"
+        setError(message)
+        setState({ kpis: { ...emptyKpis, month }, delta_ca: 0, last12: [] })
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -61,5 +65,5 @@ export function useDashboard(month: string) {
     }
   }, [month])
 
-  return { ...state, loading }
+  return { ...state, loading, error }
 }

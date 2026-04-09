@@ -170,8 +170,11 @@ function buildSeedPayloads(userId: string | null) {
   return { dailySales, expenses, fixedCharges, objectives, monthlyObjectives, actionItems, imports }
 }
 
-function requireData<T>(data: T | null, error: { message?: string } | null, fallback: T): T {
-  if (error) throw new Error(error.message || "Erreur Supabase")
+function safeData<T>(data: T | null, error: { message?: string } | null, fallback: T, table: string): T {
+  if (error) {
+    console.error(`[supabase-store] ${table}:`, error.message)
+    return fallback
+  }
   return data ?? fallback
 }
 
@@ -270,7 +273,10 @@ function mapImportRecord(row: any): ImportRecord {
 
 export async function ensureSeedData(client: SupabaseClientLike, userId: string | null) {
   const { count, error } = await client.from("daily_sales").select("id", { count: "exact", head: true })
-  if (error) throw new Error(error.message)
+  if (error) {
+    console.error("[ensureSeedData] count query failed:", error.message)
+    return
+  }
   if ((count || 0) > 0) return
 
   const payloads = buildSeedPayloads(userId)
@@ -297,7 +303,7 @@ export async function ensureSeedData(client: SupabaseClientLike, userId: string 
   if (optionalFailed?.error) throw new Error(optionalFailed.error.message)
 
   const failed = results.find((result) => result.error)
-  if (failed?.error) throw new Error(failed.error.message)
+  if (failed?.error) console.error("[ensureSeedData] seed partiel:", failed.error.message)
 }
 
 export async function readSnapshot(client: SupabaseClientLike, options?: { seedIfEmpty?: boolean; userId?: string | null }): Promise<PilotDb> {
@@ -317,15 +323,15 @@ export async function readSnapshot(client: SupabaseClientLike, options?: { seedI
 
   return {
     users: [],
-    daily_sales: requireData(salesRes.data, salesRes.error, []).map(mapDailySale),
-    expenses: requireData(expensesRes.data, expensesRes.error, []).map(mapExpense),
-    fixed_charges: requireData(chargesRes.data, chargesRes.error, []).map(mapFixedCharge),
-    objectives: requireData(objectivesRes.data, objectivesRes.error, []).map(mapObjective),
-    monthly_objectives: requireData(monthlyRes.data, monthlyRes.error, []).map(mapMonthlyObjective),
-    action_items: requireData(actionsRes.data, actionsRes.error, []).map(mapActionItem),
+    daily_sales: safeData(salesRes.data, salesRes.error, [], "daily_sales").map(mapDailySale),
+    expenses: safeData(expensesRes.data, expensesRes.error, [], "expenses").map(mapExpense),
+    fixed_charges: safeData(chargesRes.data, chargesRes.error, [], "fixed_charges").map(mapFixedCharge),
+    objectives: safeData(objectivesRes.data, objectivesRes.error, [], "objectives").map(mapObjective),
+    monthly_objectives: safeData(monthlyRes.data, monthlyRes.error, [], "monthly_objectives").map(mapMonthlyObjective),
+    action_items: safeData(actionsRes.data, actionsRes.error, [], "action_items").map(mapActionItem),
     import_history: isMissingTableError(importsRes.error, "pos_imports")
       ? []
-      : requireData(importsRes.data, importsRes.error, []).map(mapImportRecord),
+      : safeData(importsRes.data, importsRes.error, [], "pos_imports").map(mapImportRecord),
   }
 }
 
