@@ -3,6 +3,8 @@ import { useState } from "react"
 import { useObjectives } from "@/lib/hooks/useObjectives"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ActionItem } from "@/lib/types"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts"
 import { cn } from "@/lib/utils"
@@ -30,6 +32,46 @@ export default function ObjectifsPage() {
   const safeByLever = Array.isArray(byLever) ? byLever : []
   const safeMonthlyObjectives = Array.isArray(monthlyObjectives) ? monthlyObjectives : []
   const safeMonthlyReal = Array.isArray(monthlyReal) ? monthlyReal : []
+
+  const [alcoolDialogue, setAlcoolDialogue] = useState(false)
+  const [alcoolActionId, setAlcoolActionId] = useState("")
+  const [alcoolUplift, setAlcoolUplift] = useState(47)
+  const [alcoolMonth, setAlcoolMonth] = useState(() => {
+    const next = new Date()
+    next.setMonth(next.getMonth() + 1)
+    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`
+  })
+  const [alcoolLoading, setAlcoolLoading] = useState(false)
+  const [alcoolPreview, setAlcoolPreview] = useState<{ month: string; before: number; after: number }[]>([])
+
+  const computePreview = (uplift: number, effectMonth: string) => {
+    const [effYear, effMonth] = effectMonth.split("-").map(Number)
+    const multiplier = 1 + uplift / 100
+    return safeMonthlyObjectives
+      .filter(mo => mo.year > effYear || (mo.year === effYear && mo.month >= effMonth))
+      .map(mo => ({
+        month: `${MONTHS_FR[mo.month - 1]} ${mo.year}`,
+        before: mo.target_ca,
+        after: Math.round(mo.target_ca * multiplier),
+      }))
+  }
+
+  const handleAlcoolValidate = async () => {
+    setAlcoolLoading(true)
+    try {
+      const res = await fetch("/api/objectives/alcool-validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actionId: alcoolActionId, effectMonth: alcoolMonth, upliftPct: alcoolUplift }),
+      })
+      if (res.ok) {
+        setAlcoolDialogue(false)
+        window.location.reload()
+      }
+    } finally {
+      setAlcoolLoading(false)
+    }
+  }
 
   const monthlyData = safeMonthlyObjectives.map((mo) => {
     const current = safeMonthlyReal.find((item) => item.year === mo.year && item.month === mo.month)
@@ -162,7 +204,17 @@ export default function ObjectifsPage() {
 
           <div className="space-y-3">
             {filteredActions.map(action => (
-              <ActionCard key={action.id} action={action} onStatusChange={updateActionStatus} leverColors={LEVER_COLORS}/>
+              <ActionCard
+                key={action.id}
+                action={action}
+                onStatusChange={updateActionStatus}
+                leverColors={LEVER_COLORS}
+                onAlcoolValidate={(id) => {
+                  setAlcoolActionId(id)
+                  setAlcoolPreview(computePreview(alcoolUplift, alcoolMonth))
+                  setAlcoolDialogue(true)
+                }}
+              />
             ))}
           </div>
         </div>
@@ -221,18 +273,95 @@ export default function ObjectifsPage() {
           </Card>
         </div>
       )}
+
+      {alcoolDialogue && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div>
+              <h2 className="font-playfair text-xl font-bold text-alaska-dark">🍷 Valider la licence alcool</h2>
+              <p className="text-xs text-alaska-muted mt-1">Cela va mettre à jour tes objectifs futurs automatiquement</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-alaska-dark">Date d&apos;effet (mois)</label>
+                <Input
+                  type="month"
+                  value={alcoolMonth}
+                  onChange={e => {
+                    setAlcoolMonth(e.target.value)
+                    setAlcoolPreview(computePreview(alcoolUplift, e.target.value))
+                  }}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-alaska-dark">
+                  Uplift ticket moyen : <span className="text-alaska-sage font-bold">+{alcoolUplift}%</span>
+                </label>
+                <div className="flex items-center gap-3 mt-1">
+                  <input
+                    type="range" min={10} max={100} step={1}
+                    value={alcoolUplift}
+                    onChange={e => {
+                      setAlcoolUplift(+e.target.value)
+                      setAlcoolPreview(computePreview(+e.target.value, alcoolMonth))
+                    }}
+                    className="flex-1"
+                  />
+                  <span className="text-sm font-bold text-alaska-sage w-10 text-right">{alcoolUplift}%</span>
+                </div>
+                <p className="text-xs text-alaska-muted mt-0.5">Ticket moyen actuel : 170 MAD → {Math.round(170 * (1 + alcoolUplift / 100))} MAD</p>
+              </div>
+            </div>
+
+            {alcoolPreview.length > 0 && (
+              <div className="bg-alaska-sage-lt/50 rounded-lg p-3 space-y-1 max-h-40 overflow-y-auto">
+                <p className="text-xs font-semibold text-alaska-dark mb-2">Prévisualisation des objectifs</p>
+                {alcoolPreview.map(p => (
+                  <div key={p.month} className="flex justify-between text-xs">
+                    <span className="text-alaska-muted">{p.month}</span>
+                    <span className="text-alaska-muted line-through">{formatMAD(p.before)}</span>
+                    <span className="font-medium text-alaska-sage">{formatMAD(p.after)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1 border-alaska-sage-lt"
+                onClick={() => setAlcoolDialogue(false)}
+                disabled={alcoolLoading}
+              >
+                Annuler
+              </Button>
+              <Button
+                className="flex-1 bg-alaska-sage hover:bg-alaska-sage/90"
+                onClick={handleAlcoolValidate}
+                disabled={alcoolLoading}
+              >
+                {alcoolLoading ? "Mise à jour..." : "Confirmer"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function ActionCard({ action, onStatusChange, leverColors }: {
+function ActionCard({ action, onStatusChange, leverColors, onAlcoolValidate }: {
   action: ActionItem
   onStatusChange: (_id: string, _status: ActionItem["status"]) => void
   leverColors: Record<string, string>
+  onAlcoolValidate?: (_id: string) => void
 }) {
   const next: Record<ActionItem["status"], ActionItem["status"]> = {
     todo: "in_progress", in_progress: "done", done: "todo", cancelled: "todo"
   }
+  const isAlcool = action.title.toLowerCase().includes("alcool")
   return (
     <Card className={cn("bg-white border-l-4 border border-alaska-sage-lt rounded-xl",
       action.priority === "urgent" ? "border-l-red-500" : action.priority === "medium" ? "border-l-amber-400" : "border-l-alaska-sage")}>
@@ -248,13 +377,22 @@ function ActionCard({ action, onStatusChange, leverColors }: {
             <p className="font-medium text-sm text-alaska-dark">{action.title}</p>
             {action.description && <p className="text-xs text-alaska-muted mt-1 leading-relaxed">{action.description}</p>}
           </div>
-          <button onClick={() => onStatusChange(action.id, next[action.status])}
-            className={cn("flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition",
-              action.status === "done" ? "bg-alaska-sage-lt text-alaska-sage border-alaska-sage"
-              : action.status === "in_progress" ? "bg-amber-50 text-amber-700 border-amber-200"
-              : "bg-white text-alaska-muted border-alaska-sage-lt hover:bg-alaska-sage-lt")}>
-            {action.status === "done" ? "✅ Fait" : action.status === "in_progress" ? "🔄 En cours" : "○ À faire"}
-          </button>
+          {isAlcool && action.status !== "done" && onAlcoolValidate ? (
+            <button
+              onClick={() => onAlcoolValidate(action.id)}
+              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+            >
+              🍷 Valider licence
+            </button>
+          ) : (
+            <button onClick={() => onStatusChange(action.id, next[action.status])}
+              className={cn("flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                action.status === "done" ? "bg-alaska-sage-lt text-alaska-sage border-alaska-sage"
+                : action.status === "in_progress" ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-white text-alaska-muted border-alaska-sage-lt hover:bg-alaska-sage-lt")}>
+              {action.status === "done" ? "✅ Fait" : action.status === "in_progress" ? "🔄 En cours" : "○ À faire"}
+            </button>
+          )}
         </div>
         {action.budget_max > 0 && (
           <p className="text-xs text-alaska-muted mt-2">
