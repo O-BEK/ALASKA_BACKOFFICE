@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { readSnapshot, updateFixedCharge } from "@/lib/server/supabase-store"
+import { readSnapshot, updateFixedCharge, createFixedCharge } from "@/lib/server/supabase-store"
+import { parseCreateChargeBody } from "@/lib/contracts"
 
 export async function GET() {
   const supabase = createClient()
@@ -40,5 +41,24 @@ export async function PUT(request: Request) {
     return NextResponse.json({ charges })
   } catch {
     return NextResponse.json({ error: "Impossible de mettre à jour la charge." }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user || user.user_metadata?.role !== "admin") {
+    return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+  }
+
+  try {
+    const body = parseCreateChargeBody(await request.json())
+    const charges = await createFixedCharge(supabase, body)
+    return NextResponse.json({ charges })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue"
+    return NextResponse.json({ error: `Impossible de créer la charge. ${message}` }, { status: 500 })
   }
 }

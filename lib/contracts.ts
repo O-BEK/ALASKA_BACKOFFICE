@@ -242,7 +242,7 @@ export function parseChargesPayload(input: unknown): { charges: FixedCharge[] } 
   return z.object({ charges: z.array(z.object({
     id: z.string().catch(""),
     name: z.string().catch(""),
-    category: z.enum(["IMMOBILIER", "PERSONNEL", "ENERGIE", "TELECOM", "DIVERS"]).catch("DIVERS"),
+    category: z.string().catch("DIVERS"),
     amount: z.coerce.number().catch(0),
     type: z.enum(["fixed", "variable", "semi-fixed"]).catch("fixed"),
     payment_day: z.coerce.number().nullable().catch(null),
@@ -251,6 +251,24 @@ export function parseChargesPayload(input: unknown): { charges: FixedCharge[] } 
     start_date: z.string().catch(""),
     end_date: z.string().nullable().catch(null),
   })).catch([]) }).parse(input)
+}
+
+export function parseCreateChargeBody(input: unknown): {
+  name: string
+  category: string
+  amount: number
+  type: "fixed" | "variable" | "semi-fixed"
+  payment_day: number | null
+  is_staff: boolean
+} {
+  return z.object({
+    name: z.string().min(1),
+    category: z.string().min(1),
+    amount: z.coerce.number().min(0),
+    type: z.enum(["fixed", "variable", "semi-fixed"]).default("fixed"),
+    payment_day: z.coerce.number().nullable().default(null),
+    is_staff: z.coerce.boolean().default(false),
+  }).parse(input)
 }
 
 export type ParsedExpenseItem = ExpenseItem

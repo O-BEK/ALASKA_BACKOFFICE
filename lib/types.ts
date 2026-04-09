@@ -23,7 +23,7 @@ export interface ExpenseItem {
 export interface FixedCharge {
   id: string
   name: string
-  category: "IMMOBILIER" | "PERSONNEL" | "ENERGIE" | "TELECOM" | "DIVERS"
+  category: "IMMOBILIER" | "PERSONNEL" | "ENERGIE" | "TELECOM" | "DIVERS" | string
   amount: number
   type: "fixed" | "variable" | "semi-fixed"
   payment_day: number | null

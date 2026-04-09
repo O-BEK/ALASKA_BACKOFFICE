@@ -436,6 +436,43 @@ export async function updateFixedCharge(client: SupabaseClientLike, payload: { i
   return (data || []).map(mapFixedCharge)
 }
 
+export async function createFixedCharge(
+  client: SupabaseClientLike,
+  payload: {
+    name: string
+    category: string
+    amount: number
+    type: string
+    payment_day: number | null
+    is_staff: boolean
+  }
+) {
+  const row = {
+    name: payload.name,
+    category: payload.category,
+    amount: payload.amount,
+    type: payload.type,
+    payment_day: payload.payment_day,
+    is_staff: payload.is_staff,
+    is_active: true,
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: null,
+    notes: null,
+    updated_at: nowIso(),
+  }
+
+  const result = await client.from("fixed_charges").insert(row)
+  if (result.error) throw new Error(result.error.message)
+
+  const { data, error } = await client
+    .from("fixed_charges")
+    .select("*")
+    .order("category", { ascending: true })
+    .order("name", { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data || []).map(mapFixedCharge)
+}
+
 export async function updateActionStatus(client: SupabaseClientLike, payload: { id: string; status: ActionItem["status"] }) {
   const patch: Record<string, unknown> = {
     status: payload.status,
