@@ -165,10 +165,13 @@ export async function POST(request: Request) {
 
     const upsertRows = parsed.map((row) => {
       const existing = existingSalesByDate.get(row.date)
+      const ca_caisse = existing?.ca_caisse || 0
+      const ca_pos_total = row.ca_caisse // total POS (cash + carte)
+      const ca_b2b = Math.max(0, Math.round((ca_pos_total - ca_caisse) * 100) / 100)
       return {
         date: row.date,
-        ca_caisse: existing?.ca_caisse || 0,
-        ca_b2b: existing?.ca_b2b || 0,
+        ca_caisse,
+        ca_b2b,
         ca_soir: row.ca_soir,
         pct_soir: row.pct_soir,
         tickets_count: row.tickets_count,
