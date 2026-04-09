@@ -2,9 +2,16 @@ import "server-only"
 
 import { eachDayOfInterval, endOfWeek, format, startOfWeek } from "date-fns"
 import { fr } from "date-fns/locale"
-import { BREAKEVEN, calcBreakevenPct, calcMarginRate, calcNetMargin, getWeeklyBreakeven } from "@/lib/calculations"
+import { BREAKEVEN, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin } from "@/lib/calculations"
 import type { DailyEntry, MonthlyKPIs } from "@/lib/types"
 import type { DailySaleRecord, ExpenseRecord, PilotDb } from "@/lib/server/pilot-store"
+
+function liveBreakeven(db: PilotDb): number {
+  const total = db.fixed_charges
+    .filter((c) => c.is_active)
+    .reduce((sum, c) => sum + c.amount, 0)
+  return total > 0 ? calcBreakeven(total) : BREAKEVEN
+}
 
 function monthEntries(db: PilotDb, month: string) {
   return db.daily_sales.filter((item) => item.date.startsWith(month))
@@ -41,7 +48,8 @@ export function buildMonthlyKpis(db: PilotDb, month: string): MonthlyKPIs {
   const marge_nette = calcNetMargin(ca_caisse, total_expenses)
   const taux_marge = calcMarginRate(marge_nette, ca_caisse)
   const pct_soir = ca_caisse > 0 ? (ca_soir / ca_caisse) * 100 : 0
-  const pct_breakeven = calcBreakevenPct(ca_caisse, BREAKEVEN)
+  const breakeven = liveBreakeven(db)
+  const pct_breakeven = calcBreakevenPct(ca_caisse, breakeven)
 
   return {
     month,
@@ -53,7 +61,7 @@ export function buildMonthlyKpis(db: PilotDb, month: string): MonthlyKPIs {
     total_expenses,
     marge_nette,
     taux_marge,
-    breakeven: BREAKEVEN,
+    breakeven,
     pct_breakeven,
     days_count,
     ca_per_day: days_count > 0 ? ca_caisse / days_count : 0,
@@ -75,7 +83,7 @@ export function buildDashboardData(db: PilotDb, month: string) {
       month: key,
       ca_caisse: monthly.ca_caisse,
       ca_b2b: monthly.ca_b2b,
-      breakeven: BREAKEVEN,
+      breakeven: liveBreakeven(db),
     }
   })
 
@@ -131,7 +139,7 @@ export function buildWeekData(db: PilotDb, weekStart: Date) {
   const totalCA = rows.reduce((sum, row) => sum + (row.entry?.ca_caisse ?? 0), 0)
   const totalDep = rows.reduce((sum, row) => sum + row.totalExpenses, 0)
   const marge = calcNetMargin(totalCA, totalDep)
-  const weeklyBreakeven = getWeeklyBreakeven()
+  const weeklyBreakeven = liveBreakeven(db) / 4.33
   const pctBreakeven = weeklyBreakeven > 0 ? (totalCA / weeklyBreakeven) * 100 : 0
 
   const byLabel: Record<string, number> = {}
