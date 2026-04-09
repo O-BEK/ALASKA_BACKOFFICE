@@ -6,23 +6,37 @@ export function useCaisseBalance() {
   const [balance, setBalance] = useState(0)
   const [toDeposit, setToDeposit] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const refetch = useCallback(() => {
     setLoading(true)
+    setError(null)
+    let active = true
     fetch("/api/caisse/balance")
       .then(async (res) => {
-        if (!res.ok) return
+        if (!active) return
+        if (!res.ok) {
+          setError(`Erreur ${res.status}`)
+          return
+        }
         const data = await res.json()
+        if (!active) return
         setBalance(data.balance ?? 0)
         setToDeposit(data.toDeposit ?? 0)
       })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      .catch(() => {
+        if (active) setError("Erreur réseau")
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
-    refetch()
+    const cleanup = refetch()
+    return cleanup
   }, [refetch])
 
-  return { balance, toDeposit, loading, refetch }
+  return { balance, toDeposit, loading, error, refetch }
 }
