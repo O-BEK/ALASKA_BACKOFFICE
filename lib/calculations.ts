@@ -1,6 +1,7 @@
 export const VARIABLE_COST_RATE = 0.28
 export const FIXED_CHARGES_TOTAL = 98400
 export const BREAKEVEN = FIXED_CHARGES_TOTAL / (1 - VARIABLE_COST_RATE) // 136 667
+export const CAISSE_RESERVE = 1000
 
 export function calcBreakeven(fixedCharges: number, variableCostRate = VARIABLE_COST_RATE): number {
   return fixedCharges / (1 - variableCostRate)

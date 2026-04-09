@@ -2,7 +2,7 @@ import "server-only"
 
 import { eachDayOfInterval, endOfWeek, format, startOfWeek } from "date-fns"
 import { fr } from "date-fns/locale"
-import { BREAKEVEN, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin } from "@/lib/calculations"
+import { BREAKEVEN, CAISSE_RESERVE, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin } from "@/lib/calculations"
 import type { DailyEntry, MonthlyKPIs } from "@/lib/types"
 import type { DailySaleRecord, ExpenseRecord, PilotDb } from "@/lib/server/pilot-store"
 
@@ -258,5 +258,5 @@ export function buildCaisseBalance(db: PilotDb): { balance: number; toDeposit: n
   const totalCA = db.daily_sales.reduce((sum, r) => sum + r.ca_caisse, 0)
   const totalExp = db.expenses.reduce((sum, e) => sum + e.amount, 0)
   const balance = totalCA - totalExp
-  return { balance, toDeposit: Math.max(0, balance - 1000) }
+  return { balance, toDeposit: Math.max(0, balance - CAISSE_RESERVE) }
 }
