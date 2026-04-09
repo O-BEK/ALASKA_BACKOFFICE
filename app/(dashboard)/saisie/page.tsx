@@ -103,7 +103,7 @@ export default function SaisiePage() {
                 </span>
               </div>
               <p className="text-[10px] text-alaska-muted text-right">
-                {since ? `Depuis le 01/${since.slice(5)}/${since.slice(0, 4)} · ` : ""}Réserve 1 000 MAD · Fonds permanent 1 500 MAD hors app
+                {since ? `Depuis lun. ${since.slice(8)}/${since.slice(5)} · ` : ""}Réserve 1 000 MAD · Fonds permanent 1 500 MAD hors app
               </p>
             </CardContent>
           </Card>

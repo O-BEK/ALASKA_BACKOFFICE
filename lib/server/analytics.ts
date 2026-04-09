@@ -255,11 +255,14 @@ export function buildMonthlyExportRows(db: PilotDb, month: string) {
 }
 
 export function buildCaisseBalance(db: PilotDb, sinceOverride?: string): { balance: number; toDeposit: number; since: string } {
-  // Scope to current month only — historical CSV data predates cash management setup
+  // Scope to current week (Monday → today) — historical CSV data predates cash management setup
   const now = new Date()
-  const since = sinceOverride ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-  const totalCA = db.daily_sales.filter((r) => r.date.startsWith(since)).reduce((sum, r) => sum + r.ca_caisse, 0)
-  const totalExp = db.expenses.filter((e) => e.date.startsWith(since)).reduce((sum, e) => sum + e.amount, 0)
+  const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1 // Monday = 0
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - dayOfWeek)
+  const since = sinceOverride ?? monday.toISOString().slice(0, 10)
+  const totalCA = db.daily_sales.filter((r) => r.date >= since).reduce((sum, r) => sum + r.ca_caisse, 0)
+  const totalExp = db.expenses.filter((e) => e.date >= since).reduce((sum, e) => sum + e.amount, 0)
   const balance = totalCA - totalExp
   return { balance, toDeposit: Math.max(0, balance - CAISSE_RESERVE), since }
 }
