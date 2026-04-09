@@ -75,6 +75,7 @@ export function buildDashboardData(db: PilotDb, month: string) {
   const previous = buildMonthlyKpis(db, previousMonth)
   const delta_ca = previous.ca_caisse > 0 ? ((kpis.ca_caisse - previous.ca_caisse) / previous.ca_caisse) * 100 : 0
 
+  const breakeven = liveBreakeven(db)
   const last12 = Array.from({ length: 12 }, (_, index) => {
     const current = new Date(year, rawMonth - 1 - (11 - index), 1)
     const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}`
@@ -83,7 +84,7 @@ export function buildDashboardData(db: PilotDb, month: string) {
       month: key,
       ca_caisse: monthly.ca_caisse,
       ca_b2b: monthly.ca_b2b,
-      breakeven: liveBreakeven(db),
+      breakeven,
     }
   })
 
