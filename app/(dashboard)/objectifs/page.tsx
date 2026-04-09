@@ -113,7 +113,7 @@ export default function ObjectifsPage() {
                   const pct = mo.target_ca > 0 ? (real / mo.target_ca) * 100 : 0
                   const done = real > 0
                   return (
-                    <div key={i} className="flex items-center gap-3 p-2 hover:bg-alaska-sage-lt/40 rounded-lg">
+                    <div key={`${mo.year}-${mo.month}`} className="flex items-center gap-3 p-2 hover:bg-alaska-sage-lt/40 rounded-lg">
                       <span className="text-sm w-10 text-alaska-muted">{MONTHS_FR[mo.month - 1]}</span>
                       <div className="flex-1 bg-alaska-sage-lt rounded-full h-2">
                         <div className={cn("h-2 rounded-full", pct >= 100 ? "bg-alaska-sage" : pct >= 70 ? "bg-amber-400" : "bg-red-400")}
