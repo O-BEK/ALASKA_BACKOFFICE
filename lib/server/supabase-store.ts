@@ -272,38 +272,54 @@ function mapImportRecord(row: any): ImportRecord {
 }
 
 export async function ensureSeedData(client: SupabaseClientLike, userId: string | null) {
-  const { count, error } = await client.from("daily_sales").select("id", { count: "exact", head: true })
-  if (error) {
-    console.error("[ensureSeedData] count query failed:", error.message)
-    return
-  }
-  if ((count || 0) > 0) return
-
-  const payloads = buildSeedPayloads(userId)
-
-  const optionalInserts = []
-  const posImportsInsert = client.from("pos_imports").insert(payloads.imports)
-  optionalInserts.push(posImportsInsert)
-
-  const inserts = [
-    client.from("fixed_charges").insert(payloads.fixedCharges),
-    client.from("objectives").upsert(payloads.objectives, { onConflict: "year,type,scenario" }),
-    client.from("monthly_objectives").upsert(payloads.monthlyObjectives, { onConflict: "year,month" }),
-    client.from("action_items").insert(payloads.actionItems),
-    client.from("daily_sales").upsert(payloads.dailySales, { onConflict: "date" }),
-    client.from("expenses").insert(payloads.expenses),
-  ]
-
-  const [optionalResults, results] = await Promise.all([
-    Promise.all(optionalInserts),
-    Promise.all(inserts),
+  // Check both daily_sales (for historical data) and action_items (for static config)
+  // independently — if CSV was imported before first visit, daily_sales has data
+  // but action_items / objectives may still be empty.
+  const [salesRes, actionsRes] = await Promise.all([
+    client.from("daily_sales").select("id", { count: "exact", head: true }),
+    client.from("action_items").select("id", { count: "exact", head: true }),
   ])
 
-  const optionalFailed = optionalResults.find((result) => result.error && !isMissingTableError(result.error, "pos_imports"))
-  if (optionalFailed?.error) throw new Error(optionalFailed.error.message)
+  if (salesRes.error) console.error("[ensureSeedData] daily_sales count:", salesRes.error.message)
+  if (actionsRes.error) console.error("[ensureSeedData] action_items count:", actionsRes.error.message)
 
-  const failed = results.find((result) => result.error)
-  if (failed?.error) console.error("[ensureSeedData] seed partiel:", failed.error.message)
+  const salesCount = salesRes.error ? -1 : (salesRes.count || 0)
+  const actionsCount = actionsRes.error ? -1 : (actionsRes.count || 0)
+
+  // Nothing to seed
+  if (salesCount > 0 && actionsCount > 0) return
+
+  const payloads = buildSeedPayloads(userId)
+  const allInserts: Promise<{ error: { message?: string } | null }>[] = []
+
+  // Seed static config tables (objectives, charges, actions) if action_items is empty
+  if (actionsCount === 0) {
+    allInserts.push(
+      client.from("fixed_charges").insert(payloads.fixedCharges),
+      client.from("objectives").upsert(payloads.objectives, { onConflict: "year,type,scenario" }),
+      client.from("monthly_objectives").upsert(payloads.monthlyObjectives, { onConflict: "year,month" }),
+      client.from("action_items").insert(payloads.actionItems),
+    )
+  }
+
+  // Seed historical sales data only if daily_sales is empty
+  if (salesCount === 0) {
+    const posResult = await client.from("pos_imports").insert(payloads.imports)
+    if (posResult.error && !isMissingTableError(posResult.error, "pos_imports")) {
+      console.error("[ensureSeedData] pos_imports:", posResult.error.message)
+    }
+    allInserts.push(
+      client.from("daily_sales").upsert(payloads.dailySales, { onConflict: "date" }),
+      client.from("expenses").insert(payloads.expenses),
+    )
+  }
+
+  if (allInserts.length === 0) return
+
+  const results = await Promise.all(allInserts)
+  results.forEach((r) => {
+    if (r.error) console.error("[ensureSeedData] seed partiel:", r.error.message)
+  })
 }
 
 export async function readSnapshot(client: SupabaseClientLike, options?: { seedIfEmpty?: boolean; userId?: string | null }): Promise<PilotDb> {
