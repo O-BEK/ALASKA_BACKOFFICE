@@ -167,8 +167,8 @@ export async function POST(request: Request) {
       const existing = existingSalesByDate.get(row.date)
       return {
         date: row.date,
-        ca_caisse: existing?.ca_caisse || 0,  // jamais écrasé par le CSV
-        ca_b2b: row.ca_b2b ?? 0,              // carte depuis le parser
+        ca_caisse: row.ca_caisse,   // espèces depuis le parser
+        ca_b2b: row.ca_b2b ?? 0,  // carte depuis le parser
         ca_soir: row.ca_soir,
         pct_soir: row.pct_soir,
         tickets_count: row.tickets_count,
