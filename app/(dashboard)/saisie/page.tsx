@@ -45,7 +45,7 @@ export default function SaisiePage() {
   const { kpis: monthKpis } = useDashboard(viewMonth)
   const weekData = useWeekView(weekStart)
   const { entries: weekEntries, dates: weekDates, updateCA: updateWeekCA, updateExpense: updateWeekExpense } = useWeekEntries(weekStart)
-  const { balance, toDeposit, refetch: refetchBalance } = useCaisseBalance()
+  const { balance, toDeposit, since, refetch: refetchBalance } = useCaisseBalance()
   const [virementOpen, setVirementOpen] = useState(false)
   const safeExpenses = Array.isArray(entry.expenses) ? entry.expenses : []
   const safeWeekDays = Array.isArray(weekData.days) ? weekData.days : []
@@ -102,7 +102,9 @@ export default function SaisiePage() {
                   {formatMAD(toDeposit)}
                 </span>
               </div>
-              <p className="text-[10px] text-alaska-muted text-right">Réserve 1 000 MAD · Fonds permanent 1 500 MAD hors app</p>
+              <p className="text-[10px] text-alaska-muted text-right">
+                {since ? `Depuis le 01/${since.slice(5)}/${since.slice(0, 4)} · ` : ""}Réserve 1 000 MAD · Fonds permanent 1 500 MAD hors app
+              </p>
             </CardContent>
           </Card>
 

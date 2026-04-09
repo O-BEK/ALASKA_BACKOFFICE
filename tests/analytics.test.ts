@@ -33,7 +33,7 @@ describe("buildCaisseBalance", () => {
     })
     // balance = (5000 + 3000) - (2000 + 1500) = 4500
     // toDeposit = max(0, 4500 - 1000) = 3500
-    const result = buildCaisseBalance(db)
+    const result = buildCaisseBalance(db, "2026-01")
     expect(result.balance).toBe(4500)
     expect(result.toDeposit).toBe(3500)
   })
@@ -44,7 +44,7 @@ describe("buildCaisseBalance", () => {
         { id: "s1", date: "2026-01-01", ca_caisse: 800, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 5, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
       ],
     })
-    const result = buildCaisseBalance(db)
+    const result = buildCaisseBalance(db, "2026-01")
     expect(result.balance).toBe(800)
     expect(result.toDeposit).toBe(0)
   })

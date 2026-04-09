@@ -254,9 +254,12 @@ export function buildMonthlyExportRows(db: PilotDb, month: string) {
   })
 }
 
-export function buildCaisseBalance(db: PilotDb): { balance: number; toDeposit: number } {
-  const totalCA = db.daily_sales.reduce((sum, r) => sum + r.ca_caisse, 0)
-  const totalExp = db.expenses.reduce((sum, e) => sum + e.amount, 0)
+export function buildCaisseBalance(db: PilotDb, sinceOverride?: string): { balance: number; toDeposit: number; since: string } {
+  // Scope to current month only — historical CSV data predates cash management setup
+  const now = new Date()
+  const since = sinceOverride ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+  const totalCA = db.daily_sales.filter((r) => r.date.startsWith(since)).reduce((sum, r) => sum + r.ca_caisse, 0)
+  const totalExp = db.expenses.filter((e) => e.date.startsWith(since)).reduce((sum, e) => sum + e.amount, 0)
   const balance = totalCA - totalExp
-  return { balance, toDeposit: Math.max(0, balance - CAISSE_RESERVE) }
+  return { balance, toDeposit: Math.max(0, balance - CAISSE_RESERVE), since }
 }

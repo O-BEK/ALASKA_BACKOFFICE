@@ -23,12 +23,18 @@ interface WeekGridProps {
   ) => void
 }
 
-function Cell({ value, disabled, onChange }: { value: number; disabled?: boolean; onChange: (_value: number) => void }) {
+function Cell({ value, disabled, readonly, onChange }: { value: number; disabled?: boolean; readonly?: boolean; onChange: (_value: number) => void }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState("")
   const ref = useRef<HTMLInputElement>(null)
 
   if (disabled) return <div className="text-right text-sm px-2 py-1 text-gray-300">—</div>
+
+  if (readonly) return (
+    <div className={`text-right text-sm px-2 py-1 ${value === 0 ? "text-gray-300" : "text-gray-500"}`}>
+      {value === 0 ? "—" : value.toLocaleString("fr-MA")}
+    </div>
+  )
 
   if (editing) {
     return (
@@ -82,7 +88,7 @@ export function WeekGrid({ entries, dates, onUpdateCA, onUpdateExpense }: WeekGr
             <td className="px-3 py-1.5 text-xs font-bold text-blue-800">💰 CA Caisse</td>
             {dates.map(d => (
               <td key={d} className={tdClass}>
-                <Cell value={getCA(d)} disabled={isAfter(parseISO(d), today) || entries[d]?.source === "csv_import"} onChange={v => onUpdateCA(d, v)} />
+                <Cell value={getCA(d)} disabled={isAfter(parseISO(d), today)} readonly={entries[d]?.source === "csv_import"} onChange={v => onUpdateCA(d, v)} />
               </td>
             ))}
           </tr>
