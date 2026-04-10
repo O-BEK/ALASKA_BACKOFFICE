@@ -6,7 +6,7 @@ import { parseCSV } from "@/lib/csv-parser"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { AlertCircle, AlertTriangle, CheckCircle2, FileText, UploadCloud, X, XCircle } from "lucide-react"
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, FileText, UploadCloud, X, XCircle } from "lucide-react"
 import type { ImportRecord } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -19,7 +19,21 @@ type ParsedDay = {
   tickets_count: number
 }
 
+type MonthlySummary = {
+  month: string
+  days_csv: number
+  days_manual: number
+  ca_total: number
+}
+
 type Step = "upload" | "preview" | "done"
+
+const MONTHS_FR = ["Jan","Fév","Mars","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
+function monthLabel(m: string) {
+  if (!m) return ""
+  const [y, mo] = m.split("-")
+  return `${MONTHS_FR[parseInt(mo) - 1]} ${y}`
+}
 
 export default function ImportPage() {
   const [step, setStep] = useState<Step>("upload")
@@ -29,18 +43,29 @@ export default function ImportPage() {
   const [duplicates, setDuplicates] = useState<string[]>([])
   const [result, setResult] = useState<ImportRecord | null>(null)
   const [history, setHistory] = useState<ImportRecord[]>([])
+  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary[]>([])
+  const [showHistory, setShowHistory] = useState(false)
   const [error, setError] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const safePreview = Array.isArray(preview) ? preview : []
   const safeDuplicates = Array.isArray(duplicates) ? duplicates : []
   const safeHistory = Array.isArray(history) ? history : []
+  const safeSummary = Array.isArray(monthlySummary) ? monthlySummary : []
 
-  useEffect(() => {
+  const loadData = () => {
     fetch("/api/import-csv")
       .then(async (response) => parseImportHistoryPayload(await response.json()))
-      .then((payload) => setHistory(payload.history))
-      .catch(() => setHistory([]))
-  }, [])
+      .then((payload) => {
+        setHistory(payload.history)
+        setMonthlySummary(payload.monthly_summary)
+      })
+      .catch(() => {
+        setHistory([])
+        setMonthlySummary([])
+      })
+  }
+
+  useEffect(() => { loadData() }, [])
 
   const readJsonSafely = async (response: Response) => {
     const raw = await response.text()
@@ -61,10 +86,8 @@ export default function ImportPage() {
       setError("Format non supporté. Veuillez importer un fichier .csv")
       return
     }
-
     setFile(selected)
     setError("")
-
     try {
       const parsed = parseCSV(await selected.text())
       const response = await fetch("/api/import-csv", {
@@ -77,7 +100,6 @@ export default function ImportPage() {
         setError(payload.error || "Format CSV non reconnu.")
         return
       }
-
       setPreview(parsed)
       setDuplicates(Array.isArray(payload.duplicates) ? payload.duplicates as string[] : [])
       setStep("preview")
@@ -88,7 +110,6 @@ export default function ImportPage() {
 
   const handleConfirm = async () => {
     if (!file || safePreview.length === 0) return
-
     const response = await fetch("/api/import-csv", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -99,10 +120,9 @@ export default function ImportPage() {
       setError(payload.error || "Import impossible.")
       return
     }
-
     setResult(payload.result as ImportRecord)
-    setHistory((prev) => [payload.result as ImportRecord, ...prev])
     setStep("done")
+    loadData()
   }
 
   return (
@@ -114,15 +134,13 @@ export default function ImportPage() {
 
       {step === "upload" && (
         <div className="space-y-4">
+          {/* Drop zone */}
           <Card
             className={cn(
               "border-2 border-dashed cursor-pointer rounded-xl transition",
               dragging ? "border-alaska-sage bg-alaska-sage-lt" : "border-alaska-sage-lt hover:border-alaska-sage hover:bg-alaska-sage-lt/40"
             )}
-            onDragOver={(e) => {
-              e.preventDefault()
-              setDragging(true)
-            }}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => {
               e.preventDefault()
@@ -158,31 +176,93 @@ export default function ImportPage() {
             </div>
           )}
 
-          <Card className="bg-white border border-alaska-sage-lt rounded-xl">
-            <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm text-alaska-dark">Derniers imports</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 pb-4">
-              {safeHistory.map((imp) => (
-                <div key={imp.id} className="flex items-center gap-3 p-2 bg-alaska-sage-lt/30 rounded-lg">
-                  {imp.status === "error" ? (
-                    <XCircle size={16} className="text-red-500 flex-shrink-0" />
-                  ) : imp.status === "partial" ? (
-                    <AlertTriangle size={16} className="text-amber-500 flex-shrink-0" />
-                  ) : (
-                    <CheckCircle2 size={16} className="text-alaska-sage flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-alaska-dark truncate">{imp.filename}</p>
-                    <p className="text-xs text-alaska-muted">
-                      {imp.days_imported} jours · {formatMAD(imp.ca_total)}
-                    </p>
-                  </div>
-                  <span className="text-xs text-alaska-muted">{imp.imported_at.slice(0, 10)}</span>
+          {/* Données en base par mois */}
+          {safeSummary.length > 0 && (
+            <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+              <CardHeader className="pb-2 pt-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm text-alaska-dark">Données en base</CardTitle>
+                  <p className="text-xs text-alaska-muted">Chaque import remplace les jours existants</p>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="pb-4">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-alaska-muted border-b border-alaska-sage-lt">
+                      <th className="text-left pb-2">Mois</th>
+                      <th className="text-right pb-2">Jours CSV</th>
+                      <th className="text-right pb-2">Jours manuels</th>
+                      <th className="text-right pb-2">CA total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-alaska-sage-lt">
+                    {safeSummary.map((row) => (
+                      <tr key={row.month} className="hover:bg-alaska-sage-lt/20">
+                        <td className="py-1.5 font-medium text-alaska-dark">{monthLabel(row.month)}</td>
+                        <td className="text-right">
+                          {row.days_csv > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-alaska-sage">
+                              <CheckCircle2 size={11} /> {row.days_csv}j
+                            </span>
+                          ) : (
+                            <span className="text-alaska-muted">—</span>
+                          )}
+                        </td>
+                        <td className="text-right text-alaska-muted">
+                          {row.days_manual > 0 ? `${row.days_manual}j` : "—"}
+                        </td>
+                        <td className="text-right font-playfair font-semibold text-alaska-dark">
+                          {formatMAD(row.ca_total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Historique imports (collapsible) */}
+          {safeHistory.length > 0 && (
+            <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+              <button
+                className="w-full text-left"
+                onClick={() => setShowHistory((v) => !v)}
+              >
+                <CardHeader className="pb-2 pt-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm text-alaska-dark">
+                      Historique imports ({safeHistory.length})
+                    </CardTitle>
+                    {showHistory ? <ChevronUp size={14} className="text-alaska-muted" /> : <ChevronDown size={14} className="text-alaska-muted" />}
+                  </div>
+                </CardHeader>
+              </button>
+              {showHistory && (
+                <CardContent className="space-y-2 pb-4">
+                  {safeHistory.map((imp) => (
+                    <div key={imp.id} className="flex items-center gap-3 p-2 bg-alaska-sage-lt/30 rounded-lg">
+                      {imp.status === "error" ? (
+                        <XCircle size={16} className="text-red-500 flex-shrink-0" />
+                      ) : imp.status === "partial" ? (
+                        <AlertTriangle size={16} className="text-amber-500 flex-shrink-0" />
+                      ) : (
+                        <CheckCircle2 size={16} className="text-alaska-sage flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-alaska-dark truncate">{imp.filename}</p>
+                        <p className="text-xs text-alaska-muted">
+                          {imp.days_imported}j · {formatMAD(imp.ca_total)}
+                          {imp.date_range_start && ` · ${imp.date_range_start.slice(0, 7)}`}
+                        </p>
+                      </div>
+                      <span className="text-xs text-alaska-muted flex-shrink-0">{imp.imported_at.slice(0, 10)}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              )}
+            </Card>
+          )}
         </div>
       )}
 
@@ -195,6 +275,7 @@ export default function ImportPage() {
                 <p className="font-semibold text-sm text-alaska-dark">{file?.name}</p>
                 <p className="text-xs text-alaska-sage">
                   {safePreview.length} jours · {safePreview.reduce((sum, row) => sum + row.tickets_count, 0)} tickets
+                  {" · CA "}{formatMAD(safePreview.reduce((sum, row) => sum + row.ca_caisse + row.ca_b2b, 0))}
                 </p>
               </div>
             </CardContent>
@@ -202,7 +283,8 @@ export default function ImportPage() {
 
           {safeDuplicates.length > 0 && (
             <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
-              Les dates suivantes seront mises à jour: {safeDuplicates.join(", ")}
+              <p className="font-medium mb-1">{safeDuplicates.length} date(s) déjà en base — données remplacées :</p>
+              <p className="text-xs">{safeDuplicates.slice(0, 10).join(", ")}{safeDuplicates.length > 10 ? ` + ${safeDuplicates.length - 10} autres` : ""}</p>
             </div>
           )}
 
@@ -216,8 +298,9 @@ export default function ImportPage() {
                   <thead>
                     <tr className="text-xs text-alaska-muted border-b border-alaska-sage-lt">
                       <th className="text-left pb-2">Date</th>
-                      <th className="text-right pb-2">CA</th>
-                      <th className="text-right pb-2">Soir %</th>
+                      <th className="text-right pb-2">Espèces</th>
+                      <th className="text-right pb-2">CB</th>
+                      <th className="text-right pb-2">Total</th>
                       <th className="text-right pb-2">Tickets</th>
                     </tr>
                   </thead>
@@ -225,14 +308,17 @@ export default function ImportPage() {
                     {safePreview.slice(0, 10).map((row) => (
                       <tr key={row.date} className="hover:bg-alaska-sage-lt/30">
                         <td className="py-1.5 text-alaska-dark">{row.date}</td>
-                        <td className="text-right font-playfair font-medium text-alaska-dark">{formatMAD(row.ca_caisse)}</td>
-                        <td className="text-right text-alaska-muted">{row.pct_soir.toFixed(0)}%</td>
+                        <td className="text-right text-alaska-muted">{formatMAD(row.ca_caisse)}</td>
+                        <td className="text-right text-alaska-muted">{formatMAD(row.ca_b2b)}</td>
+                        <td className="text-right font-playfair font-medium text-alaska-dark">{formatMAD(row.ca_caisse + row.ca_b2b)}</td>
                         <td className="text-right text-alaska-muted">{row.tickets_count}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {safePreview.length > 10 && <p className="text-xs text-alaska-muted text-center pt-2">+ {safePreview.length - 10} jours supplémentaires</p>}
+                {safePreview.length > 10 && (
+                  <p className="text-xs text-alaska-muted text-center pt-2">+ {safePreview.length - 10} jours supplémentaires</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -259,9 +345,8 @@ export default function ImportPage() {
             <div>
               <h2 className="font-playfair text-xl font-bold text-alaska-dark">Import terminé !</h2>
               <div className="mt-4 space-y-1 text-sm text-alaska-dark">
-                <p>✅ {result.days_imported} jours importés</p>
-                <p>✅ {result.rows_processed} tickets traités</p>
-                <p>✅ CA total : {formatMAD(result.ca_total)}</p>
+                <p>{result.days_imported} jours importés · {result.rows_processed} tickets</p>
+                <p className="font-playfair font-semibold text-lg">{formatMAD(result.ca_total)}</p>
               </div>
             </div>
             <Button className="bg-alaska-sage hover:bg-alaska-sage/90 text-white" onClick={() => setStep("upload")}>

@@ -43,20 +43,36 @@ export async function GET() {
   const supabase = createClient()
 
   try {
-    const result = await supabase
-      .from("pos_imports")
-      .select("id, filename, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
-      .order("imported_at", { ascending: false })
+    const [importsResult, salesResult] = await Promise.all([
+      supabase
+        .from("pos_imports")
+        .select("id, filename, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
+        .order("imported_at", { ascending: false }),
+      supabase
+        .from("daily_sales")
+        .select("date, ca_caisse, ca_b2b, source"),
+    ])
 
-    if (isMissingPosImportsTable(result.error)) {
-      return NextResponse.json({ history: [] })
+    if (isMissingPosImportsTable(importsResult.error)) {
+      return NextResponse.json({ history: [], monthly_summary: [] })
     }
 
-    if (result.error) {
-      return NextResponse.json({ error: `Impossible de charger l'historique d'import. ${result.error.message}` }, { status: 500 })
+    if (importsResult.error) {
+      return NextResponse.json({ error: `Impossible de charger l'historique d'import. ${importsResult.error.message}` }, { status: 500 })
     }
 
-    return NextResponse.json({ history: result.data || [] })
+    // Aggregate daily_sales by month
+    const byMonth: Record<string, { month: string; days_csv: number; days_manual: number; ca_total: number }> = {}
+    for (const row of salesResult.data || []) {
+      const month = row.date.slice(0, 7)
+      if (!byMonth[month]) byMonth[month] = { month, days_csv: 0, days_manual: 0, ca_total: 0 }
+      byMonth[month].ca_total += (row.ca_caisse ?? 0) + (row.ca_b2b ?? 0)
+      if (row.source === "csv_import") byMonth[month].days_csv++
+      else byMonth[month].days_manual++
+    }
+    const monthly_summary = Object.values(byMonth).sort((a, b) => b.month.localeCompare(a.month))
+
+    return NextResponse.json({ history: importsResult.data || [], monthly_summary })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur serveur inconnue."
     return NextResponse.json({ error: `Impossible de charger l'historique d'import. ${message}` }, { status: 500 })

@@ -130,8 +130,16 @@ const importRecordSchema = z.object({
   status: z.enum(["success", "error", "partial"]).catch("success"),
 })
 
+const monthlySummarySchema = z.object({
+  month: z.string().catch(""),
+  days_csv: z.coerce.number().catch(0),
+  days_manual: z.coerce.number().catch(0),
+  ca_total: z.coerce.number().catch(0),
+})
+
 const importHistoryPayloadSchema = z.object({
   history: z.array(importRecordSchema).catch([]),
+  monthly_summary: z.array(monthlySummarySchema).catch([]),
 })
 
 const weekDaySchema = z.object({
@@ -207,7 +215,10 @@ export function parseObjectivesPayload(input: unknown): {
   return objectivesPayloadSchema.parse(input)
 }
 
-export function parseImportHistoryPayload(input: unknown): { history: ImportRecord[] } {
+export function parseImportHistoryPayload(input: unknown): {
+  history: ImportRecord[]
+  monthly_summary: { month: string; days_csv: number; days_manual: number; ca_total: number }[]
+} {
   return importHistoryPayloadSchema.parse(input)
 }
 
