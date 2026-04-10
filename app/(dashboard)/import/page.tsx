@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 type ParsedDay = {
   date: string
   ca_caisse: number
+  ca_b2b: number
   ca_soir: number
   pct_soir: number
   tickets_count: number

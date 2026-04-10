@@ -25,6 +25,7 @@ function sanitizeParsedRows(input: unknown): ParsedDay[] {
       return {
         date,
         ca_caisse: Number(candidate.ca_caisse || 0),
+        ca_b2b: Number(candidate.ca_b2b || 0),
         ca_soir: Number(candidate.ca_soir || 0),
         pct_soir: Number(candidate.pct_soir || 0),
         tickets_count: Number(candidate.tickets_count || 0),
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
         days_imported: parsed.length,
         date_range_start: parsed[0]?.date || null,
         date_range_end: parsed[parsed.length - 1]?.date || null,
-        ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse, 0),
+        ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse + row.ca_b2b, 0),
         status: duplicates.length > 0 ? "partial" : "success",
       })
       .select("id, filename, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
@@ -160,7 +161,7 @@ export async function POST(request: Request) {
       days_imported: parsed.length,
       date_range_start: parsed[0]?.date || "",
       date_range_end: parsed[parsed.length - 1]?.date || "",
-      ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse, 0),
+      ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse + row.ca_b2b, 0),
       status: duplicates.length > 0 ? "partial" : "success",
     }
 
