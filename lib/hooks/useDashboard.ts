@@ -7,7 +7,7 @@ import type { MonthlyKPIs } from "@/lib/types"
 interface DashboardState {
   kpis: MonthlyKPIs
   delta_ca: number
-  last12: { month: string; ca_caisse: number; ca_b2b: number; breakeven: number }[]
+  last12: { month: string; ca_caisse: number; ca_b2b: number; ca_total: number; breakeven: number }[]
 }
 
 const emptyKpis: MonthlyKPIs = {

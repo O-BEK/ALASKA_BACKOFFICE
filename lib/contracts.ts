@@ -51,6 +51,7 @@ const dashboardLast12Schema = z.object({
   month: z.string().catch(""),
   ca_caisse: z.coerce.number().catch(0),
   ca_b2b: z.coerce.number().catch(0),
+  ca_total: z.coerce.number().catch(0),
   breakeven: z.coerce.number().catch(0),
 })
 
@@ -185,7 +186,7 @@ const reportingPayloadSchema = z.object({
 export function parseDashboardState(input: unknown, month: string): {
   kpis: MonthlyKPIs
   delta_ca: number
-  last12: { month: string; ca_caisse: number; ca_b2b: number; breakeven: number }[]
+  last12: { month: string; ca_caisse: number; ca_b2b: number; ca_total: number; breakeven: number }[]
 } {
   const parsed = dashboardStateSchema.parse(input)
   return {
