@@ -9,12 +9,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, name")
+    .eq("id", user.id)
+    .single()
+
+  const role = (profile?.role || "manager") as "admin" | "manager"
+  const name = profile?.name || user.email?.split("@")[0] || "Utilisateur"
+
   return (
     <AppShell
       user={{
         email: user.email || "",
-        name: user.user_metadata?.name || user.email?.split("@")[0] || "Utilisateur",
-        role: (user.user_metadata?.role || "manager") as "admin" | "manager",
+        name,
+        role,
       }}
     >
       {children}
