@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { buildMonthlyKpis } from "@/lib/server/analytics"
 import { ACTION_ITEMS, MONTHLY_OBJECTIVES_2026, OBJECTIVES } from "@/lib/mock-data"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, isAdmin } from "@/lib/supabase/server"
 import { readSnapshot, updateActionStatus } from "@/lib/server/supabase-store"
 
 export async function GET() {
@@ -52,7 +52,7 @@ export async function PUT(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user || user.user_metadata?.role !== "admin") {
+  if (!user || !(await isAdmin(supabase, user.id))) {
     return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
   }
 

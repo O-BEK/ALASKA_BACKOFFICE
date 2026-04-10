@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, isAdmin } from "@/lib/supabase/server"
 import { readSnapshot, updateFixedCharge, createFixedCharge } from "@/lib/server/supabase-store"
 import { parseCreateChargeBody } from "@/lib/contracts"
 
@@ -22,7 +22,7 @@ export async function PUT(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user || user.user_metadata?.role !== "admin") {
+  if (!user || !(await isAdmin(supabase, user.id))) {
     return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
   }
 
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user || user.user_metadata?.role !== "admin") {
+  if (!user || !(await isAdmin(supabase, user.id))) {
     return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
   }
 

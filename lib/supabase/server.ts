@@ -1,5 +1,6 @@
 import { cookies } from "next/headers"
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
 export function createClient() {
   const cookieStore = cookies()
@@ -25,4 +26,37 @@ export function createClient() {
       },
     }
   )
+}
+
+/**
+ * Get the user's role from the profiles table (secure server-side check).
+ * Returns the role if the user exists in profiles, otherwise null.
+ */
+export async function getUserRole(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<"admin" | "manager" | null> {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("user_id", userId)
+      .single()
+
+    if (error || !data) return null
+    return data.role
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Check if the user is an admin (from profiles table).
+ */
+export async function isAdmin(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<boolean> {
+  const role = await getUserRole(supabase, userId)
+  return role === "admin"
 }

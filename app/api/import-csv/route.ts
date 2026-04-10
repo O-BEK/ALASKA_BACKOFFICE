@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { parseCSV } from "@/lib/csv-parser"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, isAdmin } from "@/lib/supabase/server"
 import type { ImportRecord } from "@/lib/types"
 
 type ParsedDay = {
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user || user.user_metadata?.role !== "admin") {
+  if (!user || !(await isAdmin(supabase, user.id))) {
     return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
   }
 
