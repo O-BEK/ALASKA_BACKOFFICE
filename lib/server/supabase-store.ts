@@ -562,7 +562,7 @@ export async function getExpenseSections(supabase: SupabaseClientLike): Promise<
     .eq("is_active", true)
     .order("sort_order")
 
-  if (secErr) return []
+  if (secErr) throw new Error(secErr.message)
 
   const { data: items, error: itemErr } = await supabase
     .from("expense_item_templates")
@@ -570,7 +570,7 @@ export async function getExpenseSections(supabase: SupabaseClientLike): Promise<
     .eq("is_active", true)
     .order("sort_order")
 
-  if (itemErr) return []
+  if (itemErr) throw new Error(itemErr.message)
 
   return (sections || []).map((s: any) => ({
     id: s.id,
@@ -593,7 +593,8 @@ export async function createExpenseSection(
     .order("sort_order", { ascending: false })
     .limit(1)
   const nextOrder = ((existing?.[0]?.sort_order) ?? 0) + 1
-  await supabase.from("expense_sections").insert({ ...payload, sort_order: nextOrder })
+  const { error: insertErr } = await supabase.from("expense_sections").insert({ ...payload, sort_order: nextOrder })
+  if (insertErr) throw new Error(insertErr.message)
   return getExpenseSections(supabase)
 }
 
@@ -601,7 +602,8 @@ export async function deleteExpenseSection(
   supabase: SupabaseClientLike,
   id: string
 ): Promise<ExpenseSection[]> {
-  await supabase.from("expense_sections").delete().eq("id", id)
+  const { error: deleteErr } = await supabase.from("expense_sections").delete().eq("id", id)
+  if (deleteErr) throw new Error(deleteErr.message)
   return getExpenseSections(supabase)
 }
 
@@ -616,7 +618,8 @@ export async function createExpenseItem(
     .order("sort_order", { ascending: false })
     .limit(1)
   const nextOrder = ((existing?.[0]?.sort_order) ?? 0) + 1
-  await supabase.from("expense_item_templates").insert({ ...payload, sort_order: nextOrder })
+  const { error: insertErr } = await supabase.from("expense_item_templates").insert({ ...payload, sort_order: nextOrder })
+  if (insertErr) throw new Error(insertErr.message)
   return getExpenseSections(supabase)
 }
 
@@ -624,6 +627,7 @@ export async function deleteExpenseItem(
   supabase: SupabaseClientLike,
   id: string
 ): Promise<ExpenseSection[]> {
-  await supabase.from("expense_item_templates").delete().eq("id", id)
+  const { error: deleteErr } = await supabase.from("expense_item_templates").delete().eq("id", id)
+  if (deleteErr) throw new Error(deleteErr.message)
   return getExpenseSections(supabase)
 }
