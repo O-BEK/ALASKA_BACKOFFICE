@@ -4,7 +4,7 @@ import { eachDayOfInterval, endOfWeek, format, startOfWeek } from "date-fns"
 import { fr } from "date-fns/locale"
 import { BREAKEVEN, CAISSE_RESERVE, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin } from "@/lib/calculations"
 import type { DailyEntry, MonthlyKPIs } from "@/lib/types"
-import type { DailySaleRecord, ExpenseRecord, PilotDb } from "@/lib/server/pilot-store"
+import type { DailySaleRecord, ExpenseRecord, PilotDb } from "@/lib/server/db-types"
 
 function liveBreakeven(db: PilotDb): number {
   const total = db.fixed_charges

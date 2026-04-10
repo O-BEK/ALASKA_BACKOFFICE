@@ -18,7 +18,7 @@ import type {
   MonthlyObjective,
   Objective,
 } from "@/lib/types"
-import type { DailySaleRecord, ExpenseRecord, PilotDb } from "@/lib/server/pilot-store"
+import type { DailySaleRecord, ExpenseRecord, PilotDb } from "@/lib/server/db-types"
 
 type SupabaseClientLike = {
   from: (_table: string) => any
