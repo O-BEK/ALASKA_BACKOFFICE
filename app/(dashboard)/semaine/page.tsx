@@ -37,7 +37,7 @@ export default function SemainePage() {
           <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Semaine</h1>
           <p className="text-alaska-muted text-sm mt-0.5">Vue hebdomadaire</p>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-alaska-sage-lt rounded-lg p-1">
+        <div className="flex items-center gap-2 bg-white border border-alaska-sage-lt rounded-lg p-1 self-center sm:self-auto">
           <button onClick={() => setWeekStart(w => subWeeks(w, 1))}
             className="p-1.5 hover:bg-alaska-sage-lt rounded-md transition">
             <ChevronLeft size={16} className="text-alaska-muted"/>

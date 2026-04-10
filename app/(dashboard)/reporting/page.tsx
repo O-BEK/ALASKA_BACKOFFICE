@@ -76,7 +76,7 @@ export default function ReportingPage() {
           <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Reporting</h1>
           <p className="text-alaska-muted text-sm mt-1">Analyse mensuelle</p>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-alaska-sage-lt rounded-lg p-1">
+        <div className="flex items-center gap-2 bg-white border border-alaska-sage-lt rounded-lg p-1 self-center sm:self-auto">
           <button onClick={() => setMonth(prevMonthStr(month))} className="p-1.5 hover:bg-alaska-sage-lt rounded-md transition">
             <ChevronLeft size={16} />
           </button>

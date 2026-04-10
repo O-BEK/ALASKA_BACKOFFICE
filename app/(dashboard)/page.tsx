@@ -73,7 +73,7 @@ export default function DashboardPage() {
           <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Bonjour Othman</h1>
           <p className="text-alaska-muted text-sm mt-0.5">Tableau de bord — Alaska Neo Bistrot</p>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-alaska-sage-lt rounded-lg p-1">
+        <div className="flex items-center gap-2 bg-white border border-alaska-sage-lt rounded-lg p-1 self-center sm:self-auto">
           <button onClick={prevMonth} className="p-1.5 hover:bg-alaska-sage-lt rounded-md transition"><ChevronLeft size={16}/></button>
           <span className="text-sm font-semibold px-2 min-w-[90px] text-center text-alaska-dark">
             {MONTHS_FR[parseInt(month.split("-")[1])-1]} {month.split("-")[0]}
