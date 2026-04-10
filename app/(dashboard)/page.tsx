@@ -35,7 +35,7 @@ export default function DashboardPage() {
   const safeImports = Array.isArray(imports) ? imports : []
   const safeLast12 = Array.isArray(last12) ? last12 : []
   const soldeCaisse = kpis.ca_caisse - kpis.total_expenses
-  const tauxSolde = kpis.ca_caisse > 0 ? (soldeCaisse / kpis.ca_caisse) * 100 : 0
+  const tauxSolde = kpis.ca_total > 0 ? (soldeCaisse / kpis.ca_total) * 100 : 0
 
   const prevMonth = () => {
     const [y, m] = month.split("-").map(Number)
@@ -98,7 +98,7 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPICard title="CA Caisse" value={formatMAD(kpis.ca_caisse)} delta={delta_ca}
+        <KPICard title="CA Total" value={formatMAD(kpis.ca_total)} delta={delta_ca}
           icon={<DollarSign size={16} className="text-alaska-sage"/>}/>
         <KPICard title="Dépenses" value={formatMAD(kpis.total_expenses)}
           icon={<ShoppingCart size={16} className="text-orange-500"/>} valueClass="text-orange-600"/>
@@ -108,7 +108,7 @@ export default function DashboardPage() {
           valueClass={soldeCaisse >= 0 ? "text-alaska-gold" : "text-red-600"}/>
         <KPICard title="Seuil"
           value={`${kpis.pct_breakeven.toFixed(0)}%`}
-          sub={`${formatMAD(kpis.ca_caisse)} / ${formatMAD(kpis.breakeven)}`}
+          sub={`${formatMAD(kpis.ca_total)} / ${formatMAD(kpis.breakeven)}`}
           icon={<Target size={16} className="text-alaska-sage"/>}
           valueClass={bColor === "green" ? "text-alaska-sage" : bColor === "orange" ? "text-amber-600" : "text-red-600"}
           gauge={kpis.pct_breakeven}/>
@@ -117,7 +117,7 @@ export default function DashboardPage() {
       {/* AreaChart CA 12 mois */}
       <Card className="bg-white border border-alaska-sage-lt rounded-xl">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base text-alaska-dark">CA Caisse — 12 derniers mois</CardTitle>
+          <CardTitle className="text-base text-alaska-dark">CA Total — 12 derniers mois</CardTitle>
           <CardDescription className="text-xs text-alaska-muted">Ligne tiretée = seuil de rentabilité</CardDescription>
         </CardHeader>
         <CardContent>
@@ -134,8 +134,8 @@ export default function DashboardPage() {
               <Tooltip formatter={(v: number) => formatMAD(v)} labelFormatter={monthLabel}
                 contentStyle={{ borderRadius: "8px", border: "1px solid #e8ede7", fontSize: "12px" }}/>
               <ReferenceLine y={kpis.breakeven} stroke="#c9a96e" strokeDasharray="4 4"/>
-              <Area type="monotone" dataKey="ca_caisse" stroke="#4a6741" strokeWidth={2.5} fill="url(#gradSage)"
-                dot={{ r: 3, fill: "#4a6741" }} name="CA Caisse"/>
+              <Area type="monotone" dataKey="ca_total" stroke="#4a6741" strokeWidth={2.5} fill="url(#gradSage)"
+                dot={{ r: 3, fill: "#4a6741" }} name="CA Total"/>
             </AreaChart>
           </ResponsiveContainer>
         </CardContent>

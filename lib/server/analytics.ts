@@ -45,11 +45,11 @@ export function buildMonthlyKpis(db: PilotDb, month: string): MonthlyKPIs {
   const total_expenses = expenses.reduce((sum, item) => sum + item.amount, 0)
   const ca_total = ca_caisse + ca_b2b
   const days_count = sales.length
-  const marge_nette = calcNetMargin(ca_caisse, total_expenses)
-  const taux_marge = calcMarginRate(marge_nette, ca_caisse)
-  const pct_soir = ca_caisse > 0 ? (ca_soir / ca_caisse) * 100 : 0
+  const marge_nette = calcNetMargin(ca_total, total_expenses)
+  const taux_marge = calcMarginRate(marge_nette, ca_total)
+  const pct_soir = ca_total > 0 ? (ca_soir / ca_total) * 100 : 0
   const breakeven = liveBreakeven(db)
-  const pct_breakeven = calcBreakevenPct(ca_caisse, breakeven)
+  const pct_breakeven = calcBreakevenPct(ca_total, breakeven)
 
   return {
     month,
@@ -64,7 +64,7 @@ export function buildMonthlyKpis(db: PilotDb, month: string): MonthlyKPIs {
     breakeven,
     pct_breakeven,
     days_count,
-    ca_per_day: days_count > 0 ? ca_caisse / days_count : 0,
+    ca_per_day: days_count > 0 ? ca_total / days_count : 0,
   }
 }
 
@@ -73,7 +73,7 @@ export function buildDashboardData(db: PilotDb, month: string) {
   const [year, rawMonth] = month.split("-").map(Number)
   const previousMonth = rawMonth === 1 ? `${year - 1}-12` : `${year}-${String(rawMonth - 1).padStart(2, "0")}`
   const previous = buildMonthlyKpis(db, previousMonth)
-  const delta_ca = previous.ca_caisse > 0 ? ((kpis.ca_caisse - previous.ca_caisse) / previous.ca_caisse) * 100 : 0
+  const delta_ca = previous.ca_total > 0 ? ((kpis.ca_total - previous.ca_total) / previous.ca_total) * 100 : 0
 
   const breakeven = liveBreakeven(db)
   const last12 = Array.from({ length: 12 }, (_, index) => {
@@ -84,6 +84,7 @@ export function buildDashboardData(db: PilotDb, month: string) {
       month: key,
       ca_caisse: monthly.ca_caisse,
       ca_b2b: monthly.ca_b2b,
+      ca_total: monthly.ca_total,
       breakeven,
     }
   })
@@ -196,8 +197,8 @@ export function monthReporting(db: PilotDb, month: string) {
   const previous = buildMonthlyKpis(db, previousMonth)
 
   return {
-    monthCA: monthly.ca_caisse,
-    prevCA: previous.ca_caisse,
+    monthCA: monthly.ca_total,
+    prevCA: previous.ca_total,
     monthExp: monthly.total_expenses,
     expByLabel: monthExpensesByLabel(db, month),
     byCategory: ["MP", "RH", "CHARGES", "AUTRE"].map((category) => ({
@@ -207,7 +208,7 @@ export function monthReporting(db: PilotDb, month: string) {
         .reduce((sum, item) => sum + item.amount, 0),
     })),
     pctSeuil: monthly.pct_breakeven,
-    soldeMois: monthly.ca_caisse - monthly.total_expenses,
+    soldeMois: monthly.ca_total - monthly.total_expenses,
   }
 }
 
@@ -222,7 +223,7 @@ export function buildLastSixMonths(db: PilotDb, month: string) {
     )
     return {
       month: format(current, "MMM", { locale: fr }),
-      ca: monthly.ca_caisse,
+      ca: monthly.ca_total,
       objectif: target?.target_ca ?? null,
     }
   })
