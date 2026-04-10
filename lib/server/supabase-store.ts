@@ -13,6 +13,7 @@ import {
 import type {
   ActionItem,
   DailyEntry,
+  ExpenseSection,
   FixedCharge,
   ImportRecord,
   MonthlyObjective,
@@ -552,4 +553,77 @@ export async function applyAlcoolLicenseUplift(
     .order("month", { ascending: true })
   if (finalErr) throw new Error(finalErr.message)
   return (finalRows || []).map(mapMonthlyObjective)
+}
+
+export async function getExpenseSections(supabase: SupabaseClientLike): Promise<ExpenseSection[]> {
+  const { data: sections, error: secErr } = await supabase
+    .from("expense_sections")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order")
+
+  if (secErr) return []
+
+  const { data: items, error: itemErr } = await supabase
+    .from("expense_item_templates")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order")
+
+  if (itemErr) return []
+
+  return (sections || []).map((s: any) => ({
+    id: s.id,
+    name: s.name,
+    emoji: s.emoji,
+    expense_category: s.expense_category,
+    sort_order: s.sort_order,
+    is_active: s.is_active,
+    items: (items || []).filter((t: any) => t.section_id === s.id),
+  }))
+}
+
+export async function createExpenseSection(
+  supabase: SupabaseClientLike,
+  payload: { name: string; emoji: string; expense_category: "MP" | "CHARGES" | "AUTRE" }
+): Promise<ExpenseSection[]> {
+  const { data: existing } = await supabase
+    .from("expense_sections")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+  const nextOrder = ((existing?.[0]?.sort_order) ?? 0) + 1
+  await supabase.from("expense_sections").insert({ ...payload, sort_order: nextOrder })
+  return getExpenseSections(supabase)
+}
+
+export async function deleteExpenseSection(
+  supabase: SupabaseClientLike,
+  id: string
+): Promise<ExpenseSection[]> {
+  await supabase.from("expense_sections").delete().eq("id", id)
+  return getExpenseSections(supabase)
+}
+
+export async function createExpenseItem(
+  supabase: SupabaseClientLike,
+  payload: { section_id: string; label: string }
+): Promise<ExpenseSection[]> {
+  const { data: existing } = await supabase
+    .from("expense_item_templates")
+    .select("sort_order")
+    .eq("section_id", payload.section_id)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+  const nextOrder = ((existing?.[0]?.sort_order) ?? 0) + 1
+  await supabase.from("expense_item_templates").insert({ ...payload, sort_order: nextOrder })
+  return getExpenseSections(supabase)
+}
+
+export async function deleteExpenseItem(
+  supabase: SupabaseClientLike,
+  id: string
+): Promise<ExpenseSection[]> {
+  await supabase.from("expense_item_templates").delete().eq("id", id)
+  return getExpenseSections(supabase)
 }
