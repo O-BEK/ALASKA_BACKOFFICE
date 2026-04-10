@@ -133,11 +133,14 @@ Toutes les fonctions de calcul partagées vivent dans:
 Règles importantes:
 
 - seuil de rentabilité basé sur `0.28` de coûts variables
-- `solde caisse` est l'indicateur opérationnel principal dans la saisie et la semaine
-- la marge nette reste un indicateur analytique
+- `ca_total = ca_caisse + ca_b2b` est le CA POS complet (espèces + CB)
+- `ca_total` alimente : dashboard KPI, breakeven %, marges, reporting, objectifs
+- `ca_caisse` seul alimente : `solde caisse` (saisie + vue semaine) et `buildCaisseBalance`
+- `solde caisse` est l'indicateur de trésorerie physique — intentionnellement limité au cash
+- la marge nette est un indicateur analytique calculé sur `ca_total`
 - `CAISSE_RESERVE = 1 000 MAD` : réserve semaine conservée dans le tiroir-caisse lors d'un virement banque
 - fonds de caisse permanent (1 500 MAD) est physique et hors app
-- `buildCaisseBalance(db)` dans `analytics.ts` calcule le solde cumulé historique : `Σ(ca_caisse) - Σ(expenses)`
+- `buildCaisseBalance(db)` dans `analytics.ts` calcule le solde cumulé historique : `Σ(ca_caisse) - Σ(mouvement_caisse) - Σ(expenses)` — intentionnellement cash only
 - les virements banque sont saisis comme dépense label `"Virement banque"`, catégorie `CHARGES`
 
 ### Daily Sales Import Rules
@@ -146,14 +149,18 @@ Parser CSV:
 
 - `lib/csv-parser.ts`
 
+Le parser identifie les colonnes `MoyensDePaiements` pour séparer :
+- `ca_caisse` = montant espèces (lignes contenant "esp" ou "cash")
+- `ca_b2b` = montant CB et autres paiements non-cash
+
 Règles de fusion import:
 
 - `daily_sales` est unique par `date`
-- un import CSV met à jour les champs caisse du jour
-- `ca_b2b` existant est conservé
+- un import CSV remplace `ca_caisse` ET `ca_b2b` du jour avec les valeurs POS
 - `notes` existantes sont conservées
 - les dépenses existantes du jour ne sont pas écrasées par l'import
 - l'historique des imports est enregistré dans `pos_imports`
+- le GET `/api/import-csv` retourne aussi un `monthly_summary` agrégé depuis `daily_sales` (jours CSV, jours manuels, CA total par mois) — affiché dans la page import comme "Données en base"
 
 ### Expense Categories
 
@@ -195,6 +202,13 @@ npm run build
 - Les variables minimales à fournir sont dans `.env.example`.
 - Toute nouvelle logique KPI doit passer par la couche serveur partagée pour éviter les divergences entre dashboard, saisie, semaine et reporting.
 
+## Important Notes for Future Work — Addendum
+
+- Ne jamais utiliser `ca_caisse` seul pour les KPIs de CA dans dashboard/reporting — toujours `ca_total`.
+- `buildCaisseBalance` utilise `ca_caisse` seul intentionnellement (trésorerie physique).
+- La page import est mobile-first : sélecteurs de navigation centrés via `self-center sm:self-auto`.
+- `sanitizeParsedRows` dans `app/api/import-csv/route.ts` doit inclure `ca_b2b` — sans ça les paiements CB sont perdus au commit.
+
 ## Maintenance Note
 
-Ce fichier a été mis à jour par **Codex** pour refléter l'implémentation réelle du repo après le passage à une V1 pilote interne branchée sur Supabase.
+Ce fichier a été mis à jour pour refléter l'état V1 livrable (avril 2026) après correction des bugs CA total/caisse, import CSV, et ajustements mobile.
