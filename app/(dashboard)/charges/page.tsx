@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, UserX, Zap, Plus, X } from "lucide-react"
+import { useExpenseTemplates } from "@/lib/hooks/useExpenseTemplates"
 
 const CAT_LABELS: Record<string, string> = {
   IMMOBILIER: "🏠 Immobilier", PERSONNEL: "👥 Personnel",
@@ -26,6 +27,14 @@ export default function ChargesPage() {
   const [newPayDay, setNewPayDay] = useState("")
   const [addingNew, setAddingNew] = useState(false)
   const [newCatName, setNewCatName] = useState("")
+
+  const { sections, createSection, createItem, deleteSection, deleteItem } = useExpenseTemplates()
+  const [addingItemSectionId, setAddingItemSectionId] = useState<string | null>(null)
+  const [newItemLabel, setNewItemLabel] = useState("")
+  const [addingNewSection, setAddingNewSection] = useState(false)
+  const [newSectionName, setNewSectionName] = useState("")
+  const [newSectionEmoji, setNewSectionEmoji] = useState("📦")
+  const [newSectionCategory, setNewSectionCategory] = useState<"MP" | "CHARGES" | "AUTRE">("AUTRE")
 
   const resetAddForm = () => {
     setNewName(""); setNewAmount(""); setNewType("fixed"); setNewPayDay(""); setAddingCat(null)
@@ -229,6 +238,113 @@ export default function ChargesPage() {
           </Card>
         )
       })}
+
+      {/* ── Modèles de saisie journalière ─────────────────────── */}
+      <div className="pt-4">
+        <h2 className="font-playfair text-lg font-bold text-alaska-dark mb-1">Modèles de saisie</h2>
+        <p className="text-alaska-muted text-xs mb-4">Items proposés lors de la saisie quotidienne</p>
+      </div>
+
+      {sections.map(section => (
+        <Card key={section.id} className="bg-white border border-alaska-sage-lt rounded-xl">
+          <CardHeader className="pb-2 pt-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold text-alaska-dark">
+                {section.emoji} {section.name}
+                <span className="ml-2 text-xs font-normal text-alaska-muted px-1.5 py-0.5 bg-alaska-sage-lt rounded">
+                  {section.expense_category}
+                </span>
+              </CardTitle>
+              <button onClick={() => deleteSection(section.id)}
+                className="p-1.5 hover:bg-red-50 text-red-400 rounded-md">
+                <X size={14}/>
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 space-y-2">
+            {section.items.map(item => (
+              <div key={item.id} className="flex items-center justify-between py-1 border-b border-alaska-sage-lt/50 last:border-0">
+                <span className="text-sm text-alaska-dark">{item.label}</span>
+                <button onClick={() => deleteItem(item.id)}
+                  className="p-1 hover:bg-red-50 text-red-400 rounded">
+                  <X size={12}/>
+                </button>
+              </div>
+            ))}
+
+            {addingItemSectionId === section.id ? (
+              <div className="flex gap-2 pt-1">
+                <Input
+                  placeholder="Libellé (ex: Légumes)"
+                  value={newItemLabel}
+                  onChange={e => setNewItemLabel(e.target.value)}
+                  className="h-8 text-sm flex-1"
+                  autoFocus
+                />
+                <Button size="sm" className="h-8 text-xs bg-alaska-sage hover:bg-alaska-sage/90"
+                  onClick={async () => {
+                    if (!newItemLabel.trim()) return
+                    await createItem(section.id, newItemLabel.trim())
+                    setNewItemLabel("")
+                    setAddingItemSectionId(null)
+                  }}>
+                  OK
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 text-xs"
+                  onClick={() => { setAddingItemSectionId(null); setNewItemLabel("") }}>
+                  <X size={14}/>
+                </Button>
+              </div>
+            ) : (
+              <button onClick={() => setAddingItemSectionId(section.id)}
+                className="mt-1 w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-alaska-muted border border-dashed border-alaska-sage-lt rounded-lg hover:bg-alaska-sage-lt/50 hover:text-alaska-sage transition">
+                <Plus size={12}/> Ajouter un item
+              </button>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+
+      {addingNewSection ? (
+        <Card className="bg-white border border-dashed border-alaska-sage rounded-xl">
+          <CardContent className="pt-4 pb-4 space-y-2">
+            <div className="flex gap-2">
+              <Input placeholder="Emoji" value={newSectionEmoji}
+                onChange={e => setNewSectionEmoji(e.target.value)}
+                className="w-16 h-8 text-sm text-center"/>
+              <Input placeholder="Nom de la section (ex: Boissons)" value={newSectionName}
+                onChange={e => setNewSectionName(e.target.value)}
+                className="flex-1 h-8 text-sm" autoFocus/>
+            </div>
+            <select value={newSectionCategory}
+              onChange={e => setNewSectionCategory(e.target.value as "MP" | "CHARGES" | "AUTRE")}
+              className="w-full h-8 text-sm border border-input rounded-md px-2 bg-background">
+              <option value="MP">MP — Matières Premières</option>
+              <option value="CHARGES">CHARGES — Autres charges</option>
+              <option value="AUTRE">AUTRE — Divers</option>
+            </select>
+            <div className="flex gap-2">
+              <Button size="sm" className="flex-1 h-8 text-xs bg-alaska-sage hover:bg-alaska-sage/90"
+                onClick={async () => {
+                  if (!newSectionName.trim()) return
+                  await createSection({ name: newSectionName.trim(), emoji: newSectionEmoji, expense_category: newSectionCategory })
+                  setNewSectionName(""); setNewSectionEmoji("📦"); setAddingNewSection(false)
+                }}>
+                Créer la section
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs"
+                onClick={() => { setAddingNewSection(false); setNewSectionName(""); setNewSectionEmoji("📦") }}>
+                <X size={14}/>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <button onClick={() => setAddingNewSection(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 text-sm text-alaska-muted border border-dashed border-alaska-sage-lt rounded-xl hover:bg-alaska-sage-lt/50 hover:text-alaska-sage transition">
+          <Plus size={14}/> Nouvelle section de saisie
+        </button>
+      )}
 
       {addingNew ? (
         <Card className="bg-white border border-dashed border-alaska-sage rounded-xl">
