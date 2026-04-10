@@ -34,6 +34,24 @@ export interface FixedCharge {
   end_date: string | null
 }
 
+export interface ExpenseItemTemplate {
+  id: string
+  section_id: string
+  label: string
+  is_active: boolean
+  sort_order: number
+}
+
+export interface ExpenseSection {
+  id: string
+  name: string
+  emoji: string
+  expense_category: "MP" | "CHARGES" | "AUTRE"
+  sort_order: number
+  is_active: boolean
+  items: ExpenseItemTemplate[]
+}
+
 export interface ActionItem {
   id: string
   lever: "soir" | "terrasse" | "b2b" | "marketing" | "pilotage"

@@ -3,6 +3,7 @@ import type {
   ActionItem,
   DailyEntry,
   ExpenseItem,
+  ExpenseSection,
   FixedCharge,
   ImportRecord,
   MonthlyKPIs,
@@ -285,3 +286,26 @@ export function parseCreateChargeBody(input: unknown): {
 }
 
 export type ParsedExpenseItem = ExpenseItem
+
+export function parseExpenseTemplatesPayload(raw: unknown): { sections: ExpenseSection[] } {
+  if (!raw || typeof raw !== "object") return { sections: [] }
+  const obj = raw as Record<string, unknown>
+  const sections = Array.isArray(obj.sections) ? obj.sections : []
+  return {
+    sections: sections.map((s: any) => ({
+      id: String(s.id ?? ""),
+      name: String(s.name ?? ""),
+      emoji: String(s.emoji ?? "📦"),
+      expense_category: (["MP", "CHARGES", "AUTRE"].includes(s.expense_category) ? s.expense_category : "AUTRE") as "MP" | "CHARGES" | "AUTRE",
+      sort_order: Number(s.sort_order ?? 0),
+      is_active: Boolean(s.is_active ?? true),
+      items: Array.isArray(s.items) ? s.items.map((t: any) => ({
+        id: String(t.id ?? ""),
+        section_id: String(t.section_id ?? ""),
+        label: String(t.label ?? ""),
+        is_active: Boolean(t.is_active ?? true),
+        sort_order: Number(t.sort_order ?? 0),
+      })) : [],
+    })),
+  }
+}
