@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    const db = await readSnapshot(supabase, { seedIfEmpty: Boolean(user), userId: user?.id || null })
+    const db = await readSnapshot(supabase)
     const rows = buildMonthlyExportRows(db, month)
     const csv = [
       "Date,CA Caisse,Total Dépenses,MP,RH,CHARGES,AUTRE",

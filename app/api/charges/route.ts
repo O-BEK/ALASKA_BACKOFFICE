@@ -10,7 +10,7 @@ export async function GET() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    const db = await readSnapshot(supabase, { seedIfEmpty: Boolean(user), userId: user?.id || null })
+    const db = await readSnapshot(supabase)
     return NextResponse.json({ charges: db.fixed_charges })
   } catch {
     return NextResponse.json({ error: "Impossible de charger les charges." }, { status: 500 })

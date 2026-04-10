@@ -12,7 +12,7 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
     }
-    const db = await readSnapshot(supabase, { seedIfEmpty: Boolean(user), userId: user?.id || null })
+    const db = await readSnapshot(supabase)
     const result = buildCaisseBalance(db)
     return NextResponse.json(result)
   } catch {

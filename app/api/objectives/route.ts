@@ -11,7 +11,7 @@ export async function GET() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    const db = await readSnapshot(supabase, { seedIfEmpty: Boolean(user), userId: user?.id || null })
+    const db = await readSnapshot(supabase)
     const monthlyReal = db.monthly_objectives.map((item) => {
       const monthKey = `${item.year}-${String(item.month).padStart(2, "0")}`
       const monthly = buildMonthlyKpis(db, monthKey)

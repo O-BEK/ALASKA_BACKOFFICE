@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 vi.mock("server-only", () => ({}))
 
 import { buildCaisseBalance } from "../lib/server/analytics"
-import type { PilotDb } from "../lib/server/pilot-store"
+import type { PilotDb } from "../lib/server/db-types"
 
 function makeDb(overrides: Partial<PilotDb> = {}): PilotDb {
   return {

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    const db = await readSnapshot(supabase, { seedIfEmpty: Boolean(user), userId: user?.id || null })
+    const db = await readSnapshot(supabase)
     const weekStart = parseISO(start)
 
     return NextResponse.json({

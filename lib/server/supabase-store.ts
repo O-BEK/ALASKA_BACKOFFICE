@@ -323,11 +323,7 @@ export async function ensureSeedData(client: SupabaseClientLike, userId: string 
   })
 }
 
-export async function readSnapshot(client: SupabaseClientLike, options?: { seedIfEmpty?: boolean; userId?: string | null }): Promise<PilotDb> {
-  if (options?.seedIfEmpty) {
-    await ensureSeedData(client, options.userId || null)
-  }
-
+export async function readSnapshot(client: SupabaseClientLike): Promise<PilotDb> {
   const [salesRes, expensesRes, chargesRes, objectivesRes, monthlyRes, actionsRes, importsRes] = await Promise.all([
     client.from("daily_sales").select("*").order("date", { ascending: true }),
     client.from("expenses").select("*").order("date", { ascending: true }),
