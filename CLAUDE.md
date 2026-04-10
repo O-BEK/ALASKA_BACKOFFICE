@@ -10,12 +10,13 @@ Specs métier principales dans `specs/` et compléments de design/plan dans `doc
 
 ## Current State
 
-Le repo est maintenant sur un **V1 pilote interne**:
+Le repo est maintenant sur un **V1 socle stabilisé** (après audit P0 du 2026-04-10) :
 
-- auth réelle via **Supabase Auth**
+- auth réelle via **Supabase Auth** — aucun système legacy (cookie `alaska_session`, `pilot-store`, `api/auth/*` supprimés)
+- rôles stockés dans la table `profiles` (RLS strict) — ne plus lire le rôle depuis `user_metadata`
 - routes protégées par `middleware.ts` + `lib/supabase/middleware.ts`
 - persistence partagée dans **Supabase/PostgreSQL**
-- données seedées depuis `lib/mock-data.ts` vers Supabase au premier usage admin
+- seed initial à faire via script explicite — le seed automatique au runtime a été supprimé
 - UI branchée sur des API routes Next.js dans `app/api/`
 - tests unitaires/métier avec Vitest
 
@@ -47,13 +48,15 @@ npm run build
 - Middleware dans `middleware.ts`
 - Helpers Supabase:
   - `lib/supabase/client.ts`
-  - `lib/supabase/server.ts`
+  - `lib/supabase/server.ts` — contient `getUserRole(supabase, userId)` et `isAdmin(supabase, userId)` pour vérifier le rôle côté API routes
   - `lib/supabase/middleware.ts`
+- Rôles stockés dans la table `profiles` — **ne jamais lire le rôle depuis `user.user_metadata`** pour des décisions de sécurité
 - Rôles supportés: `admin` et `manager`
 - Redirect après login:
   - `admin` → `/`
   - `manager` → `/saisie`
-- `manager` est bloqué de `/charges`, `/objectifs`, `/import`, `/reporting`
+- `manager` est bloqué de `/` (dashboard), `/charges`, `/objectifs`, `/import`, `/reporting`
+- Les policies RLS Supabase utilisent `public.auth_user_role()` (fonction SECURITY DEFINER qui lit depuis `profiles`)
 
 Shell applicatif:
 
@@ -64,15 +67,18 @@ Shell applicatif:
 La source de vérité métier est maintenant Supabase:
 
 - tables principales:
-  - `daily_sales`
+  - `daily_sales` — inclut `mouvement_caisse NUMERIC(10,2)` (champ cash physique)
   - `expenses`
   - `fixed_charges`
   - `objectives`
   - `monthly_objectives`
   - `action_items`
   - `pos_imports`
-- migration incluse dans:
-  - `supabase/migrations/20260407180000_init.sql`
+  - `profiles` — stocke le rôle utilisateur (`admin` | `manager`), alimentée par trigger sur `auth.users`
+- migrations:
+  - `supabase/migrations/20260407180000_init.sql` — schéma initial
+  - `supabase/migrations/20260409000000_action_items_metadata.sql`
+  - `supabase/migrations/20260410000000_p0_profiles_schema_fixes.sql` — profiles, mouvement_caisse, RLS complet
 
 La couche serveur qui hydrate les snapshots UI est:
 
@@ -135,13 +141,17 @@ Règles importantes:
 - seuil de rentabilité basé sur `0.28` de coûts variables
 - `ca_total = ca_caisse + ca_b2b` est le CA POS complet (espèces + CB)
 - `ca_total` alimente : dashboard KPI, breakeven %, marges, reporting, objectifs
-- `ca_caisse` seul alimente : `solde caisse` (saisie + vue semaine) et `buildCaisseBalance`
+- `ca_caisse` seul alimente : `buildCaisseBalance` (solde physique du tiroir-caisse)
 - `solde caisse` est l'indicateur de trésorerie physique — intentionnellement limité au cash
 - la marge nette est un indicateur analytique calculé sur `ca_total`
 - `CAISSE_RESERVE = 1 000 MAD` : réserve semaine conservée dans le tiroir-caisse lors d'un virement banque
 - fonds de caisse permanent (1 500 MAD) est physique et hors app
 - `buildCaisseBalance(db)` dans `analytics.ts` calcule le solde cumulé historique : `Σ(ca_caisse) - Σ(mouvement_caisse) - Σ(expenses)` — intentionnellement cash only
 - les virements banque sont saisis comme dépense label `"Virement banque"`, catégorie `CHARGES`
+- `mouvement_caisse` et dépense `"Virement banque"` coexistent avec des rôles distincts :
+  - `mouvement_caisse` → alimente uniquement `buildCaisseBalance` (solde physique tiroir)
+  - dépense `"Virement banque"` → alimente le reporting analytique et les charges
+  - ne jamais les additionner dans le même calcul (risque de double comptage)
 
 ### Daily Sales Import Rules
 
@@ -177,8 +187,7 @@ Tests Vitest dans:
 
 - `tests/calculations.test.ts`
 - `tests/csv-parser.test.ts`
-- `tests/pilot-store.test.ts`
-- `tests/middleware.test.ts`
+- `tests/middleware.test.ts` — teste le middleware Supabase avec mocks `@supabase/ssr` (chemin legacy supprimé)
 - `tests/analytics.test.ts`
 
 Configuration:
@@ -198,17 +207,27 @@ npm run build
 - Ne pas réintroduire `localStorage` comme source principale métier.
 - `lib/local-store.ts` est désormais legacy et ne doit plus piloter les écrans principaux.
 - Ne pas revenir au store JSON `data/pilot-db.json` comme backend principal.
-- Le bootstrap des comptes Supabase est prévu via `scripts/bootstrap-auth.mjs`.
+- Le bootstrap des comptes Supabase se fait via `scripts/bootstrap-auth.mjs` — le trigger `on_auth_user_created` créera automatiquement la ligne `profiles` correspondante.
 - Les variables minimales à fournir sont dans `.env.example`.
 - Toute nouvelle logique KPI doit passer par la couche serveur partagée pour éviter les divergences entre dashboard, saisie, semaine et reporting.
+- Le seed initial des données se fait via un script explicite (`ensureSeedData` dans `supabase-store.ts`) — ne jamais réintroduire le seed automatique au runtime.
 
-## Important Notes for Future Work — Addendum
+## Security Rules
 
-- Ne jamais utiliser `ca_caisse` seul pour les KPIs de CA dans dashboard/reporting — toujours `ca_total`.
-- `buildCaisseBalance` utilise `ca_caisse` seul intentionnellement (trésorerie physique).
-- La page import est mobile-first : sélecteurs de navigation centrés via `self-center sm:self-auto`.
+- **Ne jamais lire le rôle depuis `user.user_metadata`** pour des décisions de sécurité — toujours depuis `profiles` via `getUserRole()` ou `isAdmin()` (`lib/supabase/server.ts`).
+- **Ne jamais stocker le rôle dans `user_metadata`** uniquement — le trigger `handle_new_user` copie le rôle dans `profiles` à la création du compte.
+- Les policies RLS utilisent `public.auth_user_role()` (SECURITY DEFINER) — ne pas les réécrire avec `user_metadata`.
+- `user_metadata` peut être utilisé pour l'affichage (name, email) mais pas pour le contrôle d'accès.
+
+## KPI Rules
+
+- **Ne jamais utiliser `ca_caisse` seul pour les KPIs de CA** — toujours `ca_total = ca_caisse + ca_b2b`.
+- `ca_total` alimente : dashboard KPI, breakeven %, marges, reporting, objectifs, vue semaine.
+- `ca_caisse` seul alimente uniquement : `buildCaisseBalance` (trésorerie physique).
+- `buildCaisseBalance` calcule : `Σ(ca_caisse) - Σ(mouvement_caisse) - Σ(expenses)` — intentionnellement cash only.
 - `sanitizeParsedRows` dans `app/api/import-csv/route.ts` doit inclure `ca_b2b` — sans ça les paiements CB sont perdus au commit.
+- La page import est mobile-first : sélecteurs de navigation centrés via `self-center sm:self-auto`.
 
 ## Maintenance Note
 
-Ce fichier a été mis à jour pour refléter l'état V1 livrable (avril 2026) après correction des bugs CA total/caisse, import CSV, et ajustements mobile.
+Ce fichier a été mis à jour après le plan P0 (2026-04-10) : suppression du système d'auth legacy, migration vers `profiles`, correction du seed automatique, fix KPI vue semaine.
