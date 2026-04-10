@@ -7,7 +7,8 @@ import { useDashboard } from "@/lib/hooks/useDashboard"
 import { useWeekView } from "@/lib/hooks/useWeekView"
 import { useWeekEntries } from "@/lib/hooks/useWeekEntries"
 import { useCaisseBalance } from "@/lib/hooks/useCaisseBalance"
-import { FIXED_CHARGES } from "@/lib/mock-data"
+import { useCharges } from "@/lib/hooks/useCharges"
+import { useExpenseTemplates } from "@/lib/hooks/useExpenseTemplates"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,9 +19,6 @@ import { WeekGrid } from "@/components/saisie/WeekGrid"
 
 const TABS = ["Saisie", "Semaine", "Mois"] as const
 type Tab = typeof TABS[number]
-
-const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien & courses"]
-const AUTRES_POSTES = ["Loyer","Électricité","Gaz","Internet","Autre"]
 
 export default function SaisiePage() {
   const today = new Date()
@@ -50,7 +48,9 @@ export default function SaisiePage() {
   const safeExpenses = Array.isArray(entry.expenses) ? entry.expenses : []
   const safeWeekDays = Array.isArray(weekData.days) ? weekData.days : []
 
-  const staff = FIXED_CHARGES.filter(c => c.is_staff && c.is_active)
+  const { charges } = useCharges()
+  const { sections } = useExpenseTemplates()
+  const staff = charges.filter(c => c.is_staff && c.is_active)
   const visibleStaff = showAllStaff ? staff : staff.filter(s => {
     const exp = safeExpenses.find(e => e.label === s.name)
     return exp && exp.amount > 0
@@ -70,7 +70,7 @@ export default function SaisiePage() {
   }
 
   const totalExpenses = safeExpenses.reduce((s, e) => s + e.amount, 0)
-  const soldeCaisse = entry.ca_caisse - totalExpenses
+  const soldeCaisse = entry.ca_caisse - entry.mouvement_caisse - totalExpenses
   const statusIcon = entry.ca_caisse > 0 && totalExpenses > 0 ? "✅"
     : entry.ca_caisse > 0 || totalExpenses > 0 ? "🟡" : "⬜"
 
@@ -132,7 +132,7 @@ export default function SaisiePage() {
           <Card className="bg-white border-l-4 border-alaska-sage border border-alaska-sage-lt rounded-xl">
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-base flex items-center gap-2 text-alaska-dark">
-                💰 CA Caisse du jour
+                💵 CA Cash
                 {entry.source === "csv_import" && (
                   <span className="text-xs bg-alaska-sage-lt text-alaska-sage px-2 py-0.5 rounded-full font-normal">Import CSV</span>
                 )}
@@ -167,12 +167,21 @@ export default function SaisiePage() {
             </CardContent>
           </Card>
 
-          <ExpenseGroup title="🥩 Matières Premières" defaultOpen>
-            {MP_POSTES.map(label => {
-              const exp = getOrCreateExpense(label, "MP")
-              return <ExpenseRow key={label} label={label} value={exp.amount} onChange={v => handleExpenseChange(label, "MP", v)}/>
-            })}
-          </ExpenseGroup>
+          {sections.map(section => (
+            <ExpenseGroup key={section.id} title={`${section.emoji} ${section.name}`} defaultOpen={section.expense_category === "MP"}>
+              {section.items.map(item => {
+                const exp = getOrCreateExpense(item.label, section.expense_category)
+                return (
+                  <ExpenseRow
+                    key={item.id}
+                    label={item.label}
+                    value={exp.amount}
+                    onChange={v => handleExpenseChange(item.label, section.expense_category, v)}
+                  />
+                )
+              })}
+            </ExpenseGroup>
+          ))}
 
           <ExpenseGroup title="👥 Personnel">
             <div className="space-y-2">
@@ -188,13 +197,6 @@ export default function SaisiePage() {
                 {showAllStaff ? "Masquer" : `Afficher tout le personnel (${staff.length})`}
               </button>
             </div>
-          </ExpenseGroup>
-
-          <ExpenseGroup title="📦 Autres Charges">
-            {AUTRES_POSTES.map(label => {
-              const exp = getOrCreateExpense(label, "CHARGES")
-              return <ExpenseRow key={label} label={label} value={exp.amount} onChange={v => handleExpenseChange(label, "CHARGES", v)}/>
-            })}
           </ExpenseGroup>
 
           <Card className="bg-white border-l-4 border-alaska-gold border border-alaska-sage-lt rounded-xl">
@@ -219,11 +221,17 @@ export default function SaisiePage() {
           <Card className="bg-alaska-dark text-white rounded-xl">
             <CardContent className="pt-4 pb-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-alaska-muted">CA Caisse</span>
+                <span className="text-alaska-muted">CA Cash</span>
                 <span className="font-semibold">{formatMAD(entry.ca_caisse)}</span>
               </div>
+              {entry.mouvement_caisse > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-alaska-muted">Sortie caisse</span>
+                  <span className="font-semibold text-orange-300">-{formatMAD(entry.mouvement_caisse)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
-                <span className="text-alaska-muted">Total sorties</span>
+                <span className="text-alaska-muted">Total dépenses</span>
                 <span className="font-semibold text-orange-300">-{formatMAD(totalExpenses)}</span>
               </div>
               <div className="border-t border-white/20 pt-2 flex justify-between font-bold text-base">
