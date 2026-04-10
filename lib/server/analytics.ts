@@ -139,7 +139,7 @@ export function buildWeekData(db: PilotDb, weekStart: Date) {
     }
   })
 
-  const totalCA = rows.reduce((sum, row) => sum + (row.entry?.ca_caisse ?? 0), 0)
+  const totalCA = rows.reduce((sum, row) => sum + (row.entry ? row.entry.ca_caisse + row.entry.ca_b2b : 0), 0)
   const totalDep = rows.reduce((sum, row) => sum + row.totalExpenses, 0)
   const marge = calcNetMargin(totalCA, totalDep)
   const weeklyBreakeven = liveBreakeven(db) / 4.33
