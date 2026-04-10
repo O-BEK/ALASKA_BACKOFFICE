@@ -10,8 +10,11 @@ import {
 
 export async function GET() {
   const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Accès non autorisé." }, { status: 401 })
   try {
-    await supabase.auth.getUser()
     const sections = await getExpenseSections(supabase)
     return NextResponse.json({ sections })
   } catch {
