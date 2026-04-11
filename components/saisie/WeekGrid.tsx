@@ -5,10 +5,10 @@ import { format, isAfter, startOfDay, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
 import { Plus } from "lucide-react"
 import { DailyEntry } from "@/lib/types"
-import { FIXED_CHARGES } from "@/lib/mock-data"
+import { useCharges } from "@/lib/hooks/useCharges"
+import { useExpenseTemplates } from "@/lib/hooks/useExpenseTemplates"
 import { formatMAD } from "@/lib/utils"
 
-const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien & courses"]
 const today = startOfDay(new Date())
 
 interface WeekGridProps {
@@ -55,9 +55,13 @@ function Cell({ value, disabled, readonly, onChange }: { value: number; disabled
   )
 }
 
+const SECTION_EMOJI: Record<string, string> = { MP: "🥩", CHARGES: "📦", AUTRE: "📋" }
+
 export function WeekGrid({ entries, dates, onUpdateCA, onUpdateExpense }: WeekGridProps) {
   const [autreLabels, setAutreLabels] = useState<string[]>([])
-  const staff = FIXED_CHARGES.filter(c => c.is_staff && c.is_active)
+  const { charges } = useCharges()
+  const { sections } = useExpenseTemplates()
+  const staff = charges.filter(c => c.is_staff && c.is_active)
 
   const getCA = (date: string) => entries[date]?.ca_caisse ?? 0
   const getExp = (date: string, cat: string, label: string) =>
@@ -69,6 +73,17 @@ export function WeekGrid({ entries, dates, onUpdateCA, onUpdateExpense }: WeekGr
   const weekSorties = dates.reduce((s, d) => s + totalSorties(d), 0)
   const weekSolde = weekCA - weekSorties
   const tdClass = "px-1 py-0.5"
+
+  // Expenses in entries not covered by any template row (orphans from DB)
+  const templateLabels = new Set(sections.flatMap(s => s.items.map(i => i.label)))
+  const staffNames = new Set(staff.map(c => c.name))
+  const orphanLabels = new Set<string>()
+  dates.forEach(d => {
+    entries[d]?.expenses.forEach(e => {
+      if (e.category !== "RH" && !templateLabels.has(e.label)) orphanLabels.add(e.label)
+      if (e.category === "RH" && !staffNames.has(e.label)) orphanLabels.add(e.label)
+    })
+  })
 
   return (
     <div className="overflow-x-auto">
@@ -92,32 +107,70 @@ export function WeekGrid({ entries, dates, onUpdateCA, onUpdateExpense }: WeekGr
               </td>
             ))}
           </tr>
-          <tr className="bg-orange-50/40"><td colSpan={8} className="px-3 py-1 text-xs font-bold text-orange-700">🥩 Matières Premières</td></tr>
-          {MP_POSTES.map(label => (
-            <tr key={label} className="border-t border-gray-100 hover:bg-gray-50/50">
-              <td className="px-3 py-1.5 text-xs text-gray-600 pl-6">{label}</td>
-              {dates.map(d => (
-                <td key={d} className={tdClass}>
-                  <Cell value={getExp(d, "MP", label)} disabled={isAfter(parseISO(d), today)} onChange={v => onUpdateExpense(d, "MP", label, v)} />
+
+          {/* Dynamic sections from expense templates */}
+          {sections.map(section => (
+            <>
+              <tr key={`hdr-${section.id}`} className="bg-orange-50/40">
+                <td colSpan={8} className="px-3 py-1 text-xs font-bold text-orange-700">
+                  {SECTION_EMOJI[section.expense_category] ?? "📋"} {section.name}
                 </td>
+              </tr>
+              {section.items.filter(i => i.is_active).map(item => (
+                <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50/50">
+                  <td className="px-3 py-1.5 text-xs text-gray-600 pl-6">{item.label}</td>
+                  {dates.map(d => (
+                    <td key={d} className={tdClass}>
+                      <Cell value={getExp(d, section.expense_category, item.label)} disabled={isAfter(parseISO(d), today)}
+                        onChange={v => onUpdateExpense(d, section.expense_category, item.label, v)} />
+                    </td>
+                  ))}
+                </tr>
               ))}
+            </>
+          ))}
+
+          {/* Personnel from real charges table */}
+          {staff.length > 0 && (
+            <>
+              <tr className="bg-purple-50/40">
+                <td colSpan={8} className="px-3 py-1 text-xs font-bold text-purple-700">👥 Personnel</td>
+              </tr>
+              {staff.map(emp => (
+                <tr key={emp.id} className="border-t border-gray-100 hover:bg-gray-50/50">
+                  <td className="px-3 py-1.5 text-xs text-gray-600 pl-6">{emp.name}</td>
+                  {dates.map(d => (
+                    <td key={d} className={tdClass}>
+                      <Cell value={getExp(d, "RH", emp.name)} disabled={isAfter(parseISO(d), today)} onChange={v => onUpdateExpense(d, "RH", emp.name, v)} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </>
+          )}
+
+          {/* Orphan labels from DB not in templates */}
+          {orphanLabels.size > 0 && Array.from(orphanLabels).map(label => (
+            <tr key={`orphan-${label}`} className="border-t border-gray-100 bg-yellow-50/20">
+              <td className="px-3 py-1.5 text-xs text-gray-400 pl-6 italic">{label}</td>
+              {dates.map(d => {
+                const exp = entries[d]?.expenses.find(e => e.label === label)
+                return (
+                  <td key={d} className="px-2 py-1 text-right text-xs text-gray-400">
+                    {exp ? exp.amount.toLocaleString("fr-MA") : "—"}
+                  </td>
+                )
+              })}
             </tr>
           ))}
-          <tr className="bg-purple-50/40"><td colSpan={8} className="px-3 py-1 text-xs font-bold text-purple-700">👥 Personnel</td></tr>
-          {staff.map(emp => (
-            <tr key={emp.id} className="border-t border-gray-100 hover:bg-gray-50/50">
-              <td className="px-3 py-1.5 text-xs text-gray-600 pl-6">{emp.name}</td>
-              {dates.map(d => (
-                <td key={d} className={tdClass}>
-                  <Cell value={getExp(d, "RH", emp.name)} disabled={isAfter(parseISO(d), today)} onChange={v => onUpdateExpense(d, "RH", emp.name, v)} />
-                </td>
-              ))}
-            </tr>
-          ))}
+
+          {/* Freeform Autre */}
           <tr className="bg-gray-50/60">
-            <td className="px-3 py-1 text-xs font-bold text-gray-600 flex items-center gap-2">
-              📦 Autre
-              <button onClick={() => setAutreLabels(l => [...l, ""])} className="ml-1 text-blue-500 hover:text-blue-700"><Plus size={12} /></button>
+            <td className="px-3 py-1 text-xs font-bold text-gray-600">
+              <span className="flex items-center gap-2">
+                ➕ Autre
+                <button onClick={() => setAutreLabels(l => [...l, ""])} className="text-blue-500 hover:text-blue-700"><Plus size={12} /></button>
+              </span>
             </td>
             <td colSpan={7} />
           </tr>
