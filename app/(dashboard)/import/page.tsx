@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { parseImportHistoryPayload } from "@/lib/contracts"
 import { parseCSV } from "@/lib/csv-parser"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, FileText, UploadCloud, X, XCircle } from "lucide-react"
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, FileText, RefreshCw, UploadCloud, X, XCircle } from "lucide-react"
 import type { ImportRecord } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -46,6 +46,15 @@ export default function ImportPage() {
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [error, setError] = useState("")
+
+  // POS Sync
+  const today = new Date().toISOString().slice(0, 10)
+  const firstOfMonth = today.slice(0, 7) + "-01"
+  const [syncStart, setSyncStart] = useState(firstOfMonth)
+  const [syncEnd, setSyncEnd] = useState(today)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<{ days_imported: number; ca_total: number; filename: string } | null>(null)
+  const [syncError, setSyncError] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const safePreview = Array.isArray(preview) ? preview : []
   const safeDuplicates = Array.isArray(duplicates) ? duplicates : []
@@ -125,6 +134,26 @@ export default function ImportPage() {
     loadData()
   }
 
+  const handleSync = useCallback(async () => {
+    setSyncing(true)
+    setSyncError("")
+    setSyncResult(null)
+    const res = await fetch("/api/pos-sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startDate: syncStart, endDate: syncEnd }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setSyncError(data.error || "Erreur synchronisation POS.")
+      setSyncing(false)
+      return
+    }
+    setSyncResult(data)
+    setSyncing(false)
+    loadData()
+  }, [syncStart, syncEnd])
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
@@ -134,6 +163,58 @@ export default function ImportPage() {
 
       {step === "upload" && (
         <div className="space-y-4">
+          {/* POS Sync */}
+          <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm text-alaska-dark">Synchroniser depuis POS</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4 space-y-3">
+              <div className="flex gap-2 items-center">
+                <div className="flex-1">
+                  <label className="text-xs text-alaska-muted block mb-1">Du</label>
+                  <input
+                    type="date"
+                    value={syncStart}
+                    max={syncEnd}
+                    onChange={(e) => setSyncStart(e.target.value)}
+                    className="w-full border border-alaska-sage-lt rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-alaska-sage"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-alaska-muted block mb-1">Au</label>
+                  <input
+                    type="date"
+                    value={syncEnd}
+                    min={syncStart}
+                    onChange={(e) => setSyncEnd(e.target.value)}
+                    className="w-full border border-alaska-sage-lt rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-alaska-sage"
+                  />
+                </div>
+              </div>
+              <Button
+                className="w-full gap-2 bg-alaska-sage hover:bg-alaska-sage/90 text-white"
+                onClick={() => void handleSync()}
+                disabled={syncing}
+              >
+                <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
+                {syncing ? "Synchronisation…" : "Synchroniser"}
+              </Button>
+              {syncError && (
+                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">
+                  <AlertCircle size={16} /> {syncError}
+                </div>
+              )}
+              {syncResult && (
+                <div className="flex items-center gap-2 text-sm text-alaska-sage bg-alaska-sage-lt p-3 rounded-xl">
+                  <CheckCircle2 size={16} />
+                  <span>
+                    {syncResult.days_imported} jours importés · {formatMAD(syncResult.ca_total)}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Drop zone */}
           <Card
             className={cn(
