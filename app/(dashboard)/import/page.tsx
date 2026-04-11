@@ -49,8 +49,9 @@ export default function ImportPage() {
 
   // POS Sync
   const today = new Date().toISOString().slice(0, 10)
-  const firstOfMonth = today.slice(0, 7) + "-01"
-  const [syncStart, setSyncStart] = useState(firstOfMonth)
+  const twoMonthsAgo = new Date(); twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
+  const defaultSyncStart = twoMonthsAgo.toISOString().slice(0, 7) + "-01"
+  const [syncStart, setSyncStart] = useState(defaultSyncStart)
   const [syncEnd, setSyncEnd] = useState(today)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<{ days_imported: number; ca_total: number; filename: string } | null>(null)
