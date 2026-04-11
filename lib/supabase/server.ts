@@ -40,7 +40,7 @@ export async function getUserRole(
     const { data, error } = await supabase
       .from("profiles")
       .select("role")
-      .eq("user_id", userId)
+      .eq("id", userId)
       .single()
 
     if (error || !data) return null
