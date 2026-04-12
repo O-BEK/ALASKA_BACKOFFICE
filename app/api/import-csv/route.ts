@@ -10,6 +10,7 @@ type ParsedDay = {
   ca_soir: number
   pct_soir: number
   tickets_count: number
+  mouvement_caisse: number
 }
 
 function sanitizeParsedRows(input: unknown): ParsedDay[] {
@@ -29,6 +30,7 @@ function sanitizeParsedRows(input: unknown): ParsedDay[] {
         ca_soir: Number(candidate.ca_soir || 0),
         pct_soir: Number(candidate.pct_soir || 0),
         tickets_count: Number(candidate.tickets_count || 0),
+        mouvement_caisse: Number(candidate.mouvement_caisse || 0),
       }
     })
     .filter((row): row is ParsedDay => !!row)
@@ -185,11 +187,12 @@ export async function POST(request: Request) {
       const existing = existingSalesByDate.get(row.date)
       return {
         date: row.date,
-        ca_caisse: row.ca_caisse,   // espèces depuis le parser
-        ca_b2b: row.ca_b2b ?? 0,  // carte depuis le parser
+        ca_caisse: row.ca_caisse,
+        ca_b2b: row.ca_b2b ?? 0,
         ca_soir: row.ca_soir,
         pct_soir: row.pct_soir,
         tickets_count: row.tickets_count,
+        mouvement_caisse: row.mouvement_caisse ?? 0,
         notes: existing?.notes || "",
         source: "csv_import",
         import_id: importInsertResult.data?.id || null,

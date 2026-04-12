@@ -1,10 +1,11 @@
 interface ParsedDay {
   date: string
-  ca_caisse: number   // espèces POS (référence) — jamais écrit dans daily_sales.ca_caisse
-  ca_b2b: number      // carte + autres paiements non-cash
+  ca_caisse: number       // espèces ventes réelles (hors mouvements de caisse)
+  ca_b2b: number          // carte + autres paiements non-cash
   ca_soir: number
   pct_soir: number
   tickets_count: number
+  mouvement_caisse: number // mouvements de caisse extraits du CSV
 }
 
 function parseCSVLine(line: string, sep: string): string[] {
@@ -45,7 +46,15 @@ export function parseCSV(content: string): ParsedDay[] {
 
   if (dateIdx === -1 || prixIdx === -1) throw new Error("Format non reconnu")
 
-  const grouped: Record<string, { cash: number; card: number; soir: number; tickets: Set<string> }> = {}
+  // Optional columns to detect mouvement de caisse rows
+  const typeLigneIdx = headers.findIndex(h =>
+    h === "typeligne" || h === "typeticket" || h === "typeoperation" || h === "type"
+  )
+  const libelleIdx = headers.findIndex(h =>
+    h === "libellearticle" || h === "nomarticle" || h === "libelle" || h === "designation" || h === "nomticket"
+  )
+
+  const grouped: Record<string, { cash: number; card: number; soir: number; mouvement: number; tickets: Set<string> }> = {}
 
   for (const line of lines.slice(1)) {
     const cols = parseCSVLine(line, sep)
@@ -57,6 +66,8 @@ export function parseCSV(content: string): ParsedDay[] {
     const rawPrix   = cols[prixIdx]?.trim().replace(",", ".")
     const rawQte    = qteIdx >= 0 ? cols[qteIdx]?.trim().replace(",", ".") : "1"
     const rawPay    = paymentIdx >= 0 ? cols[paymentIdx]?.trim().toLowerCase() : ""
+    const rawType   = typeLigneIdx >= 0 ? normalize(cols[typeLigneIdx]?.trim() || "") : ""
+    const rawLib    = libelleIdx >= 0 ? normalize(cols[libelleIdx]?.trim() || "") : ""
 
     if (!rawDate || !rawPrix) continue
     const prix = parseFloat(rawPrix)
@@ -75,7 +86,19 @@ export function parseCSV(content: string): ParsedDay[] {
       date = rawDate
     }
 
-    if (!grouped[date]) grouped[date] = { cash: 0, card: 0, soir: 0, tickets: new Set() }
+    if (!grouped[date]) grouped[date] = { cash: 0, card: 0, soir: 0, mouvement: 0, tickets: new Set() }
+
+    // Detect mouvement de caisse rows (cash drawer movements, not sales)
+    const isMouvement =
+      rawType.includes("mouvement") ||
+      rawLib.includes("mouvementdecaisse") ||
+      rawLib.includes("fondsdecaisse") ||
+      rawLib.includes("mouvementcaisse")
+
+    if (isMouvement) {
+      grouped[date].mouvement += amount
+      continue
+    }
 
     const isCash = rawPay.includes("esp") || rawPay.includes("cash")
     if (paymentIdx >= 0 && isCash) {
@@ -94,15 +117,16 @@ export function parseCSV(content: string): ParsedDay[] {
   }
 
   return Object.entries(grouped)
-    .map(([date, { cash, card, soir, tickets }]) => {
+    .map(([date, { cash, card, soir, mouvement, tickets }]) => {
       const total = cash + card
       return {
         date,
-        ca_caisse:     Math.round(cash * 100) / 100,
-        ca_b2b:        Math.round(card * 100) / 100,
-        ca_soir:       Math.round(soir * 100) / 100,
-        pct_soir:      total > 0 ? (soir / total) * 100 : 0,
-        tickets_count: tickets.size,
+        ca_caisse:        Math.round(cash * 100) / 100,
+        ca_b2b:           Math.round(card * 100) / 100,
+        ca_soir:          Math.round(soir * 100) / 100,
+        pct_soir:         total > 0 ? (soir / total) * 100 : 0,
+        tickets_count:    tickets.size,
+        mouvement_caisse: Math.round(mouvement * 100) / 100,
       }
     })
     .sort((a, b) => a.date.localeCompare(b.date))

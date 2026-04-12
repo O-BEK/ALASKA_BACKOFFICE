@@ -99,6 +99,7 @@ export async function POST(request: Request) {
       ca_soir: row.ca_soir,
       pct_soir: row.pct_soir,
       tickets_count: row.tickets_count,
+      mouvement_caisse: row.mouvement_caisse ?? 0,
       notes: (existing as any)?.notes || "",
       source: "csv_import",
       import_id: importRecord?.id || null,
