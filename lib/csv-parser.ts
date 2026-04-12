@@ -46,12 +46,13 @@ export function parseCSV(content: string): ParsedDay[] {
 
   if (dateIdx === -1 || prixIdx === -1) throw new Error("Format non reconnu")
 
-  // Optional columns to detect mouvement de caisse rows
+  // Columns to detect mouvement de caisse rows
+  // LaCaisse CSV: "Type" column contains "Mouvement de caisse" for movements
   const typeLigneIdx = headers.findIndex(h =>
-    h === "typeligne" || h === "typeticket" || h === "typeoperation" || h === "type"
+    h === "type" || h === "typeligne" || h === "typeticket" || h === "typeoperation" || h === "typedevente"
   )
   const libelleIdx = headers.findIndex(h =>
-    h === "libellearticle" || h === "nomarticle" || h === "libelle" || h === "designation" || h === "nomticket"
+    h === "titreticket" || h === "produit" || h === "libellearticle" || h === "nomarticle" || h === "libelle" || h === "designation"
   )
 
   const grouped: Record<string, { cash: number; card: number; soir: number; mouvement: number; tickets: Set<string> }> = {}
