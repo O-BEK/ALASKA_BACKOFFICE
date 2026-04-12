@@ -270,7 +270,7 @@ export default function SaisiePage() {
             <div className="grid grid-cols-2 gap-3">
               <Card className="bg-white border border-alaska-sage-lt rounded-xl">
                 <CardContent className="pt-4 pb-4">
-                  <p className="text-xs text-alaska-muted">CA semaine</p>
+                  <p className="text-xs text-alaska-muted">CA semaine (cash + CB)</p>
                   <p className="text-xl font-playfair font-bold text-alaska-dark">{formatMAD(weekData.totalCA)}</p>
                   <p className="text-xs text-alaska-muted">{weekData.pctBreakeven.toFixed(0)}% du seuil</p>
                 </CardContent>

@@ -71,7 +71,8 @@ export function WeekGrid({ entries, dates, onUpdateCA, onUpdateExpense }: WeekGr
 
   const weekCA = dates.reduce((s, d) => s + getCA(d), 0)
   const weekSorties = dates.reduce((s, d) => s + totalSorties(d), 0)
-  const weekSolde = weekCA - weekSorties
+  const weekSortiesCaisse = dates.reduce((s, d) => s + (entries[d]?.mouvement_caisse ?? 0), 0)
+  const weekSolde = weekCA - weekSorties - weekSortiesCaisse
   const tdClass = "px-1 py-0.5"
 
   // Expenses in entries not covered by any template row (orphans from DB)
@@ -211,8 +212,11 @@ export function WeekGrid({ entries, dates, onUpdateCA, onUpdateExpense }: WeekGr
         </tbody>
       </table>
       <div className="mt-3 flex flex-wrap gap-4 text-sm px-3 py-2 bg-[#1F3864]/5 rounded-lg border border-[#1F3864]/10">
-        <span className="text-gray-600">CA semaine : <strong>{formatMAD(weekCA)}</strong></span>
-        <span className="text-gray-600">Sorties : <strong className="text-orange-600">{formatMAD(weekSorties)}</strong></span>
+        <span className="text-gray-600">CA semaine cash : <strong>{formatMAD(weekCA)}</strong></span>
+        <span className="text-gray-600">Dépenses : <strong className="text-orange-600">{formatMAD(weekSorties)}</strong></span>
+        {weekSortiesCaisse > 0 && (
+          <span className="text-gray-600">Sortie caisse : <strong className="text-orange-600">{formatMAD(weekSortiesCaisse)}</strong></span>
+        )}
         <span className="text-gray-600">Solde : <strong className={weekSolde < 0 ? "text-red-600" : "text-green-700"}>{formatMAD(weekSolde)}</strong></span>
       </div>
     </div>

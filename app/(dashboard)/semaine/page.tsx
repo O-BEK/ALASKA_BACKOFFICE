@@ -54,13 +54,13 @@ export default function SemainePage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardContent className="pt-4 pb-4">
-            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">CA semaine</p>
+            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">CA semaine (cash + CB)</p>
             <p className="text-xl font-playfair font-bold text-alaska-dark mt-1">{formatMAD(weekData.totalCA)}</p>
           </CardContent>
         </Card>
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardContent className="pt-4 pb-4">
-            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Sorties</p>
+            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Dépenses</p>
             <p className="text-xl font-playfair font-bold text-orange-600 mt-1">{formatMAD(weekData.totalDep)}</p>
           </CardContent>
         </Card>
