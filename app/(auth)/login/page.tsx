@@ -39,7 +39,12 @@ export default function LoginPage() {
       }
 
       const redirectParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null
-      const role = (data.user.user_metadata?.role || "manager") as "admin" | "manager"
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single()
+      const role = (profile?.role || "manager") as "admin" | "manager"
       const redirectTo = redirectParam || (role === "admin" ? "/" : "/saisie")
       router.push(redirectTo)
       router.refresh()

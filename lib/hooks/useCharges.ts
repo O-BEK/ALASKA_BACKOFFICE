@@ -5,16 +5,29 @@ import { parseChargesPayload } from "@/lib/contracts"
 import type { FixedCharge } from "@/lib/types"
 import { calcBreakeven } from "@/lib/calculations"
 
-export function useCharges() {
+type ChargeScope = "full" | "staff"
+
+export function useCharges(scope: ChargeScope = "full") {
   const [charges, setCharges] = useState<FixedCharge[]>([])
   const [simExtra, setSimExtra] = useState(0)
 
   useEffect(() => {
-    fetch("/api/charges")
+    let active = true
+    const endpoint = scope === "staff" ? "/api/charges?scope=staff" : "/api/charges"
+
+    fetch(endpoint)
       .then(async (response) => parseChargesPayload(await response.json()))
-      .then((data) => setCharges(data.charges))
-      .catch(() => setCharges([]))
-  }, [])
+      .then((data) => {
+        if (active) setCharges(data.charges)
+      })
+      .catch(() => {
+        if (active) setCharges([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [scope])
 
   const totalActive = useMemo(
     () => charges.filter((item) => item.is_active).reduce((sum, item) => sum + item.amount, 0),

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { buildMonthlyKpis } from "@/lib/server/analytics"
-import { ACTION_ITEMS, MONTHLY_OBJECTIVES_2026, OBJECTIVES } from "@/lib/mock-data"
 import { createClient, isAdmin } from "@/lib/supabase/server"
 import { readSnapshot, updateActionStatus } from "@/lib/server/supabase-store"
 
@@ -11,6 +10,12 @@ export async function GET() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: "Non authentifié." }, { status: 401 })
+    }
+    if (!(await isAdmin(supabase, user.id))) {
+      return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+    }
     const db = await readSnapshot(supabase)
     const monthlyReal = db.monthly_objectives.map((item) => {
       const monthKey = `${item.year}-${String(item.month).padStart(2, "0")}`
@@ -30,20 +35,10 @@ export async function GET() {
       monthlyObjectives: db.monthly_objectives,
       monthlyReal,
     })
-  } catch {
-    return NextResponse.json({
-      actions: ACTION_ITEMS,
-      objectives: OBJECTIVES,
-      monthlyObjectives: MONTHLY_OBJECTIVES_2026,
-      monthlyReal: MONTHLY_OBJECTIVES_2026.map((item) => ({
-        year: item.year,
-        month: item.month,
-        real: 0,
-        target: item.target_ca,
-        notes: item.notes || "",
-      })),
-      degraded: true,
-    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/objectives]", message)
+    return NextResponse.json({ error: "Impossible de charger les objectifs." }, { status: 500 })
   }
 }
 

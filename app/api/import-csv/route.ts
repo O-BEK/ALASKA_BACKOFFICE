@@ -45,10 +45,21 @@ export async function GET() {
   const supabase = createClient()
 
   try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: "Non authentifié." }, { status: 401 })
+    }
+    if (!(await isAdmin(supabase, user.id))) {
+      return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+    }
+
     const [importsResult, salesResult] = await Promise.all([
       supabase
         .from("pos_imports")
-        .select("id, filename, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
+        .select("id, filename, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
         .order("imported_at", { ascending: false }),
       supabase
         .from("daily_sales")
@@ -85,14 +96,27 @@ type ExistingSale = {
   date: string
   ca_caisse: number | null
   ca_b2b: number | null
+  ca_soir: number | null
+  pct_soir: number | null
+  tickets_count: number | null
+  mouvement_caisse: number | null
   notes: string | null
+  source: "manual" | "csv_import"
+  import_id: string | null
   created_by: string | null
+  cash_sales_journal: number | null
+  cash_movements_journal: number | null
+  cash_opening_fund: number | null
+  cash_closing_fund: number | null
+  cash_journal_sessions: number | null
+  cash_journal_anomaly: boolean | null
+  cash_journal_import_id: string | null
 }
 
 async function readExistingSales(supabase: ReturnType<typeof createClient>) {
   const result = await supabase
     .from("daily_sales")
-    .select("date, ca_caisse, ca_b2b, notes, created_by")
+    .select("date, ca_caisse, ca_b2b, ca_soir, pct_soir, tickets_count, mouvement_caisse, notes, source, import_id, created_by, cash_sales_journal, cash_movements_journal, cash_opening_fund, cash_closing_fund, cash_journal_sessions, cash_journal_anomaly, cash_journal_import_id")
 
   if (result.error) {
     throw new Error(result.error.message)
@@ -152,6 +176,7 @@ export async function POST(request: Request) {
       .from("pos_imports")
       .insert({
         filename,
+        import_type: "sales_csv",
         imported_by: user.id,
         imported_at: importedAt,
         rows_processed: parsed.reduce((sum, row) => sum + row.tickets_count, 0),
@@ -161,7 +186,7 @@ export async function POST(request: Request) {
         ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse + row.ca_b2b, 0),
         status: duplicates.length > 0 ? "partial" : "success",
       })
-      .select("id, filename, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
+      .select("id, filename, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
       .single()
 
     if (importInsertResult.error && !isMissingPosImportsTable(importInsertResult.error)) {
@@ -174,6 +199,7 @@ export async function POST(request: Request) {
     const importRecord: ImportRecord = importInsertResult.data || {
       id: `legacy-${Date.now()}`,
       filename,
+      import_type: "sales_csv",
       imported_at: importedAt,
       rows_processed: parsed.reduce((sum, row) => sum + row.tickets_count, 0),
       days_imported: parsed.length,
@@ -197,6 +223,13 @@ export async function POST(request: Request) {
         source: "csv_import",
         import_id: importInsertResult.data?.id || null,
         created_by: existing?.created_by || user.id,
+        cash_sales_journal: existing?.cash_sales_journal ?? null,
+        cash_movements_journal: existing?.cash_movements_journal ?? null,
+        cash_opening_fund: existing?.cash_opening_fund ?? null,
+        cash_closing_fund: existing?.cash_closing_fund ?? null,
+        cash_journal_sessions: existing?.cash_journal_sessions ?? 0,
+        cash_journal_anomaly: existing?.cash_journal_anomaly ?? false,
+        cash_journal_import_id: existing?.cash_journal_import_id ?? null,
         updated_at: importedAt,
       }
     })

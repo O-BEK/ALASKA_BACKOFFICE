@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { buildDashboardData } from "@/lib/server/analytics"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, isAdmin } from "@/lib/supabase/server"
 import { readSnapshot } from "@/lib/server/supabase-store"
 
 export async function GET(request: Request) {
@@ -12,6 +12,12 @@ export async function GET(request: Request) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: "Non authentifié." }, { status: 401 })
+    }
+    if (!(await isAdmin(supabase, user.id))) {
+      return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+    }
     const db = await readSnapshot(supabase)
     return NextResponse.json(buildDashboardData(db, month))
   } catch (error) {

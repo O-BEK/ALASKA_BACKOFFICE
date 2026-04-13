@@ -11,6 +11,10 @@ export async function GET(request: Request) {
   const supabase = createClient()
 
   try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 })
     return NextResponse.json(await getDailyEntry(supabase, date))
   } catch {
     return NextResponse.json({ error: "Impossible de charger la journée." }, { status: 500 })

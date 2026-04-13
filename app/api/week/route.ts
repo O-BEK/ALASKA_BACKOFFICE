@@ -15,6 +15,9 @@ export async function GET(request: Request) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: "Non authentifié." }, { status: 401 })
+    }
     const db = await readSnapshot(supabase)
     const weekStart = parseISO(start)
 

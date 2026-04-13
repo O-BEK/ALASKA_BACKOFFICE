@@ -56,6 +56,9 @@ export default function ImportPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<{ days_imported: number; ca_total: number; filename: string } | null>(null)
   const [syncError, setSyncError] = useState("")
+  const [journalSyncing, setJournalSyncing] = useState(false)
+  const [journalSyncResult, setJournalSyncResult] = useState<{ days_imported: number; cash_sales_total: number; cash_movements_total: number; anomalies: number; filename: string } | null>(null)
+  const [journalSyncError, setJournalSyncError] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const safePreview = Array.isArray(preview) ? preview : []
   const safeDuplicates = Array.isArray(duplicates) ? duplicates : []
@@ -155,11 +158,31 @@ export default function ImportPage() {
     loadData()
   }, [syncStart, syncEnd])
 
+  const handleJournalSync = useCallback(async () => {
+    setJournalSyncing(true)
+    setJournalSyncError("")
+    setJournalSyncResult(null)
+    const res = await fetch("/api/pos-sync/journal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startDate: syncStart, endDate: syncEnd }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setJournalSyncError(data.error || "Erreur synchronisation journal.")
+      setJournalSyncing(false)
+      return
+    }
+    setJournalSyncResult(data)
+    setJournalSyncing(false)
+    loadData()
+  }, [syncStart, syncEnd])
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Import CSV Caisse</h1>
-        <p className="text-alaska-muted text-sm mt-1">Importer le rapport mensuel de votre logiciel de caisse</p>
+        <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Imports POS</h1>
+        <p className="text-alaska-muted text-sm mt-1">CSV ventes pour le CA global, journal de caisse pour le pilotage cash physique</p>
       </div>
 
       {step === "upload" && (
@@ -198,7 +221,16 @@ export default function ImportPage() {
                 disabled={syncing}
               >
                 <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
-                {syncing ? "Synchronisation…" : "Synchroniser"}
+                {syncing ? "Synchronisation CSV…" : "Synchroniser ventes CSV"}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full gap-2 border-alaska-sage text-alaska-sage hover:bg-alaska-sage-lt"
+                onClick={() => void handleJournalSync()}
+                disabled={journalSyncing}
+              >
+                <RefreshCw size={16} className={journalSyncing ? "animate-spin" : ""} />
+                {journalSyncing ? "Synchronisation journal…" : "Synchroniser journal caisse"}
               </Button>
               {syncError && (
                 <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">
@@ -210,6 +242,20 @@ export default function ImportPage() {
                   <CheckCircle2 size={16} />
                   <span>
                     {syncResult.days_imported} jours importés · {formatMAD(syncResult.ca_total)}
+                  </span>
+                </div>
+              )}
+              {journalSyncError && (
+                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">
+                  <AlertCircle size={16} /> {journalSyncError}
+                </div>
+              )}
+              {journalSyncResult && (
+                <div className="flex items-center gap-2 text-sm text-alaska-dark bg-alaska-sage-lt p-3 rounded-xl">
+                  <CheckCircle2 size={16} />
+                  <span>
+                    {journalSyncResult.days_imported} jours journal · cash POS {formatMAD(journalSyncResult.cash_sales_total)} · mouvements {formatMAD(journalSyncResult.cash_movements_total)}
+                    {journalSyncResult.anomalies > 0 ? ` · ${journalSyncResult.anomalies} alerte(s)` : ""}
                   </span>
                 </div>
               )}
@@ -334,7 +380,7 @@ export default function ImportPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-alaska-dark truncate">{imp.filename}</p>
                         <p className="text-xs text-alaska-muted">
-                          {imp.days_imported}j · {formatMAD(imp.ca_total)}
+                          {imp.import_type === "cash_journal_xls" ? "Journal caisse" : "Ventes CSV"} · {imp.days_imported}j · {formatMAD(imp.ca_total)}
                           {imp.date_range_start && ` · ${imp.date_range_start.slice(0, 7)}`}
                         </p>
                       </div>

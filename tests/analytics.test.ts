@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-import { buildCaisseBalance } from "../lib/server/analytics"
+import { buildCaisseBalance, buildDashboardData, monthReporting } from "../lib/server/analytics"
 import type { PilotDb } from "../lib/server/db-types"
 
 function makeDb(overrides: Partial<PilotDb> = {}): PilotDb {
@@ -19,12 +19,38 @@ function makeDb(overrides: Partial<PilotDb> = {}): PilotDb {
   } as PilotDb
 }
 
+function makeSale(overrides: Partial<PilotDb["daily_sales"][number]> = {}): PilotDb["daily_sales"][number] {
+  return {
+    id: "sale",
+    date: "2026-01-01",
+    ca_caisse: 0,
+    ca_b2b: 0,
+    ca_soir: 0,
+    pct_soir: 0,
+    tickets_count: 0,
+    mouvement_caisse: 0,
+    cash_sales_journal: null,
+    cash_movements_journal: null,
+    cash_opening_fund: null,
+    cash_closing_fund: null,
+    cash_journal_sessions: 0,
+    cash_journal_anomaly: false,
+    cash_journal_import_id: null,
+    notes: "",
+    source: "manual",
+    import_id: null,
+    created_by: null,
+    updated_at: "",
+    ...overrides,
+  }
+}
+
 describe("buildCaisseBalance", () => {
   it("computes balance and toDeposit from all sales and expenses", () => {
     const db = makeDb({
       daily_sales: [
-        { id: "s1", date: "2026-01-01", ca_caisse: 5000, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 30, mouvement_caisse: 0, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
-        { id: "s2", date: "2026-01-02", ca_caisse: 3000, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 20, mouvement_caisse: 0, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
+        makeSale({ id: "s1", date: "2026-01-01", ca_caisse: 5000, tickets_count: 30 }),
+        makeSale({ id: "s2", date: "2026-01-02", ca_caisse: 3000, tickets_count: 20 }),
       ],
       expenses: [
         { id: "e1", date: "2026-01-01", category: "MP", label: "Poissonnier", amount: 2000, notes: "", created_by: null, updated_at: "" },
@@ -41,7 +67,7 @@ describe("buildCaisseBalance", () => {
   it("returns toDeposit 0 when balance is below 1000 MAD reserve", () => {
     const db = makeDb({
       daily_sales: [
-        { id: "s1", date: "2026-01-01", ca_caisse: 800, ca_b2b: 0, ca_soir: 0, pct_soir: 0, tickets_count: 5, mouvement_caisse: 0, notes: "", source: "manual", import_id: null, created_by: null, updated_at: "" },
+        makeSale({ id: "s1", date: "2026-01-01", ca_caisse: 800, tickets_count: 5 }),
       ],
     })
     const result = buildCaisseBalance(db, "2026-01")
@@ -53,5 +79,100 @@ describe("buildCaisseBalance", () => {
     const result = buildCaisseBalance(makeDb())
     expect(result.balance).toBe(0)
     expect(result.toDeposit).toBe(0)
+  })
+})
+
+describe("buildDashboardData", () => {
+  it("returns month objective, today status, and weekly aggregation", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-04-12T10:00:00.000Z"))
+
+    try {
+      const db = makeDb({
+        daily_sales: [
+          makeSale({ id: "s1", date: "2026-04-12", ca_caisse: 1500, ca_b2b: 500, ca_soir: 400, pct_soir: 20, tickets_count: 18, notes: "Service du soir solide" }),
+          makeSale({ id: "s2", date: "2026-04-15", ca_caisse: 2000, ca_soir: 200, pct_soir: 10, tickets_count: 21, source: "csv_import" }),
+        ],
+        expenses: [
+          { id: "e1", date: "2026-04-12", category: "MP", label: "Poisson", amount: 300, notes: "Réassort", created_by: null, updated_at: "" },
+        ],
+        fixed_charges: [
+          { id: "c1", name: "Loyer", category: "IMMOBILIER", amount: 34000, type: "fixed", payment_day: 5, is_staff: false, is_active: true, start_date: "2026-01-01", end_date: null },
+        ],
+        monthly_objectives: [
+          { year: 2026, month: 4, target_ca: 30000, notes: "Tenir le rythme avant l'été" },
+        ],
+      })
+
+      const result = buildDashboardData(db, "2026-04")
+
+      expect(result.hasMonthData).toBe(true)
+      expect(result.monthObjective).toMatchObject({
+        target: 30000,
+        real: 4000,
+        remaining: 26000,
+        daily_target: 1000,
+        note: "Tenir le rythme avant l'été",
+      })
+      expect(result.today).toMatchObject({
+        date: "2026-04-12",
+        ca_total: 2000,
+        total_expenses: 300,
+        status: "complete",
+      })
+      expect(result.today.notes).toEqual(["Service du soir solide", "Réassort"])
+      expect(result.weeklyMonth.reduce((sum, week) => sum + week.ca_total, 0)).toBe(4000)
+      expect(result.weeklyMonth.filter((week) => week.ca_total === 2000 && week.days_count === 1 && week.ca_per_day === 2000)).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe("monthReporting", () => {
+  it("builds summary, comparison, and charge reconciliation for the selected month", () => {
+    const db = makeDb({
+      daily_sales: [
+        makeSale({ id: "s1", date: "2026-03-05", ca_caisse: 10000, ca_b2b: 2000, ca_soir: 2500, pct_soir: 20.8, tickets_count: 40, notes: "Ramadan démarre bien" }),
+        makeSale({ id: "s2", date: "2026-03-06", ca_caisse: 8000, ca_b2b: 1000, ca_soir: 1500, pct_soir: 16.7, tickets_count: 35, source: "csv_import" }),
+        makeSale({ id: "s3", date: "2026-02-05", ca_caisse: 9000, ca_b2b: 1000, ca_soir: 1200, pct_soir: 12, tickets_count: 36 }),
+        makeSale({ id: "s4", date: "2025-03-05", ca_caisse: 6000, ca_b2b: 1000, ca_soir: 500, pct_soir: 7.1, tickets_count: 25 }),
+      ],
+      expenses: [
+        { id: "e1", date: "2026-03-05", category: "CHARGES", label: "Loyer", amount: 34000, notes: "", created_by: null, updated_at: "" },
+        { id: "e2", date: "2026-03-06", category: "RH", label: "Ramzi", amount: 4500, notes: "", created_by: null, updated_at: "" },
+        { id: "e3", date: "2026-03-06", category: "MP", label: "Poisson", amount: 2800, notes: "", created_by: null, updated_at: "" },
+      ],
+      fixed_charges: [
+        { id: "c1", name: "Loyer", category: "IMMOBILIER", amount: 34000, type: "fixed", payment_day: 5, is_staff: false, is_active: true, start_date: "2026-01-01", end_date: null },
+        { id: "c2", name: "Ramzi", category: "PERSONNEL", amount: 6000, type: "fixed", payment_day: 30, is_staff: true, is_active: true, start_date: "2026-01-01", end_date: null },
+      ],
+    })
+
+    const result = monthReporting(db, "2026-03")
+
+    expect(result.summary).toMatchObject({
+      ca_caisse: 18000,
+      ca_b2b: 3000,
+      ca_total: 21000,
+      prev_total: 10000,
+      prev_year_total: 7000,
+      total_expenses: 41300,
+      solde_mois: -20300,
+    })
+    expect(result.notes).toEqual([{ date: "2026-03-05", note: "Ramadan démarre bien" }])
+    expect(result.chargeReconciliation).toEqual([
+      { name: "Loyer", category: "IMMOBILIER", payment_day: 5, theoretical: 34000, actual: 34000, delta: 0 },
+      { name: "Ramzi", category: "PERSONNEL", payment_day: 30, theoretical: 6000, actual: 4500, delta: -1500 },
+    ])
+    expect(result.staffPayments).toEqual([
+      { name: "Ramzi", category: "PERSONNEL", payment_day: 30, theoretical: 6000, actual: 4500, delta: -1500 },
+    ])
+    expect(result.comparison).toHaveLength(12)
+    expect(result.comparison[2]).toMatchObject({
+      current: 21000,
+      previous: 7000,
+      delta_pct: 200,
+    })
   })
 })

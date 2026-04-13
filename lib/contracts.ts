@@ -5,6 +5,7 @@ import type {
   ExpenseItem,
   ExpenseSection,
   FixedCharge,
+  ImportType,
   ImportRecord,
   MonthlyKPIs,
   MonthlyObjective,
@@ -27,6 +28,13 @@ const dailyEntrySchema = z.object({
   pct_soir: z.coerce.number().catch(0),
   tickets_count: z.coerce.number().catch(0),
   mouvement_caisse: z.coerce.number().catch(0),
+  cash_sales_journal: z.coerce.number().nullable().catch(null),
+  cash_movements_journal: z.coerce.number().nullable().catch(null),
+  cash_opening_fund: z.coerce.number().nullable().catch(null),
+  cash_closing_fund: z.coerce.number().nullable().catch(null),
+  cash_journal_sessions: z.coerce.number().catch(0),
+  cash_journal_anomaly: z.coerce.boolean().catch(false),
+  cash_journal_import_id: z.string().nullable().catch(null),
   notes: z.string().catch(""),
   source: z.enum(["manual", "csv_import"]).catch("manual"),
   expenses: z.array(expenseItemSchema).catch([]),
@@ -56,6 +64,45 @@ const dashboardLast12Schema = z.object({
   breakeven: z.coerce.number().catch(0),
 })
 
+const dashboardObjectiveSchema = z.object({
+  target: z.coerce.number().nullable().catch(null),
+  real: z.coerce.number().catch(0),
+  pct: z.coerce.number().catch(0),
+  remaining: z.coerce.number().catch(0),
+  daily_target: z.coerce.number().catch(0),
+  note: z.string().catch(""),
+})
+
+const dashboardTodaySchema = z.object({
+  date: z.string().catch(""),
+  ca_caisse: z.coerce.number().catch(0),
+  ca_b2b: z.coerce.number().catch(0),
+  ca_total: z.coerce.number().catch(0),
+  total_expenses: z.coerce.number().catch(0),
+  notes: z.array(z.string()).catch([]),
+  status: z.enum(["missing", "partial", "complete"]).catch("missing"),
+})
+
+const dashboardWeeklySchema = z.object({
+  label: z.string().catch(""),
+  range: z.string().catch(""),
+  ca_total: z.coerce.number().catch(0),
+  days_count: z.coerce.number().catch(0),
+  ca_per_day: z.coerce.number().catch(0),
+  breakeven: z.coerce.number().catch(0),
+})
+
+const cashMonthSchema = z.object({
+  month: z.string().catch(""),
+  cash_sales: z.coerce.number().catch(0),
+  cash_movements: z.coerce.number().catch(0),
+  cash_purchases: z.coerce.number().catch(0),
+  cash_envelope: z.coerce.number().catch(0),
+  ca_global: z.coerce.number().catch(0),
+  anomaly_days: z.coerce.number().catch(0),
+  days_count: z.coerce.number().catch(0),
+})
+
 const dashboardStateSchema = z.object({
   kpis: monthlyKpisSchema.catch({
     month: "",
@@ -74,6 +121,35 @@ const dashboardStateSchema = z.object({
   }),
   delta_ca: z.coerce.number().catch(0),
   last12: z.array(dashboardLast12Schema).catch([]),
+  hasMonthData: z.coerce.boolean().catch(false),
+  monthObjective: dashboardObjectiveSchema.catch({
+    target: null,
+    real: 0,
+    pct: 0,
+    remaining: 0,
+    daily_target: 0,
+    note: "",
+  }),
+  today: dashboardTodaySchema.catch({
+    date: "",
+    ca_caisse: 0,
+    ca_b2b: 0,
+    ca_total: 0,
+    total_expenses: 0,
+    notes: [],
+    status: "missing",
+  }),
+  cashMonth: cashMonthSchema.catch({
+    month: "",
+    cash_sales: 0,
+    cash_movements: 0,
+    cash_purchases: 0,
+    cash_envelope: 0,
+    ca_global: 0,
+    anomaly_days: 0,
+    days_count: 0,
+  }),
+  weeklyMonth: z.array(dashboardWeeklySchema).catch([]),
 })
 
 const actionItemSchema = z.object({
@@ -122,6 +198,7 @@ const objectivesPayloadSchema = z.object({
 const importRecordSchema = z.object({
   id: z.string().catch(""),
   filename: z.string().catch(""),
+  import_type: z.enum(["sales_csv", "cash_journal_xls"]).catch("sales_csv"),
   imported_at: z.string().catch(""),
   rows_processed: z.coerce.number().catch(0),
   days_imported: z.coerce.number().catch(0),
@@ -161,6 +238,10 @@ const weekSummarySchema = z.object({
   totalCA: z.coerce.number().catch(0),
   totalDep: z.coerce.number().catch(0),
   marge: z.coerce.number().catch(0),
+  totalCashSales: z.coerce.number().catch(0),
+  totalCashMovements: z.coerce.number().catch(0),
+  totalCashEnvelope: z.coerce.number().catch(0),
+  cashAnomalyDays: z.coerce.number().catch(0),
   weeklyBreakeven: z.coerce.number().catch(0),
   pctBreakeven: z.coerce.number().catch(0),
   expensesByLabel: z.array(expenseByLabelSchema).catch([]),
@@ -174,6 +255,10 @@ const weekPayloadSchema = z.object({
     totalCA: 0,
     totalDep: 0,
     marge: 0,
+    totalCashSales: 0,
+    totalCashMovements: 0,
+    totalCashEnvelope: 0,
+    cashAnomalyDays: 0,
     weeklyBreakeven: 0,
     pctBreakeven: 0,
     expensesByLabel: [],
@@ -182,20 +267,111 @@ const weekPayloadSchema = z.object({
 })
 
 const reportingPayloadSchema = z.object({
-  monthCA: z.coerce.number().catch(0),
-  prevCA: z.coerce.number().catch(0),
-  monthExp: z.coerce.number().catch(0),
+  summary: z.object({
+    ca_caisse: z.coerce.number().catch(0),
+    ca_b2b: z.coerce.number().catch(0),
+    ca_total: z.coerce.number().catch(0),
+    prev_total: z.coerce.number().catch(0),
+    prev_year_total: z.coerce.number().catch(0),
+    prev_pct: z.coerce.number().catch(0),
+    prev_year_pct: z.coerce.number().catch(0),
+    ca_per_day: z.coerce.number().catch(0),
+    days_count: z.coerce.number().catch(0),
+    total_expenses: z.coerce.number().catch(0),
+    marge_nette: z.coerce.number().catch(0),
+    taux_marge: z.coerce.number().catch(0),
+    breakeven: z.coerce.number().catch(0),
+    pct_seuil: z.coerce.number().catch(0),
+    solde_mois: z.coerce.number().catch(0),
+    ca_soir: z.coerce.number().catch(0),
+    pct_soir: z.coerce.number().catch(0),
+  }).catch({
+    ca_caisse: 0,
+    ca_b2b: 0,
+    ca_total: 0,
+    prev_total: 0,
+    prev_year_total: 0,
+    prev_pct: 0,
+    prev_year_pct: 0,
+    ca_per_day: 0,
+    days_count: 0,
+    total_expenses: 0,
+    marge_nette: 0,
+    taux_marge: 0,
+    breakeven: 0,
+    pct_seuil: 0,
+    solde_mois: 0,
+    ca_soir: 0,
+    pct_soir: 0,
+  }),
   expByLabel: z.array(expenseByLabelSchema).catch([]),
   byCategory: z.array(z.object({ name: z.string().catch(""), value: z.coerce.number().catch(0) })).catch([]),
-  pctSeuil: z.coerce.number().catch(0),
-  soldeMois: z.coerce.number().catch(0),
   last6: z.array(z.object({ month: z.string().catch(""), ca: z.coerce.number().catch(0), objectif: z.coerce.number().nullable().catch(null) })).catch([]),
+  notes: z.array(z.object({ date: z.string().catch(""), note: z.string().catch("") })).catch([]),
+  staffPayments: z.array(z.object({
+    name: z.string().catch(""),
+    category: z.string().catch(""),
+    payment_day: z.coerce.number().nullable().catch(null),
+    theoretical: z.coerce.number().catch(0),
+    actual: z.coerce.number().catch(0),
+    delta: z.coerce.number().catch(0),
+  })).catch([]),
+  chargeReconciliation: z.array(z.object({
+    name: z.string().catch(""),
+    category: z.string().catch(""),
+    payment_day: z.coerce.number().nullable().catch(null),
+    theoretical: z.coerce.number().catch(0),
+    actual: z.coerce.number().catch(0),
+    delta: z.coerce.number().catch(0),
+  })).catch([]),
+  comparison: z.array(z.object({
+    month: z.string().catch(""),
+    current: z.coerce.number().catch(0),
+    previous: z.coerce.number().catch(0),
+    delta_pct: z.coerce.number().nullable().catch(null),
+  })).catch([]),
 })
 
 export function parseDashboardState(input: unknown, month: string): {
   kpis: MonthlyKPIs
   delta_ca: number
   last12: { month: string; ca_caisse: number; ca_b2b: number; ca_total: number; breakeven: number }[]
+  hasMonthData: boolean
+  monthObjective: {
+    target: number | null
+    real: number
+    pct: number
+    remaining: number
+    daily_target: number
+    note: string
+  }
+  today: {
+    date: string
+    ca_caisse: number
+    ca_b2b: number
+    ca_total: number
+    total_expenses: number
+    notes: string[]
+    status: "missing" | "partial" | "complete"
+  }
+  cashMonth: {
+    month: string
+    cash_sales: number
+    cash_movements: number
+    cash_purchases: number
+    cash_envelope: number
+    ca_global: number
+    anomaly_days: number
+    days_count: number
+  }
+  weeklyMonth: {
+    label: string
+    range: string
+    ca_total: number
+    days_count: number
+    ca_per_day: number
+    breakeven: number
+  }[]
 } {
   const parsed = dashboardStateSchema.parse(input)
   return {
@@ -235,6 +411,10 @@ export function parseWeekPayload(input: unknown): {
     totalCA: number
     totalDep: number
     marge: number
+    totalCashSales: number
+    totalCashMovements: number
+    totalCashEnvelope: number
+    cashAnomalyDays: number
     weeklyBreakeven: number
     pctBreakeven: number
     expensesByLabel: { label: string; amount: number }[]
@@ -250,6 +430,10 @@ export function parseReportingPayload(input: unknown) {
 
 export function parseDailyEntry(input: unknown): DailyEntry {
   return dailyEntrySchema.parse(input)
+}
+
+export function parseImportType(input: unknown): ImportType {
+  return z.enum(["sales_csv", "cash_journal_xls"]).parse(input)
 }
 
 export function parseChargesPayload(input: unknown): { charges: FixedCharge[] } {

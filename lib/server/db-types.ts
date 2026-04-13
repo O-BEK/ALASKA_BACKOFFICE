@@ -17,6 +17,13 @@ export interface DailySaleRecord {
   pct_soir: number
   tickets_count: number
   mouvement_caisse: number
+  cash_sales_journal: number | null
+  cash_movements_journal: number | null
+  cash_opening_fund: number | null
+  cash_closing_fund: number | null
+  cash_journal_sessions: number
+  cash_journal_anomaly: boolean
+  cash_journal_import_id: string | null
   notes: string
   source: "manual" | "csv_import"
   import_id: string | null

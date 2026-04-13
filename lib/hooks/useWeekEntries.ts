@@ -38,7 +38,7 @@ export function useWeekEntries(weekStart: Date) {
 
   const updateCA = async (date: string, ca: number) => {
     const current = entries[date]
-    if (!current) return
+    if (!current || current.source === "csv_import" || current.cash_journal_sessions > 0 || current.cash_journal_import_id) return
     const next = { ...current, ca_caisse: Math.max(0, ca) }
     setEntries((prev) => ({ ...prev, [date]: next }))
     const saved = await saveEntry(next)

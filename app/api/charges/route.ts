@@ -1,18 +1,69 @@
 import { NextResponse } from "next/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient, isAdmin } from "@/lib/supabase/server"
-import { readSnapshot, updateFixedCharge, createFixedCharge } from "@/lib/server/supabase-store"
+import { updateFixedCharge, createFixedCharge } from "@/lib/server/supabase-store"
 import { parseCreateChargeBody } from "@/lib/contracts"
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = createClient()
+  const { searchParams } = new URL(request.url)
+  const scope = searchParams.get("scope")
 
   try {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    const db = await readSnapshot(supabase)
-    return NextResponse.json({ charges: db.fixed_charges })
-  } catch {
+
+    if (!user) {
+      return NextResponse.json({ error: "Non authentifié." }, { status: 401 })
+    }
+
+    if (scope === "staff") {
+      const adminSupabase = createAdminClient()
+      const { data, error } = await adminSupabase
+        .from("fixed_charges")
+        .select("id, name, payment_day, is_active, start_date, end_date")
+        .eq("is_staff", true)
+        .order("name", { ascending: true })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      return NextResponse.json({
+        charges: (data || []).map((charge) => ({
+          id: String(charge.id),
+          name: String(charge.name),
+          category: "PERSONNEL",
+          amount: 0,
+          type: "fixed",
+          payment_day: charge.payment_day === null ? null : Number(charge.payment_day),
+          is_staff: true,
+          is_active: Boolean(charge.is_active),
+          start_date: String(charge.start_date),
+          end_date: charge.end_date ? String(charge.end_date) : null,
+        })),
+      })
+    }
+
+    if (!(await isAdmin(supabase, user.id))) {
+      return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+    }
+
+    const { data, error } = await supabase
+      .from("fixed_charges")
+      .select("id, name, category, amount, type, payment_day, is_staff, is_active, start_date, end_date")
+      .order("category", { ascending: true })
+      .order("name", { ascending: true })
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    return NextResponse.json({ charges: data || [] })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/charges]", message)
     return NextResponse.json({ error: "Impossible de charger les charges." }, { status: 500 })
   }
 }

@@ -15,6 +15,10 @@ interface WeekSummary {
   totalCA: number
   totalDep: number
   marge: number
+  totalCashSales: number
+  totalCashMovements: number
+  totalCashEnvelope: number
+  cashAnomalyDays: number
   weeklyBreakeven: number
   pctBreakeven: number
   expensesByLabel: { label: string; amount: number }[]
@@ -25,6 +29,10 @@ const emptySummary: WeekSummary = {
   totalCA: 0,
   totalDep: 0,
   marge: 0,
+  totalCashSales: 0,
+  totalCashMovements: 0,
+  totalCashEnvelope: 0,
+  cashAnomalyDays: 0,
   weeklyBreakeven: 0,
   pctBreakeven: 0,
   expensesByLabel: [],

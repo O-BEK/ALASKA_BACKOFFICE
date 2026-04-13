@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   // Read existing sales to preserve notes
   const { data: existingSales, error: salesErr } = await supabase
     .from("daily_sales")
-    .select("date, notes, created_by")
+    .select("date, notes, created_by, cash_sales_journal, cash_movements_journal, cash_opening_fund, cash_closing_fund, cash_journal_sessions, cash_journal_anomaly, cash_journal_import_id")
   if (salesErr) {
     return NextResponse.json({ error: `Lecture des ventes impossible. ${salesErr.message}` }, { status: 500 })
   }
@@ -77,6 +77,7 @@ export async function POST(request: Request) {
     .from("pos_imports")
     .insert({
       filename,
+      import_type: "sales_csv",
       imported_by: user.id,
       imported_at: importedAt,
       rows_processed: parsed.reduce((sum, row) => sum + row.tickets_count, 0),
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
       ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse + row.ca_b2b, 0),
       status: "success",
     })
-    .select("id, filename, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
+    .select("id, filename, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
     .single()
 
   // Upsert daily_sales
@@ -103,6 +104,13 @@ export async function POST(request: Request) {
       notes: (existing as any)?.notes || "",
       source: "csv_import",
       import_id: importRecord?.id || null,
+      cash_sales_journal: (existing as any)?.cash_sales_journal ?? null,
+      cash_movements_journal: (existing as any)?.cash_movements_journal ?? null,
+      cash_opening_fund: (existing as any)?.cash_opening_fund ?? null,
+      cash_closing_fund: (existing as any)?.cash_closing_fund ?? null,
+      cash_journal_sessions: (existing as any)?.cash_journal_sessions ?? 0,
+      cash_journal_anomaly: (existing as any)?.cash_journal_anomaly ?? false,
+      cash_journal_import_id: (existing as any)?.cash_journal_import_id ?? null,
       created_by: (existing as any)?.created_by || user.id,
       updated_at: importedAt,
     }

@@ -15,8 +15,12 @@ Le repo est maintenant sur un **V1 socle stabilisé** (après audit P0 du 2026-0
 - auth réelle via **Supabase Auth** — aucun système legacy (cookie `alaska_session`, `pilot-store`, `api/auth/*` supprimés)
 - rôles stockés dans la table `profiles` (RLS strict) — ne plus lire le rôle depuis `user_metadata`
 - routes protégées par `middleware.ts` + `lib/supabase/middleware.ts`
+- les routes API sensibles (`dashboard`, `reporting`, `objectives`, `import-csv`, `charges`) contrôlent explicitement `auth` / `admin` côté serveur
 - persistence partagée dans **Supabase/PostgreSQL**
 - seed initial à faire via script explicite — le seed automatique au runtime a été supprimé
+- bootstrap auth durci via `service_role` avec attribution des rôles directement dans `profiles`
+- l'écran manager ne lit plus les montants de `fixed_charges` quand seule la liste staff est nécessaire
+- redirect après login basé sur `profiles.role`, plus sur `user_metadata`
 - UI branchée sur des API routes Next.js dans `app/api/`
 - tests unitaires/métier avec Vitest
 
@@ -79,6 +83,7 @@ La source de vérité métier est maintenant Supabase:
   - `supabase/migrations/20260407180000_init.sql` — schéma initial
   - `supabase/migrations/20260409000000_action_items_metadata.sql`
   - `supabase/migrations/20260410000000_p0_profiles_schema_fixes.sql` — profiles, mouvement_caisse, RLS complet
+  - `supabase/migrations/20260412110000_harden_profile_bootstrap.sql` — `handle_new_user()` force `manager` par défaut et ne lit plus le rôle depuis `user_metadata`
 
 La couche serveur qui hydrate les snapshots UI est:
 
@@ -112,6 +117,7 @@ Hooks principaux:
 - `lib/hooks/useWeekView.ts`
 - `lib/hooks/useWeekEntries.ts`
 - `lib/hooks/useCharges.ts`
+- `lib/hooks/useUserRole.ts`
 - `lib/hooks/useObjectives.ts`
 - `lib/hooks/useCaisseBalance.ts`
 
@@ -207,7 +213,9 @@ npm run build
 - Ne pas réintroduire `localStorage` comme source principale métier.
 - `lib/local-store.ts` est désormais legacy et ne doit plus piloter les écrans principaux.
 - Ne pas revenir au store JSON `data/pilot-db.json` comme backend principal.
-- Le bootstrap des comptes Supabase se fait via `scripts/bootstrap-auth.mjs` — le trigger `on_auth_user_created` créera automatiquement la ligne `profiles` correspondante.
+- Le bootstrap des comptes Supabase se fait via `scripts/bootstrap-auth.mjs` avec `SUPABASE_SERVICE_ROLE_KEY`.
+- Le trigger `on_auth_user_created` crée la ligne `profiles` avec rôle par défaut `manager`.
+- Toute promotion en `admin` doit être faite explicitement dans `profiles`, pas via `user_metadata`.
 - Les variables minimales à fournir sont dans `.env.example`.
 - Toute nouvelle logique KPI doit passer par la couche serveur partagée pour éviter les divergences entre dashboard, saisie, semaine et reporting.
 - Le seed initial des données se fait via un script explicite (`ensureSeedData` dans `supabase-store.ts`) — ne jamais réintroduire le seed automatique au runtime.
@@ -215,9 +223,10 @@ npm run build
 ## Security Rules
 
 - **Ne jamais lire le rôle depuis `user.user_metadata`** pour des décisions de sécurité — toujours depuis `profiles` via `getUserRole()` ou `isAdmin()` (`lib/supabase/server.ts`).
-- **Ne jamais stocker le rôle dans `user_metadata`** uniquement — le trigger `handle_new_user` copie le rôle dans `profiles` à la création du compte.
+- **Ne jamais stocker ni dériver le rôle depuis `user_metadata`** — le trigger `handle_new_user` crée désormais un profil `manager` par défaut, et les rôles réels sont attribués explicitement dans `profiles`.
 - Les policies RLS utilisent `public.auth_user_role()` (SECURITY DEFINER) — ne pas les réécrire avec `user_metadata`.
 - `user_metadata` peut être utilisé pour l'affichage (name, email) mais pas pour le contrôle d'accès.
+- Pour les écrans manager, ne pas exposer les montants complets de `fixed_charges` si seule la liste du personnel est nécessaire.
 
 ## KPI Rules
 
@@ -231,3 +240,18 @@ npm run build
 ## Maintenance Note
 
 Ce fichier a été mis à jour après le plan P0 (2026-04-10) : suppression du système d'auth legacy, migration vers `profiles`, correction du seed automatique, fix KPI vue semaine.
+
+## Codex Update
+
+Mise à jour réalisée par **Codex** le **2026-04-12**.
+
+Ce que j'ai fait :
+
+- j'ai sécurisé les routes API de lecture sensibles avec des contrôles `auth` et `admin` explicites côté serveur
+- j'ai supprimé le fallback mock de `/api/objectives` pour éviter des réponses incohérentes en cas d'erreur RLS
+- j'ai séparé l'accès aux charges complètes et l'accès à la seule liste staff utile aux écrans manager
+- j'ai corrigé le redirect login pour qu'il lise le rôle depuis `profiles`
+- j'ai ajouté `useUserRole()` pour piloter l'UI avec le rôle réel
+- j'ai corrigé la cohérence du solde caisse dans la vue semaine en intégrant `mouvement_caisse`
+- j'ai durci le bootstrap Supabase: plus d'attribution de rôle via `user_metadata`, création / mise à jour via `service_role`, et migration dédiée pour forcer `manager` par défaut
+- j'ai validé le résultat avec `npm test`, `npm run lint`, `npx tsc --noEmit` et `npm run build`
