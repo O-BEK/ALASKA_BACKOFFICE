@@ -21,6 +21,9 @@ Le repo est maintenant sur un **V1 socle stabilisé** (après audit P0 du 2026-0
 - bootstrap auth durci via `service_role` avec attribution des rôles directement dans `profiles`
 - l'écran manager ne lit plus les montants de `fixed_charges` quand seule la liste staff est nécessaire
 - redirect après login basé sur `profiles.role`, plus sur `user_metadata`
+- routes opérationnelles Caisse/Saisie (`daily-entry`, `week`, `caisse/balance`, `charges`) durcies pour ne plus masquer les erreurs API côté hooks
+- sync POS ventes capable de traiter une réponse CSV ou Excel (`.xls/.xlsx`) selon le format renvoyé par l'API POS
+- reporting recentré sur les données réellement disponibles aujourd'hui: ventes POS, cash suivi, qualité de consolidation, projections et scénarios
 - UI branchée sur des API routes Next.js dans `app/api/`
 - tests unitaires/métier avec Vitest
 
@@ -101,6 +104,7 @@ Cette couche alimente:
 - vue semaine
 - reporting mensuel
 - exports CSV
+- projections intelligentes: run-rate mensuel, scénario alcool, trajectoire multi-années
 
 ### Client Data Access Pattern
 
@@ -127,6 +131,8 @@ Hooks principaux:
 - `app/api/daily-entry/route.ts`
 - `app/api/week/route.ts`
 - `app/api/import-csv/route.ts`
+- `app/api/pos-sync/route.ts`
+- `app/api/pos-sync/journal/route.ts`
 - `app/api/charges/route.ts`
 - `app/api/objectives/route.ts`
 - `app/api/objectives/alcool-validate/route.ts`
@@ -152,7 +158,7 @@ Règles importantes:
 - la marge nette est un indicateur analytique calculé sur `ca_total`
 - `CAISSE_RESERVE = 1 000 MAD` : réserve semaine conservée dans le tiroir-caisse lors d'un virement banque
 - fonds de caisse permanent (1 500 MAD) est physique et hors app
-- `buildCaisseBalance(db)` dans `analytics.ts` calcule le solde cumulé historique : `Σ(ca_caisse) - Σ(mouvement_caisse) - Σ(expenses)` — intentionnellement cash only
+- `buildCaisseBalance(db)` dans `analytics.ts` calcule le solde caisse sur la semaine courante par défaut : `Σ(cash_sales_reference) + Σ(cash_movements_reference) - Σ(expenses)` — intentionnellement cash only
 - les virements banque sont saisis comme dépense label `"Virement banque"`, catégorie `CHARGES`
 - `mouvement_caisse` et dépense `"Virement banque"` coexistent avec des rôles distincts :
   - `mouvement_caisse` → alimente uniquement `buildCaisseBalance` (solde physique tiroir)
@@ -164,10 +170,24 @@ Règles importantes:
 Parser CSV:
 
 - `lib/csv-parser.ts`
+- `parseSalesRows()` est la logique commune d'agrégation ventes POS utilisée par le CSV et par Excel
 
 Le parser identifie les colonnes `MoyensDePaiements` pour séparer :
 - `ca_caisse` = montant espèces (lignes contenant "esp" ou "cash")
 - `ca_b2b` = montant CB et autres paiements non-cash
+
+Parser Excel ventes POS:
+
+- `lib/sales-workbook-parser.ts`
+- utilisé par `app/api/pos-sync/route.ts`
+- la route lit la réponse POS en `arrayBuffer`, détecte CSV vs Excel via `Content-Type`, `Content-Disposition`, extension fichier et signature binaire, puis tente le bon parser avec fallback
+- ne pas revenir à `res.text()` seul dans `/api/pos-sync`, sinon les exports `.xls/.xlsx` seront lus comme du texte et l'import cassera
+
+Journal caisse Excel:
+
+- `lib/pos-journal-parser.ts`
+- utilisé par `app/api/pos-sync/journal/route.ts`
+- alimente `cash_sales_journal`, `cash_movements_journal`, fonds ouverture/fermeture, sessions et anomalies
 
 Règles de fusion import:
 
@@ -177,6 +197,49 @@ Règles de fusion import:
 - les dépenses existantes du jour ne sont pas écrasées par l'import
 - l'historique des imports est enregistré dans `pos_imports`
 - le GET `/api/import-csv` retourne aussi un `monthly_summary` agrégé depuis `daily_sales` (jours CSV, jours manuels, CA total par mois) — affiché dans la page import comme "Données en base"
+
+### Reporting Rules
+
+Le reporting n'est pas une comptabilité exhaustive tant que les virements bancaires, factures fournisseurs et charges hors caisse ne sont pas importés.
+
+Règles de présentation:
+
+- éviter de présenter les dépenses cash comme une "répartition des charges" complète
+- distinguer explicitement:
+  - ventes POS et mix d'encaissement
+  - cash suivi dans la caisse
+  - achats cash saisis
+  - qualité de consolidation des imports
+  - projections et scénarios
+- les blocs remplacés volontairement: dépenses par poste, répartition dépenses, réconciliation charges, paiements personnel, notes du mois
+- bloc "Consolidation externe" dans `/reporting`: prépare l'étape future d'import PDF bancaire/fournisseur pour consolider virements et charges hors caisse
+
+### Projection Rules
+
+Projection simple mensuelle:
+
+- `projected_ca = ca_per_day * jours_du_mois` quand le mois a déjà des jours saisis/importés
+- cible suivie = objectif mensuel si présent, sinon seuil de rentabilité
+- `required_daily = max(cible - ca_total, 0) / jours_restants`
+
+Projection intelligente reporting:
+
+- calculée dans `buildSmartProjection()` (`lib/server/analytics.ts`)
+- exposée via `smartProjection` dans `/api/reporting`
+- utilise:
+  - run-rate du mois sélectionné pour le mois courant
+  - objectifs mensuels futurs quand ils existent
+  - même mois N-1 + croissance historique bornée quand l'objectif mensuel manque
+  - objectif annuel réaliste quand il existe, sinon croissance historique bornée
+- scénario alcool:
+  - uplift ticket moyen par défaut: `+47%`
+  - l'uplift ne s'applique pas à tout le CA, seulement à la part caisse estimée
+  - effet CA total estimé: `alcool_uplift_pct * caisse_share_pct`
+  - mois d'effet par défaut: mois suivant le mois affiché
+- la page `/reporting` affiche:
+  - trajectoire annuelle sans alcool vs avec alcool
+  - impact annuel
+  - six prochains mois avec source du calcul
 
 ### Expense Categories
 
@@ -193,6 +256,9 @@ Tests Vitest dans:
 
 - `tests/calculations.test.ts`
 - `tests/csv-parser.test.ts`
+- `tests/sales-workbook-parser.test.ts`
+- `tests/pos-journal-parser.test.ts`
+- `tests/cash-journal-balance.test.ts`
 - `tests/middleware.test.ts` — teste le middleware Supabase avec mocks `@supabase/ssr` (chemin legacy supprimé)
 - `tests/analytics.test.ts`
 
@@ -219,6 +285,7 @@ npm run build
 - Les variables minimales à fournir sont dans `.env.example`.
 - Toute nouvelle logique KPI doit passer par la couche serveur partagée pour éviter les divergences entre dashboard, saisie, semaine et reporting.
 - Le seed initial des données se fait via un script explicite (`ensureSeedData` dans `supabase-store.ts`) — ne jamais réintroduire le seed automatique au runtime.
+- Les changements reporting/projection doivent maintenir le contrat Zod dans `lib/contracts.ts` pour éviter que le front ne masque silencieusement des champs absents.
 
 ## Security Rules
 
@@ -233,7 +300,7 @@ npm run build
 - **Ne jamais utiliser `ca_caisse` seul pour les KPIs de CA** — toujours `ca_total = ca_caisse + ca_b2b`.
 - `ca_total` alimente : dashboard KPI, breakeven %, marges, reporting, objectifs, vue semaine.
 - `ca_caisse` seul alimente uniquement : `buildCaisseBalance` (trésorerie physique).
-- `buildCaisseBalance` calcule : `Σ(ca_caisse) - Σ(mouvement_caisse) - Σ(expenses)` — intentionnellement cash only.
+- `buildCaisseBalance` calcule : `Σ(cash_sales_reference) + Σ(cash_movements_reference) - Σ(expenses)` — intentionnellement cash only.
 - `sanitizeParsedRows` dans `app/api/import-csv/route.ts` doit inclure `ca_b2b` — sans ça les paiements CB sont perdus au commit.
 - La page import est mobile-first : sélecteurs de navigation centrés via `self-center sm:self-auto`.
 
@@ -276,3 +343,25 @@ Notes :
 - `SUPABASE_SERVICE_ROLE_KEY` est maintenant nécessaire aux routes opérationnelles qui doivent agréger les données complètes pour les managers.
 - `npx supabase --help` fonctionne, mais affiche un warning Docker local : `C:\Users\OthmanBEKRI\.docker\config.json: Access is denied`.
 - `npm audit --omit=dev` signale encore des vulnérabilités de production existantes sur `next@14.2.15` et `xlsx`; elles ne viennent pas de l'ajout du CLI Supabase.
+
+## Codex Update — 2026-04-13 bis
+
+Mise à jour réalisée par **Codex**.
+
+Ce que j'ai fait :
+
+- j'ai corrigé la production après le dernier push: `SUPABASE_SERVICE_ROLE_KEY` manquait dans Vercel Production alors que plusieurs routes utilisent désormais `createAdminClient()`
+- j'ai redéployé Vercel Production après ajout de la variable et vérifié que les routes Caisse/Saisie ne tombent plus en `500`
+- j'ai durci les hooks `useDailyEntry`, `useWeekEntries` et `useCharges` pour ne plus convertir une erreur API en données vides ou zéro silencieux
+- j'ai ajouté des logs serveur explicites dans `daily-entry`, `week` et `caisse/balance`
+- j'ai rendu `/api/pos-sync` compatible avec les réponses POS CSV ou Excel (`.xls/.xlsx`) et ajouté `lib/sales-workbook-parser.ts`
+- j'ai ajouté un test Excel ventes POS dans `tests/sales-workbook-parser.test.ts`
+- j'ai remplacé le KPI dashboard "Aujourd'hui" par "Rythme mensuel" avec projection, écart cible et CA/jour restant
+- j'ai refondu `/reporting` pour éviter une lecture faussement comptable: focus ventes POS, cash suivi, qualité consolidation, jours forts/faibles, consolidation externe
+- j'ai ajouté `smartProjection` dans le reporting: scénario sans alcool vs avec alcool, hypothèses, trajectoire annuelle et six prochains mois
+- j'ai validé les changements avec `npx tsc --noEmit`, `npm test`, `npm.cmd run lint` et `npm run build`
+
+Notes :
+
+- plusieurs changements ont été déployés en production via Vercel, mais ils doivent encore être commit/push dans Git si ce n'est pas déjà fait
+- le reporting reste volontairement "cash/POS first" jusqu'à l'ajout d'un import de PDF bancaire ou fournisseur pour consolider les virements et charges hors caisse
