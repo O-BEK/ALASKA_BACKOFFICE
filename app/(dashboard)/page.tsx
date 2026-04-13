@@ -33,8 +33,15 @@ function monthLabel(month: string) {
   return MONTHS_FR[parseInt(month.split("-")[1], 10) - 1] ?? ""
 }
 
-function dayLabel(date: string) {
-  return new Intl.DateTimeFormat("fr-MA", { weekday: "long", day: "numeric", month: "long" }).format(new Date(date))
+function daysInMonth(month: string) {
+  const [year, rawMonth] = month.split("-").map(Number)
+  if (!year || !rawMonth) return 0
+  return new Date(year, rawMonth, 0).getDate()
+}
+
+function signedMAD(value: number) {
+  const prefix = value > 0 ? "+" : value < 0 ? "-" : ""
+  return `${prefix}${formatMAD(Math.abs(value))}`
 }
 
 function WeeklyTooltip({
@@ -58,7 +65,7 @@ function WeeklyTooltip({
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
-  const { kpis, delta_ca, last12, hasMonthData, monthObjective, today, weeklyMonth, loading, error } = useDashboard(month)
+  const { kpis, delta_ca, last12, hasMonthData, monthObjective, weeklyMonth, loading, error } = useDashboard(month)
   const [actions, setActions] = useState<ActionItem[]>([])
   const [imports, setImports] = useState<ImportRecord[]>([])
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
@@ -91,6 +98,19 @@ export default function DashboardPage() {
   const thresholdMissing = Math.max(kpis.breakeven - kpis.ca_total, 0)
   const csvMissing = month === currentMonth && !imports.some((item) => item.date_range_start.startsWith(month))
   const weeklyHasData = weeklyMonth.some((item) => item.ca_total > 0)
+  const monthDays = daysInMonth(month)
+  const runRateReference = monthObjective.target || kpis.breakeven
+  const runRateReferenceLabel = monthObjective.target ? "objectif" : "seuil"
+  const projectedMonthCa = kpis.days_count > 0 ? kpis.ca_per_day * monthDays : 0
+  const projectedGap = runRateReference > 0 ? projectedMonthCa - runRateReference : 0
+  const remainingCoveredDays = Math.max(monthDays - kpis.days_count, 0)
+  const requiredDailyCa = runRateReference > 0 && remainingCoveredDays > 0 ? Math.max(runRateReference - kpis.ca_total, 0) / remainingCoveredDays : 0
+  const runRateStatus =
+    kpis.days_count === 0
+      ? "À alimenter"
+      : runRateReference > 0 && projectedGap < 0
+        ? "À accélérer"
+        : "Rythme OK"
 
   async function updateActionStatus(status: ActionItem["status"]) {
     if (!selectedAction) return
@@ -159,21 +179,22 @@ export default function DashboardPage() {
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <CardTitle className="text-base text-alaska-dark">Aujourd&apos;hui</CardTitle>
-                        <CardDescription className="text-xs text-alaska-muted capitalize">{dayLabel(today.date || new Date().toISOString().slice(0, 10))}</CardDescription>
+                        <CardTitle className="text-base text-alaska-dark">Rythme mensuel</CardTitle>
+                        <CardDescription className="text-xs text-alaska-muted">Projection fin de mois sur {kpis.days_count} jours saisis</CardDescription>
                       </div>
-                      <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-medium", today.status === "complete" ? "bg-alaska-sage-lt text-alaska-sage" : today.status === "partial" ? "bg-amber-100 text-amber-700" : "bg-amber-50 text-amber-700")}>
-                        {today.status === "complete" ? "Complet" : today.status === "partial" ? "Partiel" : "Non renseigné"}
+                      <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-medium", runRateStatus === "Rythme OK" ? "bg-alaska-sage-lt text-alaska-sage" : runRateStatus === "À accélérer" ? "bg-amber-100 text-amber-700" : "bg-amber-50 text-amber-700")}>
+                        {runRateStatus}
                       </span>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <MetricBox label="CA jour" value={formatMAD(today.ca_total)} tone="text-alaska-dark" />
-                      <MetricBox label="Dépenses" value={formatMAD(today.total_expenses)} tone="text-orange-600" />
+                      <MetricBox label="Projection" value={formatMAD(projectedMonthCa)} tone="text-alaska-dark" />
+                      <MetricBox label={`Écart ${runRateReferenceLabel}`} value={signedMAD(projectedGap)} tone={projectedGap >= 0 ? "text-alaska-sage" : "text-red-600"} />
                     </div>
-                    <p className="text-xs text-alaska-muted">{today.notes[0] || (today.status === "missing" ? "Aucune saisie du jour pour le moment." : "Pas de note renseignée aujourd'hui.")}</p>
-                    <Link href={`/saisie?date=${today.date || new Date().toISOString().slice(0, 10)}`}><Button variant="outline" className="w-full border-alaska-sage-lt hover:bg-alaska-sage-lt">Saisir le CA</Button></Link>
+                    <MetricBox label="CA / jour restant" value={remainingCoveredDays > 0 ? formatMAD(requiredDailyCa) : "Mois couvert"} tone="text-alaska-dark" />
+                    <p className="text-xs text-alaska-muted">Basé sur le CA moyen actuel de {formatMAD(kpis.ca_per_day)} / jour.</p>
+                    <Link href="/reporting"><Button variant="outline" className="w-full border-alaska-sage-lt hover:bg-alaska-sage-lt">Voir le reporting</Button></Link>
                   </CardContent>
                 </Card>
 
