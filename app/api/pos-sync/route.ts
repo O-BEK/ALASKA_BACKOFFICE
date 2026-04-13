@@ -1,11 +1,74 @@
 import { NextResponse } from "next/server"
-import { parseCSV } from "@/lib/csv-parser"
+import { parseCSV, type ParsedDay } from "@/lib/csv-parser"
+import { parseSalesWorkbook } from "@/lib/sales-workbook-parser"
 import { createClient, isAdmin } from "@/lib/supabase/server"
 
 // Convert YYYY-MM-DD → MM/DD/YYYY for POS API
 function toPosDate(iso: string): string {
   const [y, m, d] = iso.split("-")
   return `${m}/${d}/${y}`
+}
+
+function getFilename(disposition: string, fallback: string) {
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) return decodeURIComponent(utf8Match[1].replace(/"/g, ""))
+
+  const quotedMatch = disposition.match(/filename="([^"]+)"/i)
+  if (quotedMatch?.[1]) return quotedMatch[1]
+
+  const plainMatch = disposition.match(/filename=([^;]+)/i)
+  return plainMatch?.[1]?.trim().replace(/^"|"$/g, "") || fallback
+}
+
+function looksLikeWorkbook(body: ArrayBuffer, contentType: string, filename: string) {
+  const lowerType = contentType.toLowerCase()
+  const lowerName = filename.toLowerCase()
+  const bytes = new Uint8Array(body)
+  const isZipWorkbook = bytes[0] === 0x50 && bytes[1] === 0x4b
+  const isOleWorkbook = bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0
+
+  return (
+    lowerType.includes("spreadsheet") ||
+    lowerType.includes("excel") ||
+    lowerType.includes("vnd.ms-excel") ||
+    lowerName.endsWith(".xls") ||
+    lowerName.endsWith(".xlsx") ||
+    isZipWorkbook ||
+    isOleWorkbook
+  )
+}
+
+function decodeText(body: ArrayBuffer) {
+  const bytes = new Uint8Array(body)
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder("utf-16le").decode(bytes)
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder("utf-16be").decode(bytes)
+  return new TextDecoder("utf-8").decode(bytes)
+}
+
+function parseSalesExport(body: ArrayBuffer, contentType: string, filename: string): ParsedDay[] {
+  const shouldTryWorkbookFirst = looksLikeWorkbook(body, contentType, filename)
+  const parsers = shouldTryWorkbookFirst
+    ? [
+        () => parseSalesWorkbook(Buffer.from(body)),
+        () => parseCSV(decodeText(body)),
+      ]
+    : [
+        () => parseCSV(decodeText(body)),
+        () => parseSalesWorkbook(Buffer.from(body)),
+      ]
+
+  let lastError: unknown = null
+  for (const parse of parsers) {
+    try {
+      const parsed = parse()
+      if (parsed.length > 0) return parsed
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  if (lastError instanceof Error) throw lastError
+  throw new Error("Format POS non reconnu")
 }
 
 export async function POST(request: Request) {
@@ -31,30 +94,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Variables POS_API_URL, POS_CAISSE_ID, POS_API_TOKEN non configurées." }, { status: 500 })
   }
 
-  // Fetch CSV from POS
+  // Fetch sales export from POS. The POS can return CSV or Excel depending on date range.
   const url = `${posUrl}?caisse=${caisseId}&startDate=${toPosDate(startDate)}&endDate=${toPosDate(endDate)}&token_api=${token}&idcaisselist=${caisseId}`
 
-  let csvText: string
+  let exportBody: ArrayBuffer
+  let contentType: string
   let filename: string
   try {
     const res = await fetch(url)
     if (!res.ok) {
       return NextResponse.json({ error: `Le POS a retourné une erreur HTTP ${res.status}.` }, { status: 502 })
     }
-    csvText = await res.text()
+    exportBody = await res.arrayBuffer()
+    contentType = res.headers.get("content-type") || ""
     const disposition = res.headers.get("content-disposition") || ""
-    const match = disposition.match(/filename="([^"]+)"/)
-    filename = match?.[1] ?? `pos_sync_${startDate}_${endDate}.csv`
+    filename = getFilename(disposition, `pos_sync_${startDate}_${endDate}.csv`)
   } catch {
     return NextResponse.json({ error: "Impossible de joindre le serveur POS." }, { status: 502 })
   }
 
-  // Parse CSV
-  let parsed: ReturnType<typeof parseCSV>
+  // Parse CSV or Excel sales export
+  let parsed: ParsedDay[]
   try {
-    parsed = parseCSV(csvText)
+    parsed = parseSalesExport(exportBody, contentType, filename)
   } catch {
-    return NextResponse.json({ error: "Format CSV non reconnu dans la réponse POS." }, { status: 400 })
+    return NextResponse.json({ error: "Format ventes POS non reconnu dans la réponse POS." }, { status: 400 })
   }
 
   if (parsed.length === 0) {

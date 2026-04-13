@@ -1,11 +1,11 @@
-interface ParsedDay {
+export interface ParsedDay {
   date: string
-  ca_caisse: number       // espèces ventes réelles (hors mouvements de caisse)
-  ca_b2b: number          // carte + autres paiements non-cash
+  ca_caisse: number
+  ca_b2b: number
   ca_soir: number
   pct_soir: number
   tickets_count: number
-  mouvement_caisse: number // mouvements de caisse extraits du CSV
+  mouvement_caisse: number
 }
 
 function parseCSVLine(line: string, sep: string): string[] {
@@ -30,66 +30,88 @@ function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "")
 }
 
-export function parseCSV(content: string): ParsedDay[] {
-  const sep = content.includes(";") ? ";" : ","
-  const lines = content.split("\n").map(l => l.trim()).filter(Boolean)
-  if (lines.length < 2) throw new Error("Empty file")
+function normalizeRow(row: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(row).map(([key, value]) => [normalize(key), value]))
+}
 
-  // Detect column indices from header
-  const headers = parseCSVLine(lines[0], sep).map(normalize)
-  const dateIdx      = headers.indexOf("date")
-  const heureIdx     = headers.indexOf("heure")
-  const ticketIdx    = headers.findIndex(h => h === "numticket")
-  const prixIdx      = headers.findIndex(h => h === "prixdevente")
-  const qteIdx       = headers.findIndex(h => h === "quantite")
-  const paymentIdx   = headers.findIndex(h => h === "moyensdepaiements" || h === "moyensdepaiement")
+function pick(row: Record<string, unknown>, aliases: string[]) {
+  for (const alias of aliases) {
+    if (alias in row) return row[alias]
+  }
+  return undefined
+}
 
-  if (dateIdx === -1 || prixIdx === -1) throw new Error("Format non reconnu")
+function parseNumericValue(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  const normalized = String(value).trim().replace(/\s/g, "").replace(",", ".")
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
 
-  // Columns to detect mouvement de caisse rows
-  // LaCaisse CSV: "Type" column contains "Mouvement de caisse" for movements
-  const typeLigneIdx = headers.findIndex(h =>
-    h === "type" || h === "typeligne" || h === "typeticket" || h === "typeoperation" || h === "typedevente"
-  )
-  const libelleIdx = headers.findIndex(h =>
-    h === "titreticket" || h === "produit" || h === "libellearticle" || h === "nomarticle" || h === "libelle" || h === "designation"
-  )
+function parseDateValue(value: unknown): string {
+  if (value instanceof Date && !Number.isNaN(value.valueOf())) {
+    return value.toISOString().slice(0, 10)
+  }
+
+  const raw = String(value || "").trim()
+  if (!raw) return ""
+
+  const datePart = raw.split(/[ T]/)[0]
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart
+
+  const match = datePart.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/)
+  if (!match) return ""
+
+  const [, d, m, rawYear] = match
+  const year = rawYear.length === 2 ? `20${rawYear}` : rawYear
+  return `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`
+}
+
+function parseHourValue(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null
+  if (value instanceof Date && !Number.isNaN(value.valueOf())) return value.getHours()
+
+  const raw = String(value).trim()
+  const match = raw.match(/(?:^|\s)(\d{1,2}):\d{2}/)
+  if (match) {
+    const hour = Number(match[1])
+    return Number.isFinite(hour) ? hour : null
+  }
+
+  const hour = Number(raw.split(":")[0])
+  return Number.isFinite(hour) ? hour : null
+}
+
+export function parseSalesRows(rows: Record<string, unknown>[]): ParsedDay[] {
+  if (rows.length === 0) throw new Error("Empty file")
+
+  const normalizedRows = rows.map(normalizeRow)
+  const firstRow = normalizedRows.find((row) => Object.keys(row).length > 0)
+  if (!firstRow) throw new Error("Empty file")
+
+  const hasDate = pick(firstRow, ["date"]) !== undefined
+  const hasPrice = pick(firstRow, ["prixdevente"]) !== undefined
+  if (!hasDate || !hasPrice) throw new Error("Format non reconnu")
 
   const grouped: Record<string, { cash: number; card: number; soir: number; mouvement: number; tickets: Set<string> }> = {}
 
-  for (const line of lines.slice(1)) {
-    const cols = parseCSVLine(line, sep)
-    if (cols.length <= prixIdx) continue
+  for (const row of normalizedRows) {
+    const rawDate = pick(row, ["date"])
+    const date = parseDateValue(rawDate)
+    const hour = parseHourValue(pick(row, ["heure"]) ?? rawDate)
+    const ticket = String(pick(row, ["numticket"]) || "").trim()
+    const prix = parseNumericValue(pick(row, ["prixdevente"]))
+    const qte = parseNumericValue(pick(row, ["quantite"])) ?? 1
+    const rawPay = String(pick(row, ["moyensdepaiements", "moyensdepaiement"]) || "").toLowerCase()
+    const rawType = normalize(String(pick(row, ["type", "typeligne", "typeticket", "typeoperation", "typedevente"]) || ""))
+    const rawLib = normalize(String(pick(row, ["titreticket", "produit", "libellearticle", "nomarticle", "libelle", "designation"]) || ""))
 
-    const rawDate   = cols[dateIdx]?.trim()
-    const rawTime   = heureIdx >= 0 ? cols[heureIdx]?.trim() : ""
-    const ticket    = ticketIdx >= 0 ? cols[ticketIdx]?.trim() : ""
-    const rawPrix   = cols[prixIdx]?.trim().replace(",", ".")
-    const rawQte    = qteIdx >= 0 ? cols[qteIdx]?.trim().replace(",", ".") : "1"
-    const rawPay    = paymentIdx >= 0 ? cols[paymentIdx]?.trim().toLowerCase() : ""
-    const rawType   = typeLigneIdx >= 0 ? normalize(cols[typeLigneIdx]?.trim() || "") : ""
-    const rawLib    = libelleIdx >= 0 ? normalize(cols[libelleIdx]?.trim() || "") : ""
-
-    if (!rawDate || !rawPrix) continue
-    const prix = parseFloat(rawPrix)
-    const qte  = parseFloat(rawQte) || 1
-    if (isNaN(prix) || prix <= 0) continue
-
+    if (!date || prix === null || prix <= 0) continue
     const amount = prix * qte
-
-    // Date: DD/MM/YYYY → YYYY-MM-DD
-    let date: string
-    if (rawDate.includes("/")) {
-      const [d, m, y] = rawDate.split("/")
-      if (!d || !m || !y) continue
-      date = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`
-    } else {
-      date = rawDate
-    }
 
     if (!grouped[date]) grouped[date] = { cash: 0, card: 0, soir: 0, mouvement: 0, tickets: new Set() }
 
-    // Detect mouvement de caisse rows (cash drawer movements, not sales)
     const isMouvement =
       rawType.includes("mouvement") ||
       rawLib.includes("mouvementdecaisse") ||
@@ -102,7 +124,7 @@ export function parseCSV(content: string): ParsedDay[] {
     }
 
     const isCash = rawPay.includes("esp") || rawPay.includes("cash")
-    if (paymentIdx >= 0 && isCash) {
+    if (rawPay && isCash) {
       grouped[date].cash += amount
     } else {
       grouped[date].card += amount
@@ -110,11 +132,7 @@ export function parseCSV(content: string): ParsedDay[] {
 
     if (ticket) grouped[date].tickets.add(ticket)
 
-    // Soir = heure >= 19:00
-    if (rawTime) {
-      const hour = parseInt(rawTime.split(":")[0])
-      if (!isNaN(hour) && hour >= 19) grouped[date].soir += amount
-    }
+    if (hour !== null && hour >= 19) grouped[date].soir += amount
   }
 
   return Object.entries(grouped)
@@ -122,13 +140,27 @@ export function parseCSV(content: string): ParsedDay[] {
       const total = cash + card
       return {
         date,
-        ca_caisse:        Math.round(cash * 100) / 100,
-        ca_b2b:           Math.round(card * 100) / 100,
-        ca_soir:          Math.round(soir * 100) / 100,
-        pct_soir:         total > 0 ? (soir / total) * 100 : 0,
-        tickets_count:    tickets.size,
+        ca_caisse: Math.round(cash * 100) / 100,
+        ca_b2b: Math.round(card * 100) / 100,
+        ca_soir: Math.round(soir * 100) / 100,
+        pct_soir: total > 0 ? (soir / total) * 100 : 0,
+        tickets_count: tickets.size,
         mouvement_caisse: Math.round(mouvement * 100) / 100,
       }
     })
     .sort((a, b) => a.date.localeCompare(b.date))
+}
+
+export function parseCSV(content: string): ParsedDay[] {
+  const sep = content.includes(";") ? ";" : ","
+  const lines = content.split("\n").map(l => l.trim()).filter(Boolean)
+  if (lines.length < 2) throw new Error("Empty file")
+
+  const headers = parseCSVLine(lines[0], sep)
+  const rows = lines.slice(1).map((line) => {
+    const cols = parseCSVLine(line, sep)
+    return Object.fromEntries(headers.map((header, index) => [header, cols[index] ?? ""]))
+  })
+
+  return parseSalesRows(rows)
 }

@@ -182,7 +182,7 @@ export default function ImportPage() {
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
         <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Imports POS</h1>
-        <p className="text-alaska-muted text-sm mt-1">CSV ventes pour le CA global, journal de caisse pour le pilotage cash physique</p>
+        <p className="text-alaska-muted text-sm mt-1">Ventes POS pour le CA global, journal de caisse pour le pilotage cash physique</p>
       </div>
 
       {step === "upload" && (
@@ -221,7 +221,7 @@ export default function ImportPage() {
                 disabled={syncing}
               >
                 <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
-                {syncing ? "Synchronisation CSV…" : "Synchroniser ventes CSV"}
+                {syncing ? "Synchronisation ventes…" : "Synchroniser ventes POS"}
               </Button>
               <Button
                 variant="outline"
@@ -380,7 +380,7 @@ export default function ImportPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-alaska-dark truncate">{imp.filename}</p>
                         <p className="text-xs text-alaska-muted">
-                          {imp.import_type === "cash_journal_xls" ? "Journal caisse" : "Ventes CSV"} · {imp.days_imported}j · {formatMAD(imp.ca_total)}
+                          {imp.import_type === "cash_journal_xls" ? "Journal caisse" : "Ventes POS"} · {imp.days_imported}j · {formatMAD(imp.ca_total)}
                           {imp.date_range_start && ` · ${imp.date_range_start.slice(0, 7)}`}
                         </p>
                       </div>
