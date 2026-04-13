@@ -14,3 +14,4 @@ tsconfig.tsbuildinfo
 .agents/
 skills-lock.json
 test.csv
+.worktrees/
