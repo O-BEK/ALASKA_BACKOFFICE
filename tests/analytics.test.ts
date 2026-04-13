@@ -147,6 +147,9 @@ describe("monthReporting", () => {
         { id: "c1", name: "Loyer", category: "IMMOBILIER", amount: 34000, type: "fixed", payment_day: 5, is_staff: false, is_active: true, start_date: "2026-01-01", end_date: null },
         { id: "c2", name: "Ramzi", category: "PERSONNEL", amount: 6000, type: "fixed", payment_day: 30, is_staff: true, is_active: true, start_date: "2026-01-01", end_date: null },
       ],
+      monthly_objectives: [
+        { year: 2026, month: 4, target_ca: 22000, notes: "Terrasse" },
+      ],
     })
 
     const result = monthReporting(db, "2026-03")
@@ -168,6 +171,9 @@ describe("monthReporting", () => {
     expect(result.staffPayments).toEqual([
       { name: "Ramzi", category: "PERSONNEL", payment_day: 30, theoretical: 6000, actual: 4500, delta: -1500 },
     ])
+    expect(result.smartProjection.assumptions.alcool_uplift_pct).toBe(47)
+    expect(result.smartProjection.annual[0].avec_alcool).toBeGreaterThan(result.smartProjection.annual[0].sans_alcool)
+    expect(result.smartProjection.monthly.some((item) => item.alcool_active && item.delta > 0)).toBe(true)
     expect(result.comparison).toHaveLength(12)
     expect(result.comparison[2]).toMatchObject({
       current: 21000,

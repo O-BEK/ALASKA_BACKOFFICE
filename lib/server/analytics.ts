@@ -3,7 +3,7 @@ import "server-only"
 import { eachDayOfInterval, eachWeekOfInterval, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns"
 import { fr } from "date-fns/locale"
 import { BREAKEVEN, CAISSE_RESERVE, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin, getWeeklyBreakeven } from "@/lib/calculations"
-import { getCashEnvelope, getCashMovementsReference, getCashSalesReference } from "@/lib/cash"
+import { getCashEnvelope, getCashMovementsReference, getCashSalesReference, hasCashJournal } from "@/lib/cash"
 import type { DailyEntry, MonthlyKPIs } from "@/lib/types"
 import type { DailySaleRecord, ExpenseRecord, PilotDb } from "@/lib/server/db-types"
 
@@ -31,6 +31,182 @@ function monthBounds(month: string) {
 
 function monthKey(year: number, month: number) {
   return `${year}-${String(month).padStart(2, "0")}`
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function nextMonthKey(month: string) {
+  const [year, rawMonth] = month.split("-").map(Number)
+  const next = new Date(year, rawMonth, 1)
+  return monthKey(next.getFullYear(), next.getMonth() + 1)
+}
+
+function annualActual(db: PilotDb, year: number) {
+  return Array.from({ length: 12 }, (_, index) => buildMonthlyKpis(db, monthKey(year, index + 1)).ca_total)
+    .reduce((sum, value) => sum + value, 0)
+}
+
+function annualObjective(db: PilotDb, year: number, scenario = "realistic") {
+  const objective = db.objectives.find((item) => item.year === year && item.type === "ca_total" && item.scenario === scenario)
+  if (objective?.target_amount) return objective.target_amount
+
+  const monthlySum = db.monthly_objectives
+    .filter((item) => item.year === year)
+    .reduce((sum, item) => sum + item.target_ca, 0)
+  return monthlySum > 0 ? monthlySum : null
+}
+
+function inferredGrowthRate(db: PilotDb, year: number) {
+  const lastYear = annualActual(db, year - 1)
+  const previousYear = annualActual(db, year - 2)
+  if (lastYear > 0 && previousYear > 0) {
+    return clamp(lastYear / previousYear - 1, 0.03, 0.18)
+  }
+
+  const currentObjective = annualObjective(db, year)
+  if (currentObjective && lastYear > 0) {
+    return clamp(currentObjective / lastYear - 1, 0.03, 0.18)
+  }
+
+  return 0.1
+}
+
+function monthlyObjectiveValue(db: PilotDb, year: number, month: number) {
+  return db.monthly_objectives.find((item) => item.year === year && item.month === month)?.target_ca ?? null
+}
+
+function monthCaTotal(db: PilotDb, year: number, month: number) {
+  return buildMonthlyKpis(db, monthKey(year, month)).ca_total
+}
+
+function monthProjectionBase(db: PilotDb, month: string, growthRate: number) {
+  const { year, rawMonth, monthEnd } = monthBounds(month)
+  const monthly = buildMonthlyKpis(db, month)
+  if (monthly.days_count > 0 && monthly.days_count < monthEnd.getDate()) return monthly.ca_per_day * monthEnd.getDate()
+  if (monthly.ca_total > 0) return monthly.ca_total
+
+  const objective = monthlyObjectiveValue(db, year, rawMonth)
+  if (objective) return objective
+
+  const previousYearSameMonth = monthCaTotal(db, year - 1, rawMonth)
+  return previousYearSameMonth > 0 ? previousYearSameMonth * (1 + growthRate) : 0
+}
+
+function buildSmartProjection(db: PilotDb, month: string) {
+  const { year, rawMonth } = monthBounds(month)
+  const growthRate = inferredGrowthRate(db, year)
+  const alcoolUpliftPct = 47
+  const effectMonth = nextMonthKey(month)
+  const recentMonths = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(year, rawMonth - 1 - (11 - index), 1)
+    return buildMonthlyKpis(db, monthKey(date.getFullYear(), date.getMonth() + 1))
+  })
+  const recentTotal = recentMonths.reduce((sum, item) => sum + item.ca_total, 0)
+  const recentCaisse = recentMonths.reduce((sum, item) => sum + item.ca_caisse, 0)
+  const caisseShare = recentTotal > 0 ? recentCaisse / recentTotal : 0.85
+  const alcoolEffectOnTotalPct = alcoolUpliftPct * caisseShare
+  const alcoolMultiplier = 1 + alcoolEffectOnTotalPct / 100
+
+  const currentYearMonthly = Array.from({ length: 12 }, (_, index) => {
+    const currentMonth = index + 1
+    const key = monthKey(year, currentMonth)
+    const actual = monthCaTotal(db, year, currentMonth)
+    const objective = monthlyObjectiveValue(db, year, currentMonth)
+    const previousYearSameMonth = monthCaTotal(db, year - 1, currentMonth)
+    const isPast = currentMonth < rawMonth
+    const isSelected = currentMonth === rawMonth
+    const base = isPast
+      ? actual
+      : isSelected
+        ? monthProjectionBase(db, key, growthRate)
+        : objective ?? (previousYearSameMonth > 0 ? previousYearSameMonth * (1 + growthRate) : 0)
+
+    return {
+      month: key,
+      label: format(new Date(year, currentMonth - 1, 1), "MMM yyyy", { locale: fr }),
+      base,
+      with_alcool: key >= effectMonth ? base * alcoolMultiplier : base,
+      source: isPast ? "réel" : isSelected ? "projection" : objective ? "objectif" : "saisonnalité",
+      alcool_active: key >= effectMonth,
+    }
+  })
+
+  const annual: {
+    year: number
+    sans_alcool: number
+    avec_alcool: number
+    delta: number
+    objective: number | null
+    source: string
+  }[] = []
+
+  let previousBaseline = currentYearMonthly.reduce((sum, item) => sum + item.base, 0)
+  let previousAlcohol = currentYearMonthly.reduce((sum, item) => sum + item.with_alcool, 0)
+
+  for (let offset = 0; offset < 5; offset++) {
+    const projectedYear = year + offset
+    const objective = annualObjective(db, projectedYear)
+    let sansAlcool: number
+    let avecAlcool: number
+    let source: string
+
+    if (offset === 0) {
+      sansAlcool = previousBaseline
+      avecAlcool = previousAlcohol
+      source = "réel + projection"
+    } else {
+      sansAlcool = objective ?? previousBaseline * (1 + growthRate)
+      avecAlcool = projectedYear >= Number(effectMonth.slice(0, 4)) ? sansAlcool * alcoolMultiplier : sansAlcool
+      source = objective ? "objectif annuel" : "croissance historique"
+    }
+
+    annual.push({
+      year: projectedYear,
+      sans_alcool: Math.round(sansAlcool),
+      avec_alcool: Math.round(avecAlcool),
+      delta: Math.round(avecAlcool - sansAlcool),
+      objective,
+      source,
+    })
+
+    previousBaseline = sansAlcool
+    previousAlcohol = avecAlcool
+  }
+
+  const monthly = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(year, rawMonth - 1 + index, 1)
+    const key = monthKey(date.getFullYear(), date.getMonth() + 1)
+    const projectedYearRow = annual.find((item) => item.year === date.getFullYear())
+    const sameYearMonth = date.getFullYear() === year ? currentYearMonthly[date.getMonth()] : null
+    const base =
+      sameYearMonth?.base ??
+      (projectedYearRow ? projectedYearRow.sans_alcool / 12 : monthProjectionBase(db, key, growthRate))
+    const withAlcool = key >= effectMonth ? base * alcoolMultiplier : base
+
+    return {
+      month: key,
+      label: format(date, "MMM yyyy", { locale: fr }),
+      sans_alcool: Math.round(base),
+      avec_alcool: Math.round(withAlcool),
+      delta: Math.round(withAlcool - base),
+      source: sameYearMonth?.source ?? "annualisé",
+      alcool_active: key >= effectMonth,
+    }
+  })
+
+  return {
+    assumptions: {
+      growth_pct: growthRate * 100,
+      alcool_uplift_pct: alcoolUpliftPct,
+      caisse_share_pct: caisseShare * 100,
+      alcool_effect_on_total_pct: alcoolEffectOnTotalPct,
+      alcool_effect_month: effectMonth,
+    },
+    annual,
+    monthly,
+  }
 }
 
 function isChargeActiveForMonth(charge: PilotDb["fixed_charges"][number], month: string) {
@@ -330,7 +506,11 @@ export function monthExpensesByLabel(db: PilotDb, month: string) {
 
 export function monthReporting(db: PilotDb, month: string) {
   const monthly = buildMonthlyKpis(db, month)
-  const { year, rawMonth } = monthBounds(month)
+  const { year, rawMonth, monthEnd } = monthBounds(month)
+  const sales = monthEntries(db, month)
+  const cashMonth = buildCashMonthSummary(db, month)
+  const monthlyObjective =
+    db.monthly_objectives.find((item) => item.year === year && item.month === rawMonth) || null
   const previousMonth = rawMonth === 1 ? `${year - 1}-12` : `${year}-${String(rawMonth - 1).padStart(2, "0")}`
   const previous = buildMonthlyKpis(db, previousMonth)
   const previousYear = buildMonthlyKpis(db, `${year - 1}-${String(rawMonth).padStart(2, "0")}`)
@@ -355,6 +535,26 @@ export function monthReporting(db: PilotDb, month: string) {
     })
     .sort((a, b) => b.theoretical - a.theoretical || b.actual - a.actual)
   const staffPayments = chargeReconciliation.filter((item) => activeCharges.find((charge) => charge.name === item.name)?.is_staff)
+  const daysInMonth = monthEnd.getDate()
+  const ticketsTotal = sales.reduce((sum, item) => sum + item.tickets_count, 0)
+  const projectedCa = monthly.days_count > 0 ? monthly.ca_per_day * daysInMonth : 0
+  const referenceValue = monthlyObjective?.target_ca || monthly.breakeven
+  const remainingDays = Math.max(daysInMonth - monthly.days_count, 0)
+  const requiredDaily = referenceValue > 0 && remainingDays > 0 ? Math.max(referenceValue - monthly.ca_total, 0) / remainingDays : 0
+  const sortedDays = sales
+    .map((item) => ({
+      date: item.date,
+      ca_total: item.ca_caisse + item.ca_b2b,
+      ca_caisse: item.ca_caisse,
+      ca_b2b: item.ca_b2b,
+      ca_soir: item.ca_soir,
+      tickets_count: item.tickets_count,
+      avg_ticket: item.tickets_count > 0 ? (item.ca_caisse + item.ca_b2b) / item.tickets_count : 0,
+      source: item.source,
+      has_journal: hasCashJournal(item),
+      anomaly: item.cash_journal_anomaly,
+    }))
+    .sort((a, b) => b.ca_total - a.ca_total)
 
   return {
     summary: {
@@ -375,7 +575,43 @@ export function monthReporting(db: PilotDb, month: string) {
       solde_mois: monthly.ca_total - monthly.total_expenses,
       ca_soir: monthly.ca_soir,
       pct_soir: monthly.pct_soir,
+      tickets_count: ticketsTotal,
+      avg_ticket: ticketsTotal > 0 ? monthly.ca_total / ticketsTotal : 0,
     },
+    smartProjection: buildSmartProjection(db, month),
+    projection: {
+      month_days: daysInMonth,
+      days_count: monthly.days_count,
+      projected_ca: projectedCa,
+      reference_type: monthlyObjective?.target_ca ? "objective" : "breakeven",
+      reference_value: referenceValue,
+      projected_gap: referenceValue > 0 ? projectedCa - referenceValue : 0,
+      required_daily: requiredDaily,
+    },
+    salesMix: [
+      { name: "CA caisse", value: monthly.ca_caisse },
+      { name: "CA B2B", value: monthly.ca_b2b },
+    ],
+    cashFlow: {
+      cash_sales: cashMonth.cash_sales,
+      cash_movements: cashMonth.cash_movements,
+      cash_purchases: cashMonth.cash_purchases,
+      cash_envelope: cashMonth.cash_envelope,
+      cash_ratio: monthly.ca_total > 0 ? (cashMonth.cash_sales / monthly.ca_total) * 100 : 0,
+      anomaly_days: cashMonth.anomaly_days,
+    },
+    dataQuality: {
+      month_days: daysInMonth,
+      sales_days: sales.length,
+      imported_sales_days: sales.filter((item) => item.source === "csv_import").length,
+      manual_sales_days: sales.filter((item) => item.source !== "csv_import").length,
+      journal_days: sales.filter((item) => hasCashJournal(item)).length,
+      missing_days: Math.max(daysInMonth - sales.length, 0),
+      anomaly_days: sales.filter((item) => item.cash_journal_anomaly).length,
+      coverage_pct: daysInMonth > 0 ? (sales.length / daysInMonth) * 100 : 0,
+      journal_coverage_pct: sales.length > 0 ? (sales.filter((item) => hasCashJournal(item)).length / sales.length) * 100 : 0,
+    },
+    performanceDays: sortedDays,
     expByLabel: expenseByLabel,
     byCategory: ["MP", "RH", "CHARGES", "AUTRE"].map((category) => ({
       name: category,
