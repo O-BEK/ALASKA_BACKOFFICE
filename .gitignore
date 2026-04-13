@@ -13,3 +13,4 @@ tsconfig.tsbuildinfo
 .mcp.json
 .agents/
 skills-lock.json
+test.csv

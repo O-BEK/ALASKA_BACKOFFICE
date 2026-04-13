@@ -25,7 +25,6 @@ export default function SemainePage() {
   const safeExpensesByLabel = Array.isArray(weekData.expensesByLabel) ? weekData.expensesByLabel : []
 
   const weeklyBreakeven = getWeeklyBreakeven()
-  const soldeSemaine = weekData.totalCA - weekData.totalDep
   const pctSeuil = weeklyBreakeven > 0 ? (weekData.totalCA / weeklyBreakeven) * 100 : 0
   const weekLabel = `${format(weekStart, "d MMM", { locale: fr })} – ${format(addDays(weekStart, 6), "d MMM yyyy", { locale: fr })}`
 
@@ -52,25 +51,28 @@ export default function SemainePage() {
 
       {/* KPIs semaine */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+        <Card className="bg-alaska-dark text-white rounded-xl">
           <CardContent className="pt-4 pb-4">
-            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">CA semaine (cash + CB)</p>
-            <p className="text-xl font-playfair font-bold text-alaska-dark mt-1">{formatMAD(weekData.totalCA)}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white border border-alaska-sage-lt rounded-xl">
-          <CardContent className="pt-4 pb-4">
-            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Dépenses</p>
-            <p className="text-xl font-playfair font-bold text-orange-600 mt-1">{formatMAD(weekData.totalDep)}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white border border-alaska-sage-lt rounded-xl">
-          <CardContent className="pt-4 pb-4">
-            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Solde</p>
+            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash théorique enveloppe</p>
             <p className={cn("text-xl font-playfair font-bold mt-1",
-              soldeSemaine >= 0 ? "text-alaska-gold" : "text-red-600")}>
-              {formatMAD(soldeSemaine)}
+              weekData.totalCashEnvelope >= 0 ? "text-alaska-gold" : "text-red-400")}>
+              {weekData.totalCashEnvelope < 0 ? "-" : ""}{formatMAD(Math.abs(weekData.totalCashEnvelope))}
             </p>
+            <p className="text-[10px] text-alaska-muted mt-1">Cash POS + mouvements - achats</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash POS semaine</p>
+            <p className="text-xl font-playfair font-bold text-alaska-dark mt-1">{formatMAD(weekData.totalCashSales)}</p>
+            <p className="text-[10px] text-alaska-muted mt-1">CA global : {formatMAD(weekData.totalCA)}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Achats cash</p>
+            <p className="text-xl font-playfair font-bold text-orange-600 mt-1">{formatMAD(weekData.totalDep)}</p>
+            <p className="text-[10px] text-alaska-muted mt-1">Mouvements : {formatMAD(weekData.totalCashMovements)}</p>
           </CardContent>
         </Card>
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">

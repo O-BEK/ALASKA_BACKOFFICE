@@ -112,7 +112,7 @@ export default function SaisiePage() {
             <CardContent className="pt-4 pb-4 space-y-2">
               <p className="text-[11px] text-alaska-muted uppercase tracking-wide mb-1">Enveloppe cash cumulée</p>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-alaska-muted">Cash théorique</span>
+                <span className="text-sm text-alaska-muted">Cash théorique enveloppe</span>
                 <span className="font-playfair font-bold text-lg text-white">{formatMAD(balance)}</span>
               </div>
               <div className="border-t border-white/20 pt-2 flex justify-between items-center">
@@ -286,27 +286,28 @@ export default function SaisiePage() {
               <ChevronRight size={18} className="text-alaska-muted" />
             </button>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Card className="bg-alaska-dark text-white rounded-xl">
+              <CardContent className="pt-4 pb-4">
+                <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash théorique enveloppe</p>
+                <p className={cn("text-2xl font-playfair font-bold mt-1", weekData.totalCashEnvelope >= 0 ? "text-alaska-gold" : "text-red-400")}>
+                  {weekData.totalCashEnvelope < 0 ? "-" : ""}{formatMAD(Math.abs(weekData.totalCashEnvelope))}
+                </p>
+                <p className="text-xs text-alaska-muted mt-1">Cash POS + mouvements - achats cash</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+              <CardContent className="pt-4 pb-4">
+                <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash POS semaine</p>
+                <p className="text-2xl font-playfair font-bold text-alaska-dark mt-1">{formatMAD(weekData.totalCashSales)}</p>
+                <p className="text-xs text-alaska-muted mt-1">Achats: {formatMAD(weekData.totalDep)} · Mouvements: {formatMAD(weekSortiesCaisse)}</p>
+              </CardContent>
+            </Card>
+          </div>
           <div className="hidden md:block bg-white border border-alaska-sage-lt rounded-xl p-4">
             <WeekGrid entries={weekEntries} dates={weekDates} onUpdateCA={updateWeekCA} onUpdateExpense={updateWeekExpense} />
           </div>
           <div className="md:hidden space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Card className="bg-white border border-alaska-sage-lt rounded-xl">
-                <CardContent className="pt-4 pb-4">
-                  <p className="text-xs text-alaska-muted">Cash POS semaine</p>
-                  <p className="text-xl font-playfair font-bold text-alaska-dark">{formatMAD(weekData.totalCashSales)}</p>
-                  <p className="text-xs text-alaska-muted">CA global indicatif: {formatMAD(weekData.totalCA)}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-white border border-alaska-sage-lt rounded-xl">
-                <CardContent className="pt-4 pb-4">
-                  <p className="text-xs text-alaska-muted">Enveloppe semaine</p>
-                  <p className="text-xl font-playfair font-bold text-alaska-dark">{formatMAD(weekData.totalCashEnvelope)}</p>
-                  <p className="text-xs text-alaska-muted">Achats cash: {formatMAD(weekData.totalDep)}</p>
-                  <p className="text-xs text-alaska-muted">Mouvements POS: {formatMAD(weekSortiesCaisse)}</p>
-                </CardContent>
-              </Card>
-            </div>
             <Card className="bg-white border border-alaska-sage-lt rounded-xl">
               <CardContent className="pt-4 pb-2 space-y-2">
                 {safeWeekDays.map((day) => (

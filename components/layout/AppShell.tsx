@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client"
 const navByRole: Record<UserRole, { href: string; label: string; icon: any }[]> = {
   admin: [
     { href: "/", icon: Home, label: "Dashboard" },
-    { href: "/saisie", icon: Edit3, label: "Saisie" },
+    { href: "/saisie", icon: Edit3, label: "Caisse" },
     { href: "/semaine", icon: CalendarDays, label: "Semaine" },
     { href: "/charges", icon: Calculator, label: "Charges" },
     { href: "/objectifs", icon: Target, label: "Objectifs" },
@@ -20,7 +20,7 @@ const navByRole: Record<UserRole, { href: string; label: string; icon: any }[]> 
     { href: "/reporting", icon: FileBarChart, label: "Reporting" },
   ],
   manager: [
-    { href: "/saisie", icon: Edit3, label: "Saisie" },
+    { href: "/saisie", icon: Edit3, label: "Caisse" },
     { href: "/semaine", icon: CalendarDays, label: "Semaine" },
   ],
 }
