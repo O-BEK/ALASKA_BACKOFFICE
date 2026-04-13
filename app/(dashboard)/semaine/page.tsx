@@ -12,6 +12,7 @@ import { WeekGrid } from "@/components/saisie/WeekGrid"
 import { ExpenseBar } from "@/components/ExpenseBar"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import { getCashEnvelope, getCashMovementsReference, getCashSalesReference, getGlobalIndicativeCA } from "@/lib/cash"
 
 export default function SemainePage() {
   const router = useRouter()
@@ -22,10 +23,28 @@ export default function SemainePage() {
   const weekData = useWeekView(weekStart)
   const { entries, dates, updateCA, updateExpense } = useWeekEntries(weekStart)
   const safeDays = Array.isArray(weekData.days) ? weekData.days : []
-  const safeExpensesByLabel = Array.isArray(weekData.expensesByLabel) ? weekData.expensesByLabel : []
+  const weekTotals = dates.reduce(
+    (totals, date) => {
+      const entry = entries[date]
+      const expenses = entry?.expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) ?? 0
+      totals.cashSales += getCashSalesReference(entry)
+      totals.cashMovements += getCashMovementsReference(entry)
+      totals.expenses += expenses
+      totals.envelope += getCashEnvelope(entry, expenses)
+      totals.caGlobal += getGlobalIndicativeCA(entry)
+      entry?.expenses.forEach((expense) => {
+        totals.expensesByLabel[expense.label] = (totals.expensesByLabel[expense.label] || 0) + Number(expense.amount || 0)
+      })
+      return totals
+    },
+    { cashSales: 0, cashMovements: 0, expenses: 0, envelope: 0, caGlobal: 0, expensesByLabel: {} as Record<string, number> }
+  )
+  const safeExpensesByLabel = Object.entries(weekTotals.expensesByLabel)
+    .map(([label, amount]) => ({ label, amount }))
+    .sort((a, b) => b.amount - a.amount)
 
   const weeklyBreakeven = getWeeklyBreakeven()
-  const pctSeuil = weeklyBreakeven > 0 ? (weekData.totalCA / weeklyBreakeven) * 100 : 0
+  const pctSeuil = weeklyBreakeven > 0 ? (weekTotals.caGlobal / weeklyBreakeven) * 100 : 0
   const weekLabel = `${format(weekStart, "d MMM", { locale: fr })} – ${format(addDays(weekStart, 6), "d MMM yyyy", { locale: fr })}`
 
   return (
@@ -55,8 +74,8 @@ export default function SemainePage() {
           <CardContent className="pt-4 pb-4">
             <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash théorique enveloppe</p>
             <p className={cn("text-xl font-playfair font-bold mt-1",
-              weekData.totalCashEnvelope >= 0 ? "text-alaska-gold" : "text-red-400")}>
-              {weekData.totalCashEnvelope < 0 ? "-" : ""}{formatMAD(Math.abs(weekData.totalCashEnvelope))}
+              weekTotals.envelope >= 0 ? "text-alaska-gold" : "text-red-400")}>
+              {weekTotals.envelope < 0 ? "-" : ""}{formatMAD(Math.abs(weekTotals.envelope))}
             </p>
             <p className="text-[10px] text-alaska-muted mt-1">Cash POS + mouvements - achats</p>
           </CardContent>
@@ -64,15 +83,15 @@ export default function SemainePage() {
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardContent className="pt-4 pb-4">
             <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash POS semaine</p>
-            <p className="text-xl font-playfair font-bold text-alaska-dark mt-1">{formatMAD(weekData.totalCashSales)}</p>
-            <p className="text-[10px] text-alaska-muted mt-1">CA global : {formatMAD(weekData.totalCA)}</p>
+            <p className="text-xl font-playfair font-bold text-alaska-dark mt-1">{formatMAD(weekTotals.cashSales)}</p>
+            <p className="text-[10px] text-alaska-muted mt-1">CA global : {formatMAD(weekTotals.caGlobal)}</p>
           </CardContent>
         </Card>
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardContent className="pt-4 pb-4">
             <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Achats cash</p>
-            <p className="text-xl font-playfair font-bold text-orange-600 mt-1">{formatMAD(weekData.totalDep)}</p>
-            <p className="text-[10px] text-alaska-muted mt-1">Mouvements : {formatMAD(weekData.totalCashMovements)}</p>
+            <p className="text-xl font-playfair font-bold text-orange-600 mt-1">{formatMAD(weekTotals.expenses)}</p>
+            <p className="text-[10px] text-alaska-muted mt-1">Mouvements : {formatMAD(weekTotals.cashMovements)}</p>
           </CardContent>
         </Card>
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">

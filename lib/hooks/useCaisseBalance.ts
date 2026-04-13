@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 
-export function useCaisseBalance() {
+export function useCaisseBalance(sinceDate?: string | null) {
   const [balance, setBalance] = useState(0)
   const [toDeposit, setToDeposit] = useState(0)
   const [since, setSince] = useState<string | null>(null)
@@ -13,7 +13,8 @@ export function useCaisseBalance() {
     setLoading(true)
     setError(null)
     let active = true
-    fetch("/api/caisse/balance")
+    const query = sinceDate ? `?since=${encodeURIComponent(sinceDate)}` : ""
+    fetch(`/api/caisse/balance${query}`)
       .then(async (res) => {
         if (!active) return
         if (!res.ok) {
@@ -33,7 +34,7 @@ export function useCaisseBalance() {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [])
+  }, [sinceDate])
 
   useEffect(() => {
     const cleanup = refetch()
