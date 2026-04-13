@@ -33,30 +33,43 @@ async function persistEntry(entry: DailyEntry) {
     body: JSON.stringify(entry),
   })
 
-  if (!response.ok) throw new Error("Erreur de sauvegarde")
-  return parseDailyEntry(await response.json())
+  const json = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(json.error || `Erreur ${response.status}`)
+  return parseDailyEntry(json)
 }
 
 export function useDailyEntry(date: string) {
   const [entry, setEntry] = useState<DailyEntry>(emptyEntry(date))
   const [saved, setSaved] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
     let active = true
+    setLoading(true)
+    setError(null)
     fetch(`/api/daily-entry?date=${date}`)
-      .then(async (response) => parseDailyEntry(await response.json()))
+      .then(async (response) => {
+        const json = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(json.error || `Erreur ${response.status}`)
+        return parseDailyEntry(json)
+      })
       .then((data) => {
         if (active) {
           setEntry(data)
           setSaved(true)
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (active) {
           setEntry(emptyEntry(date))
           setSaved(true)
+          setError(err instanceof Error ? err.message : "Impossible de charger la journée.")
         }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
       })
 
     return () => {
@@ -66,11 +79,17 @@ export function useDailyEntry(date: string) {
 
   const queueSave = useCallback((next: DailyEntry) => {
     setSaved(false)
+    setError(null)
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(async () => {
-      const savedEntry = await persistEntry(next)
-      setEntry(savedEntry)
-      setSaved(true)
+      try {
+        const savedEntry = await persistEntry(next)
+        setEntry(savedEntry)
+        setSaved(true)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erreur de sauvegarde")
+        setSaved(false)
+      }
     }, 2000)
   }, [])
 
@@ -101,10 +120,16 @@ export function useDailyEntry(date: string) {
 
   const save = useCallback(async () => {
     clearTimeout(timerRef.current)
-    const savedEntry = await persistEntry(entry)
-    setEntry(savedEntry)
-    setSaved(true)
+    setError(null)
+    try {
+      const savedEntry = await persistEntry(entry)
+      setEntry(savedEntry)
+      setSaved(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur de sauvegarde")
+      setSaved(false)
+    }
   }, [entry])
 
-  return { entry, update, updateExpense, addExpense, save, saved }
+  return { entry, update, updateExpense, addExpense, save, saved, loading, error }
 }

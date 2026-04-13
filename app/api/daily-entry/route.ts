@@ -20,7 +20,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
     }
     return NextResponse.json(await getDailyEntry(createAdminClient(), date))
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/daily-entry:GET]", message)
     return NextResponse.json({ error: "Impossible de charger la journée." }, { status: 500 })
   }
 }
@@ -40,7 +42,9 @@ export async function PUT(request: Request) {
 
   try {
     return NextResponse.json(await saveDailyEntry(createAdminClient(), body, user.id))
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/daily-entry:PUT]", message)
     return NextResponse.json({ error: "Impossible d'enregistrer la journée." }, { status: 500 })
   }
 }

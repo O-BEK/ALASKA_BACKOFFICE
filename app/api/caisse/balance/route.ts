@@ -21,7 +21,9 @@ export async function GET(request: Request) {
     const db = await readSnapshot(createAdminClient())
     const result = buildCaisseBalance(db, since && /^\d{4}-\d{2}-\d{2}$/.test(since) ? since : undefined)
     return NextResponse.json(result)
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/caisse/balance]", message)
     return NextResponse.json({ error: "Impossible de calculer le solde caisse." }, { status: 500 })
   }
 }

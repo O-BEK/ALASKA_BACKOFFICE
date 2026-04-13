@@ -16,7 +16,11 @@ export function useCharges(scope: ChargeScope = "full") {
     const endpoint = scope === "staff" ? "/api/charges?scope=staff" : "/api/charges"
 
     fetch(endpoint)
-      .then(async (response) => parseChargesPayload(await response.json()))
+      .then(async (response) => {
+        const json = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(json.error || `Erreur ${response.status}`)
+        return parseChargesPayload(json)
+      })
       .then((data) => {
         if (active) setCharges(data.charges)
       })

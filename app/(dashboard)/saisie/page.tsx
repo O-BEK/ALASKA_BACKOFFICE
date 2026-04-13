@@ -54,12 +54,18 @@ export default function SaisiePage() {
   }, [isAdmin, tab])
 
   const dateStr = format(date, "yyyy-MM-dd")
-  const { entry, update, updateExpense, addExpense, save, saved } = useDailyEntry(dateStr)
+  const { entry, update, updateExpense, addExpense, save, saved, error: entryError } = useDailyEntry(dateStr)
   const { cashMonth } = useDashboard(viewMonth, isAdmin)
   const weekData = useWeekView(weekStart)
-  const { entries: weekEntries, dates: weekDates, updateCA: updateWeekCA, updateExpense: updateWeekExpense } = useWeekEntries(weekStart)
+  const {
+    entries: weekEntries,
+    dates: weekDates,
+    updateCA: updateWeekCA,
+    updateExpense: updateWeekExpense,
+    error: weekEntriesError,
+  } = useWeekEntries(weekStart)
   const balanceSince = format(weekStart, "yyyy-MM-dd")
-  const { balance, toDeposit, since, refetch: refetchBalance } = useCaisseBalance(balanceSince)
+  const { balance, toDeposit, since, error: balanceError, refetch: refetchBalance } = useCaisseBalance(balanceSince)
   const safeExpenses = Array.isArray(entry.expenses) ? entry.expenses : []
   const safeWeekDays = Array.isArray(weekData.days) ? weekData.days : []
   const weekTotals = weekDates.reduce(
@@ -135,6 +141,18 @@ export default function SaisiePage() {
           </button>
         ))}
       </div>
+
+      {tab === "Caisse" && (entryError || balanceError) && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {entryError || balanceError}
+        </div>
+      )}
+
+      {tab === "Semaine" && weekEntriesError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {weekEntriesError}
+        </div>
+      )}
 
       {tab === "Caisse" && (
         <div className="space-y-4">

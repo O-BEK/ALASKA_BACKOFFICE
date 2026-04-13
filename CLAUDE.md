@@ -255,3 +255,24 @@ Ce que j'ai fait :
 - j'ai corrigé la cohérence du solde caisse dans la vue semaine en intégrant `mouvement_caisse`
 - j'ai durci le bootstrap Supabase: plus d'attribution de rôle via `user_metadata`, création / mise à jour via `service_role`, et migration dédiée pour forcer `manager` par défaut
 - j'ai validé le résultat avec `npm test`, `npm run lint`, `npx tsc --noEmit` et `npm run build`
+
+## Codex Update — 2026-04-13
+
+Mise à jour réalisée par **Codex**.
+
+Ce que j'ai fait :
+
+- j'ai installé le CLI Supabase localement dans le projet avec `supabase@2.90.0` en `devDependencies`
+- le CLI s'utilise avec `npx supabase ...` (`npx supabase --version` retourne `2.90.0`)
+- j'ai renommé l'entrée menu `/saisie` de `Saisie` vers `Caisse`
+- j'ai mis `Cash théorique enveloppe` en première lecture dans les vues semaine
+- j'ai corrigé le calcul semaine pour que les cartes KPI lisent les mêmes `entries` que la grille éditable
+- j'ai corrigé le format du libellé `Depuis lun. JJ/MM` dans l'enveloppe cash cumulée
+- j'ai corrigé le bug manager où les achats ne remontaient pas quand ils avaient été créés par un autre compte : les routes opérationnelles `daily-entry`, `week` et `caisse/balance` vérifient toujours la session et le rôle via `profiles`, puis lisent/sauvent côté serveur via `createAdminClient()` pour éviter le filtrage RLS `created_by`
+- j'ai validé les changements avec `npm.cmd run lint`, `npx tsc --noEmit`, `npm test` et `npm run build`
+
+Notes :
+
+- `SUPABASE_SERVICE_ROLE_KEY` est maintenant nécessaire aux routes opérationnelles qui doivent agréger les données complètes pour les managers.
+- `npx supabase --help` fonctionne, mais affiche un warning Docker local : `C:\Users\OthmanBEKRI\.docker\config.json: Access is denied`.
+- `npm audit --omit=dev` signale encore des vulnérabilités de production existantes sur `next@14.2.15` et `xlsx`; elles ne viennent pas de l'ajout du CLI Supabase.

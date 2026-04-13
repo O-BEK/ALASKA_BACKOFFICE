@@ -29,7 +29,9 @@ export async function GET(request: Request) {
       summary: buildWeekData(db, weekStart),
       entries: buildWeekEntries(db, weekStart),
     })
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/week]", message)
     return NextResponse.json({ error: "Impossible de charger la semaine." }, { status: 500 })
   }
 }
