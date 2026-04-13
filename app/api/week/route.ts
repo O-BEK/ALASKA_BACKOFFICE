@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { parseISO } from "date-fns"
 import { buildWeekData, buildWeekEntries } from "@/lib/server/analytics"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createClient, getUserRole } from "@/lib/supabase/server"
 import { readSnapshot } from "@/lib/server/supabase-store"
 
 export async function GET(request: Request) {
@@ -18,7 +19,10 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Non authentifié." }, { status: 401 })
     }
-    const db = await readSnapshot(supabase)
+    if (!(await getUserRole(supabase, user.id))) {
+      return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+    }
+    const db = await readSnapshot(createAdminClient())
     const weekStart = parseISO(start)
 
     return NextResponse.json({

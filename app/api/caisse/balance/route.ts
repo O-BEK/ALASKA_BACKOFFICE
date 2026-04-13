@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createClient, getUserRole } from "@/lib/supabase/server"
 import { readSnapshot } from "@/lib/server/supabase-store"
 import { buildCaisseBalance } from "@/lib/server/analytics"
 
@@ -14,7 +15,10 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
     }
-    const db = await readSnapshot(supabase)
+    if (!(await getUserRole(supabase, user.id))) {
+      return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+    }
+    const db = await readSnapshot(createAdminClient())
     const result = buildCaisseBalance(db, since && /^\d{4}-\d{2}-\d{2}$/.test(since) ? since : undefined)
     return NextResponse.json(result)
   } catch {
