@@ -1,4 +1,4 @@
-import { DailyEntry, FixedCharge, ActionItem, Objective, MonthlyObjective, ImportRecord } from "./types"
+import type { DailyEntry, FixedCharge, ActionItem, Objective, MonthlyObjective, ImportRecord } from "./types"
 
 // ─── CA MENSUEL 2025 ────────────────────────────────────────────────────────
 export const MONTHLY_CA_2025: Record<string, { ca_caisse: number; ca_b2b: number }> = {
