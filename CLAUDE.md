@@ -10,22 +10,28 @@ Specs métier principales dans `specs/` et compléments de design/plan dans `doc
 
 ## Current State
 
-Le repo est maintenant sur un **V1 socle stabilisé** (après audit P0 du 2026-04-10) :
+Le repo est en **V1 interne validée** (lancée le 2026-04-14) :
 
 - auth réelle via **Supabase Auth** — aucun système legacy (cookie `alaska_session`, `pilot-store`, `api/auth/*` supprimés)
 - rôles stockés dans la table `profiles` (RLS strict) — ne plus lire le rôle depuis `user_metadata`
 - routes protégées par `middleware.ts` + `lib/supabase/middleware.ts`
 - les routes API sensibles (`dashboard`, `reporting`, `objectives`, `import-csv`, `charges`) contrôlent explicitement `auth` / `admin` côté serveur
 - persistence partagée dans **Supabase/PostgreSQL**
-- seed initial à faire via script explicite — le seed automatique au runtime a été supprimé
-- bootstrap auth durci via `service_role` avec attribution des rôles directement dans `profiles`
+- seed initial via script explicite `scripts/seed-demo-data.mjs` — zéro seed automatique au runtime
+- `lib/server/supabase-store.ts` n'importe plus `lib/mock-data.ts` — aucun mock en runtime
+- bootstrap auth durci : refuse les variables manquantes, mots de passe par défaut et < 12 chars
+- import CSV : au commit, re-parse toujours depuis le contenu brut (`content`), jamais depuis les données client
+- fichiers sources POS archivés dans Supabase Storage (bucket privé `pos-imports`), `pos_imports.storage_path` renseigné
+- `charge_history` écrit à chaque modification/désactivation de charge
+- `scripts/import-pos-csv.mjs` déprécié — chemin recommandé : interface `/import` ou `/api/pos-sync`
 - l'écran manager ne lit plus les montants de `fixed_charges` quand seule la liste staff est nécessaire
 - redirect après login basé sur `profiles.role`, plus sur `user_metadata`
 - routes opérationnelles Caisse/Saisie (`daily-entry`, `week`, `caisse/balance`, `charges`) durcies pour ne plus masquer les erreurs API côté hooks
 - sync POS ventes capable de traiter une réponse CSV ou Excel (`.xls/.xlsx`) selon le format renvoyé par l'API POS
-- reporting recentré sur les données réellement disponibles aujourd'hui: ventes POS, cash suivi, qualité de consolidation, projections et scénarios
+- reporting recentré sur les données réellement disponibles : ventes POS, cash suivi, qualité de consolidation, projections et scénarios
 - UI branchée sur des API routes Next.js dans `app/api/`
-- tests unitaires/métier avec Vitest
+- tests unitaires/métier avec Vitest — 8 fichiers, 30 tests
+- validation staging réalisée le 2026-04-14 avec vrais comptes admin + manager
 
 Le projet `claude/` est maintenant pensé pour être **isolé** et publié comme application autonome.
 
@@ -74,23 +80,32 @@ Shell applicatif:
 La source de vérité métier est maintenant Supabase:
 
 - tables principales:
-  - `daily_sales` — inclut `mouvement_caisse NUMERIC(10,2)` (champ cash physique)
+  - `daily_sales` — inclut `mouvement_caisse`, `cash_sales_journal`, `cash_movements_journal`, `cash_opening_fund`, `cash_closing_fund`, `cash_journal_sessions`, `cash_journal_anomaly`, `cash_journal_import_id`
   - `expenses`
   - `fixed_charges`
+  - `charge_history` — historique des modifications de charges fixes
   - `objectives`
   - `monthly_objectives`
   - `action_items`
-  - `pos_imports`
+  - `pos_imports` — inclut `storage_path` (fichier source archivé) et `import_type` (`sales_csv` | `cash_journal_xls`)
+  - `expense_sections` / `expense_item_templates` — modèles de saisie configurables
   - `profiles` — stocke le rôle utilisateur (`admin` | `manager`), alimentée par trigger sur `auth.users`
-- migrations:
+- migrations appliquées en production :
   - `supabase/migrations/20260407180000_init.sql` — schéma initial
   - `supabase/migrations/20260409000000_action_items_metadata.sql`
   - `supabase/migrations/20260410000000_p0_profiles_schema_fixes.sql` — profiles, mouvement_caisse, RLS complet
-  - `supabase/migrations/20260412110000_harden_profile_bootstrap.sql` — `handle_new_user()` force `manager` par défaut et ne lit plus le rôle depuis `user_metadata`
+  - `supabase/migrations/20260410001000_expense_templates.sql` — sections et modèles de dépenses
+  - `supabase/migrations/20260412110000_harden_profile_bootstrap.sql` — `handle_new_user()` force `manager` par défaut
+  - `supabase/migrations/20260413101500_cash_journal_v1.sql` — colonnes journal caisse sur `daily_sales`, `import_type` sur `pos_imports`
+  - `supabase/migrations/20260414141612_pos_imports_storage_bucket.sql` — bucket privé `pos-imports` + policy RLS admin
 
 La couche serveur qui hydrate les snapshots UI est:
 
 - `lib/server/supabase-store.ts`
+
+Archivage Storage des imports POS :
+
+- `lib/server/import-storage.ts` — helper upload/download bucket `pos-imports`
 
 ### Server Analytics Layer
 
@@ -196,7 +211,10 @@ Règles de fusion import:
 - `notes` existantes sont conservées
 - les dépenses existantes du jour ne sont pas écrasées par l'import
 - l'historique des imports est enregistré dans `pos_imports`
+- au commit CSV, le serveur re-parse toujours depuis le contenu brut (`content`) — les données `parsed` envoyées par le client ne sont pas utilisées au commit
+- chaque import validé possède un `storage_path` non nul dans `pos_imports`
 - le GET `/api/import-csv` retourne aussi un `monthly_summary` agrégé depuis `daily_sales` (jours CSV, jours manuels, CA total par mois) — affiché dans la page import comme "Données en base"
+- chemin recommandé pour importer du POS : interface `/import` ou `/api/pos-sync` — `scripts/import-pos-csv.mjs` est déprécié
 
 ### Reporting Rules
 
@@ -260,7 +278,8 @@ Tests Vitest dans:
 - `tests/pos-journal-parser.test.ts`
 - `tests/cash-journal-balance.test.ts`
 - `tests/middleware.test.ts` — teste le middleware Supabase avec mocks `@supabase/ssr` (chemin legacy supprimé)
-- `tests/analytics.test.ts`
+- `tests/analytics.test.ts` — inclut test de cohérence dashboard/semaine/reporting
+- `tests/api-auth.test.ts` — teste les 403/200 des routes API admin vs manager
 
 Configuration:
 
@@ -284,7 +303,7 @@ npm run build
 - Toute promotion en `admin` doit être faite explicitement dans `profiles`, pas via `user_metadata`.
 - Les variables minimales à fournir sont dans `.env.example`.
 - Toute nouvelle logique KPI doit passer par la couche serveur partagée pour éviter les divergences entre dashboard, saisie, semaine et reporting.
-- Le seed initial des données se fait via un script explicite (`ensureSeedData` dans `supabase-store.ts`) — ne jamais réintroduire le seed automatique au runtime.
+- Le seed initial des données se fait via `scripts/seed-demo-data.mjs` — `ensureSeedData` a été retiré de `supabase-store.ts`. Ne jamais réintroduire le seed automatique au runtime.
 - Les changements reporting/projection doivent maintenir le contrat Zod dans `lib/contracts.ts` pour éviter que le front ne masque silencieusement des champs absents.
 
 ## Security Rules
@@ -304,9 +323,16 @@ npm run build
 - `sanitizeParsedRows` dans `app/api/import-csv/route.ts` doit inclure `ca_b2b` — sans ça les paiements CB sont perdus au commit.
 - La page import est mobile-first : sélecteurs de navigation centrés via `self-center sm:self-auto`.
 
+## Scripts
+
+- `scripts/bootstrap-auth.mjs` — crée/met à jour les comptes admin et manager dans Supabase. Refuse les variables manquantes, mots de passe par défaut (`alaska2026`, `manager2026`), mots de passe < 12 chars, et admin = manager même email.
+- `scripts/seed-demo-data.mjs` — insère les données de démonstration historiques (2025-2026). À lancer une seule fois sur un projet vierge.
+- `scripts/validate-v1-staging.mjs` — 8 checks admin/manager sur une URL Vercel cible. Lire le README pour les variables requises.
+- `scripts/seed-from-excel.mjs` — import données depuis Excel (usage ponctuel).
+
 ## Maintenance Note
 
-Ce fichier a été mis à jour après le plan P0 (2026-04-10) : suppression du système d'auth legacy, migration vers `profiles`, correction du seed automatique, fix KPI vue semaine.
+Ce fichier a été mis à jour le 2026-04-14 pour refléter la V1 interne validée : bouclage sécurité bootstrap, import CSV depuis contenu brut, suppression mocks runtime, archivage Storage, script de validation staging.
 
 ## Codex Update
 
