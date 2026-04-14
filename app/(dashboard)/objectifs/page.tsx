@@ -172,7 +172,7 @@ function ActionFormModal({
           </div>
         </div>
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-col gap-2 pt-2 sm:flex-row">
           <Button
             variant="outline"
             className="flex-1 border-alaska-sage-lt"
@@ -342,10 +342,10 @@ export default function ObjectifsPage() {
         <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-4 py-2">{error}</div>
       )}
 
-      <div className="flex bg-white border border-alaska-sage-lt rounded-lg p-1 gap-1">
+      <div className="flex bg-white border border-alaska-sage-lt rounded-lg p-1 gap-1 overflow-x-auto">
         {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={cn("flex-1 py-2 rounded-md text-xs font-medium transition",
+            <button key={t} onClick={() => setTab(t)}
+            className={cn("min-w-[104px] flex-1 py-2 rounded-md text-xs font-medium transition",
               tab === t ? "bg-alaska-sage text-white" : "text-alaska-muted hover:bg-alaska-sage-lt")}>
             {t}
           </button>
@@ -356,7 +356,7 @@ export default function ObjectifsPage() {
         <div className="space-y-4">
           <Card className="bg-white border border-alaska-sage-lt rounded-xl">
             <CardContent className="pt-5 pb-5">
-              <div className="flex justify-between items-start mb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start mb-3">
                 <div>
                   <p className="font-semibold text-alaska-dark">Progression 2026</p>
                   <p className="text-xs text-alaska-muted mt-0.5">Objectif réaliste : {formatMAD(yearlyTarget)}</p>
@@ -410,13 +410,13 @@ export default function ObjectifsPage() {
                   const done = real > 0
                   const isEditing = editingMonthly === key
                   return (
-                    <div key={key} className="flex items-center gap-3 p-2 hover:bg-alaska-sage-lt/40 rounded-lg">
+                    <div key={key} className="grid grid-cols-[2.5rem_1fr] gap-2 p-2 hover:bg-alaska-sage-lt/40 rounded-lg sm:flex sm:items-center sm:gap-3">
                       <span className="text-sm w-10 text-alaska-muted">{MONTHS_FR[mo.month - 1]}</span>
-                      <div className="flex-1 bg-alaska-sage-lt rounded-full h-2">
+                      <div className="bg-alaska-sage-lt rounded-full h-2 sm:flex-1">
                         <div className={cn("h-2 rounded-full", pct >= 100 ? "bg-alaska-sage" : pct >= 70 ? "bg-amber-400" : "bg-red-400")}
                           style={{ width: `${Math.min(pct,100)}%` }}/>
                       </div>
-                      <span className="text-xs w-20 text-right font-medium text-alaska-dark">{done ? formatMAD(real) : "—"}</span>
+                      <span className="text-xs text-left font-medium text-alaska-dark sm:w-20 sm:text-right">{done ? formatMAD(real) : "—"}</span>
                       {isEditing ? (
                         <Input
                           type="number"
@@ -428,20 +428,20 @@ export default function ObjectifsPage() {
                             if (e.key === "Enter") handleMonthlyCommit(mo.year, mo.month)
                             if (e.key === "Escape") setEditingMonthly(null)
                           }}
-                          className="w-24 h-7 text-xs text-right px-2"
+                          className="h-7 w-full text-xs text-right px-2 sm:w-24"
                           disabled={monthlyLoading}
                           autoFocus
                         />
                       ) : (
                         <button
                           onClick={() => handleMonthlyEdit(key, mo.target_ca)}
-                          className="text-xs w-16 text-right text-alaska-muted hover:text-alaska-dark hover:underline transition"
+                          className="text-left text-xs text-alaska-muted hover:text-alaska-dark hover:underline transition sm:w-16 sm:text-right"
                           title="Cliquer pour modifier"
                         >
                           {formatMAD(mo.target_ca)} ✏️
                         </button>
                       )}
-                      <span className={cn("text-xs w-12 text-right font-medium",
+                      <span className={cn("text-left text-xs font-medium sm:w-12 sm:text-right",
                         pct >= 100 ? "text-alaska-sage" : pct > 0 ? "text-amber-500" : "text-alaska-muted")}>
                         {done ? `${pct >= 100 ? "✅" : "❌"} ${pct.toFixed(0)}%` : "⏳"}
                       </span>
@@ -534,6 +534,8 @@ export default function ObjectifsPage() {
               <CardDescription className="text-xs text-alaska-muted">CA Total (Caisse + B2B)</CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="overflow-x-auto">
+                <div className="min-w-[520px]">
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={[
                   { year: "2025", reel: 1752217 },
@@ -550,11 +552,14 @@ export default function ObjectifsPage() {
                   <Line type="monotone" dataKey="ambitieux" stroke="#16a34a" strokeWidth={1.5} strokeDasharray="5 5" name="Ambitieux"/>
                 </LineChart>
               </ResponsiveContainer>
+                </div>
+              </div>
             </CardContent>
           </Card>
           <Card className="bg-white border border-alaska-sage-lt rounded-xl">
             <CardContent className="pt-4 pb-4">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
                 <thead><tr className="text-xs text-alaska-muted border-b border-alaska-sage-lt">
                   <th className="text-left pb-2">Année</th>
                   <th className="text-right pb-2">Prudent</th>
@@ -575,6 +580,7 @@ export default function ObjectifsPage() {
                   </tr>
                 </tbody>
               </table>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -596,7 +602,7 @@ export default function ObjectifsPage() {
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
             <h2 className="font-playfair text-lg font-bold text-alaska-dark">Supprimer l&apos;action ?</h2>
             <p className="text-sm text-alaska-muted">Cette action sera supprimée définitivement.</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Button
                 variant="outline"
                 className="flex-1 border-alaska-sage-lt"
@@ -676,7 +682,7 @@ export default function ObjectifsPage() {
               <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{alcoolError}</p>
             )}
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col gap-2 pt-2 sm:flex-row">
               <Button
                 variant="outline"
                 className="flex-1 border-alaska-sage-lt"
@@ -723,7 +729,7 @@ function ActionCard({
     <Card className={cn("bg-white border-l-4 border border-alaska-sage-lt rounded-xl",
       action.priority === "urgent" ? "border-l-red-500" : action.priority === "medium" ? "border-l-amber-400" : "border-l-alaska-sage")}>
       <CardContent className="pt-4 pb-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full", leverColors[action.lever] || "bg-gray-200 text-gray-700")}>
@@ -734,7 +740,7 @@ function ActionCard({
             <p className="font-medium text-sm text-alaska-dark">{action.title}</p>
             {action.description && <p className="text-xs text-alaska-muted mt-1 leading-relaxed">{action.description}</p>}
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex w-full flex-wrap items-center justify-end gap-1 sm:w-auto sm:flex-shrink-0">
             {onEdit && (
               <button
                 onClick={() => onEdit(action)}

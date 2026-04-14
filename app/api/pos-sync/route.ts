@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { parseCSV, type ParsedDay } from "@/lib/csv-parser"
 import { parseSalesWorkbook } from "@/lib/sales-workbook-parser"
+import { archiveImportSource } from "@/lib/server/import-storage"
 import { createClient, isAdmin } from "@/lib/supabase/server"
 
 // Convert YYYY-MM-DD → MM/DD/YYYY for POS API
@@ -135,12 +136,28 @@ export async function POST(request: Request) {
 
   const existingByDate = new Map((existingSales || []).map((s: any) => [s.date, s]))
   const importedAt = new Date().toISOString()
+  let storagePath: string
+
+  try {
+    storagePath = await archiveImportSource({
+      importType: "sales_csv",
+      filename,
+      body: exportBody,
+      contentType: contentType || "application/octet-stream",
+      startDate,
+      endDate,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    return NextResponse.json({ error: `Archivage du fichier source impossible. ${message}` }, { status: 500 })
+  }
 
   // Insert pos_imports record
-  const { data: importRecord } = await supabase
+  const { data: importRecord, error: importError } = await supabase
     .from("pos_imports")
     .insert({
       filename,
+      storage_path: storagePath,
       import_type: "sales_csv",
       imported_by: user.id,
       imported_at: importedAt,
@@ -151,8 +168,12 @@ export async function POST(request: Request) {
       ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse + row.ca_b2b, 0),
       status: "success",
     })
-    .select("id, filename, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
+    .select("id, filename, storage_path, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
     .single()
+
+  if (importError) {
+    return NextResponse.json({ error: `Impossible d'enregistrer l'import. ${importError.message}` }, { status: 500 })
+  }
 
   // Upsert daily_sales
   const upsertRows = parsed.map((row) => {
@@ -189,6 +210,7 @@ export async function POST(request: Request) {
     days_imported: parsed.length,
     ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse + row.ca_b2b, 0),
     filename,
+    storage_path: storagePath,
     date_range_start: parsed[0]?.date,
     date_range_end: parsed[parsed.length - 1]?.date,
   })

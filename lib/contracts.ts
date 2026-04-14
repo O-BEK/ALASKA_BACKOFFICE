@@ -198,6 +198,7 @@ const objectivesPayloadSchema = z.object({
 const importRecordSchema = z.object({
   id: z.string().catch(""),
   filename: z.string().catch(""),
+  storage_path: z.string().nullable().catch(null),
   import_type: z.enum(["sales_csv", "cash_journal_xls"]).catch("sales_csv"),
   imported_at: z.string().catch(""),
   rows_processed: z.coerce.number().catch(0),

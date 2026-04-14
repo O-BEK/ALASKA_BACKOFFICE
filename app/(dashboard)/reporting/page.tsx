@@ -79,6 +79,7 @@ export default function ReportingPage() {
   const bestDays = performanceDays.slice(0, 5)
   const slowDays = [...performanceDays].filter((item) => item.ca_total > 0).sort((a, b) => a.ca_total - b.ca_total).slice(0, 3)
   const hasSalesMix = payload.salesMix.some((item) => item.value > 0)
+  const hasReportData = summary.ca_total > 0 || summary.total_expenses > 0 || dataQuality.sales_days > 0
   const projectionStatus = projection.projected_gap >= 0 ? "Rythme suffisant" : "Rythme à renforcer"
 
   return (
@@ -102,6 +103,12 @@ export default function ReportingPage() {
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
+        </div>
+      )}
+
+      {!loading && !hasReportData && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Aucune donnée consolidée pour {heading}. Les cartes restent à zéro tant que les ventes POS ou les achats cash ne sont pas importés.
         </div>
       )}
 
@@ -433,7 +440,7 @@ export default function ReportingPage() {
                     Le reporting affiche aujourd&apos;hui le cash et les ventes POS. Les virements ne sont pas encore consolidés dans ces chiffres.
                   </p>
                   <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/30 px-3 py-3 text-xs text-alaska-muted">
-                    Prochaine étape : déposer un PDF bancaire ou fournisseur pour rapprocher virements, charges et cash.
+                    Prochaine étape : déposer un relevé bancaire ou fournisseur pour rapprocher virements, charges et cash.
                   </div>
                 </CardContent>
               </Card>

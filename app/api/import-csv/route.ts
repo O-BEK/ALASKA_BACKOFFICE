@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { parseCSV } from "@/lib/csv-parser"
+import { archiveImportSource } from "@/lib/server/import-storage"
 import { createClient, isAdmin } from "@/lib/supabase/server"
 import type { ImportRecord } from "@/lib/types"
 
@@ -59,7 +60,7 @@ export async function GET() {
     const [importsResult, salesResult] = await Promise.all([
       supabase
         .from("pos_imports")
-        .select("id, filename, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
+        .select("id, filename, storage_path, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
         .order("imported_at", { ascending: false }),
       supabase
         .from("daily_sales")
@@ -172,10 +173,28 @@ export async function POST(request: Request) {
     }
 
     const importedAt = new Date().toISOString()
+    let storagePath: string | null = null
+    if (content) {
+      try {
+        storagePath = await archiveImportSource({
+          importType: "sales_csv",
+          filename,
+          body: content,
+          contentType: "text/csv; charset=utf-8",
+          startDate: parsed[0]?.date || null,
+          endDate: parsed[parsed.length - 1]?.date || null,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Erreur inconnue"
+        return NextResponse.json({ error: `Archivage du fichier source impossible. ${message}` }, { status: 500 })
+      }
+    }
+
     const importInsertResult = await supabase
       .from("pos_imports")
       .insert({
         filename,
+        storage_path: storagePath,
         import_type: "sales_csv",
         imported_by: user.id,
         imported_at: importedAt,
@@ -186,7 +205,7 @@ export async function POST(request: Request) {
         ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse + row.ca_b2b, 0),
         status: duplicates.length > 0 ? "partial" : "success",
       })
-      .select("id, filename, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
+      .select("id, filename, storage_path, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
       .single()
 
     if (importInsertResult.error && !isMissingPosImportsTable(importInsertResult.error)) {
@@ -199,6 +218,7 @@ export async function POST(request: Request) {
     const importRecord: ImportRecord = importInsertResult.data || {
       id: `legacy-${Date.now()}`,
       filename,
+      storage_path: storagePath,
       import_type: "sales_csv",
       imported_at: importedAt,
       rows_processed: parsed.reduce((sum, row) => sum + row.tickets_count, 0),

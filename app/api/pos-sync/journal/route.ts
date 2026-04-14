@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { parseCashJournalWorkbook } from "@/lib/pos-journal-parser"
+import { archiveImportSource } from "@/lib/server/import-storage"
 import { createClient, isAdmin } from "@/lib/supabase/server"
 
 function toPosDate(iso: string): string {
@@ -87,11 +88,27 @@ export async function POST(request: Request) {
   const existingByDate = new Map(((existingSales || []) as ExistingSale[]).map((sale) => [sale.date, sale]))
   const importedAt = new Date().toISOString()
   const anomalyCount = parsed.filter((row) => row.cash_journal_anomaly).length
+  let storagePath: string
+
+  try {
+    storagePath = await archiveImportSource({
+      importType: "cash_journal_xls",
+      filename,
+      body: workbookBuffer,
+      contentType: "application/vnd.ms-excel",
+      startDate,
+      endDate,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    return NextResponse.json({ error: `Archivage du fichier source impossible. ${message}` }, { status: 500 })
+  }
 
   const { data: importRecord, error: importError } = await supabase
     .from("pos_imports")
     .insert({
       filename,
+      storage_path: storagePath,
       import_type: "cash_journal_xls",
       imported_by: user.id,
       imported_at: importedAt,
@@ -145,6 +162,7 @@ export async function POST(request: Request) {
     cash_movements_total: parsed.reduce((sum, row) => sum + row.cash_movements_journal, 0),
     anomalies: anomalyCount,
     filename,
+    storage_path: storagePath,
     date_range_start: parsed[0]?.date,
     date_range_end: parsed[parsed.length - 1]?.date,
   })

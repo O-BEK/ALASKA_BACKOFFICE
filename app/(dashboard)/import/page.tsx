@@ -39,6 +39,7 @@ export default function ImportPage() {
   const [step, setStep] = useState<Step>("upload")
   const [dragging, setDragging] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const [fileContent, setFileContent] = useState("")
   const [preview, setPreview] = useState<ParsedDay[]>([])
   const [duplicates, setDuplicates] = useState<string[]>([])
   const [result, setResult] = useState<ImportRecord | null>(null)
@@ -100,9 +101,12 @@ export default function ImportPage() {
       return
     }
     setFile(selected)
+    setFileContent("")
     setError("")
     try {
-      const parsed = parseCSV(await selected.text())
+      const content = await selected.text()
+      const parsed = parseCSV(content)
+      setFileContent(content)
       const response = await fetch("/api/import-csv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,7 +130,7 @@ export default function ImportPage() {
     const response = await fetch("/api/import-csv", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: file.name, parsed: safePreview, commit: true }),
+      body: JSON.stringify({ filename: file.name, content: fileContent, parsed: safePreview, commit: true }),
     })
     const payload = await readJsonSafely(response)
     if (!response.ok) {
@@ -193,7 +197,7 @@ export default function ImportPage() {
               <CardTitle className="text-sm text-alaska-dark">Synchroniser depuis POS</CardTitle>
             </CardHeader>
             <CardContent className="pb-4 space-y-3">
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <div className="flex-1">
                   <label className="text-xs text-alaska-muted block mb-1">Du</label>
                   <input
@@ -314,7 +318,8 @@ export default function ImportPage() {
                 </div>
               </CardHeader>
               <CardContent className="pb-4">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[440px] text-sm">
                   <thead>
                     <tr className="text-xs text-alaska-muted border-b border-alaska-sage-lt">
                       <th className="text-left pb-2">Mois</th>
@@ -346,6 +351,7 @@ export default function ImportPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -382,6 +388,7 @@ export default function ImportPage() {
                         <p className="text-xs text-alaska-muted">
                           {imp.import_type === "cash_journal_xls" ? "Journal caisse" : "Ventes POS"} · {imp.days_imported}j · {formatMAD(imp.ca_total)}
                           {imp.date_range_start && ` · ${imp.date_range_start.slice(0, 7)}`}
+                          {imp.storage_path ? " · source archivée" : ""}
                         </p>
                       </div>
                       <span className="text-xs text-alaska-muted flex-shrink-0">{imp.imported_at.slice(0, 10)}</span>
@@ -389,6 +396,15 @@ export default function ImportPage() {
                   ))}
                 </CardContent>
               )}
+            </Card>
+          )}
+
+          {safeSummary.length === 0 && safeHistory.length === 0 && (
+            <Card className="bg-white border border-dashed border-alaska-sage rounded-xl">
+              <CardContent className="py-8 text-center space-y-2">
+                <p className="font-medium text-alaska-dark">Aucun import en base</p>
+                <p className="text-sm text-alaska-muted">Synchronise le POS ou dépose un CSV pour créer le premier historique traçable.</p>
+              </CardContent>
             </Card>
           )}
         </div>
@@ -451,7 +467,7 @@ export default function ImportPage() {
             </CardContent>
           </Card>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Button
               variant="outline"
               className="flex-1 gap-2 border-alaska-sage-lt hover:bg-alaska-sage-lt"
