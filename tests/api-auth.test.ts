@@ -5,6 +5,9 @@ vi.mock("next/headers", () => ({
     get: vi.fn(),
     set: vi.fn(),
   })),
+  headers: vi.fn(() => ({
+    get: vi.fn(),
+  })),
 }))
 
 vi.mock("@supabase/ssr", () => ({

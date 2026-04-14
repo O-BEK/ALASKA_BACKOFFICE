@@ -139,15 +139,20 @@ export async function POST(request: Request) {
   const content = String(body?.content || "")
   const filename = String(body?.filename || "import.csv")
   const parsedFromBody = sanitizeParsedRows(body?.parsed)
+  const isCommit = body?.commit === true
 
-  if (!content && parsedFromBody.length === 0) {
+  if (!content && (isCommit || parsedFromBody.length === 0)) {
     return NextResponse.json({ error: "Contenu CSV requis." }, { status: 400 })
   }
 
   let parsed: ParsedDay[]
 
   try {
-    parsed = parsedFromBody.length > 0 ? parsedFromBody : parseCSV(content)
+    parsed = isCommit
+      ? parseCSV(content)
+      : parsedFromBody.length > 0
+        ? parsedFromBody
+        : parseCSV(content)
   } catch {
     return NextResponse.json(
       { error: "Format CSV non reconnu. Vérifiez que c'est bien un export caisse valide." },
@@ -168,26 +173,24 @@ export async function POST(request: Request) {
     const existingDates = new Set(existingSales.map((item) => item.date))
     const duplicates = parsed.filter((row) => existingDates.has(row.date)).map((row) => row.date)
 
-    if (body?.commit !== true) {
+    if (!isCommit) {
       return NextResponse.json({ parsed, duplicates, rowsIgnored: 0 })
     }
 
     const importedAt = new Date().toISOString()
-    let storagePath: string | null = null
-    if (content) {
-      try {
-        storagePath = await archiveImportSource({
-          importType: "sales_csv",
-          filename,
-          body: content,
-          contentType: "text/csv; charset=utf-8",
-          startDate: parsed[0]?.date || null,
-          endDate: parsed[parsed.length - 1]?.date || null,
-        })
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Erreur inconnue"
-        return NextResponse.json({ error: `Archivage du fichier source impossible. ${message}` }, { status: 500 })
-      }
+    let storagePath: string
+    try {
+      storagePath = await archiveImportSource({
+        importType: "sales_csv",
+        filename,
+        body: content,
+        contentType: "text/csv; charset=utf-8",
+        startDate: parsed[0]?.date || null,
+        endDate: parsed[parsed.length - 1]?.date || null,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur inconnue"
+      return NextResponse.json({ error: `Archivage du fichier source impossible. ${message}` }, { status: 500 })
     }
 
     const importInsertResult = await supabase
@@ -208,26 +211,14 @@ export async function POST(request: Request) {
       .select("id, filename, storage_path, import_type, imported_at, rows_processed, days_imported, date_range_start, date_range_end, ca_total, status")
       .single()
 
-    if (importInsertResult.error && !isMissingPosImportsTable(importInsertResult.error)) {
+    if (importInsertResult.error) {
       return NextResponse.json(
         { error: `Impossible d'enregistrer l'import. ${importInsertResult.error.message}` },
         { status: 500 }
       )
     }
 
-    const importRecord: ImportRecord = importInsertResult.data || {
-      id: `legacy-${Date.now()}`,
-      filename,
-      storage_path: storagePath,
-      import_type: "sales_csv",
-      imported_at: importedAt,
-      rows_processed: parsed.reduce((sum, row) => sum + row.tickets_count, 0),
-      days_imported: parsed.length,
-      date_range_start: parsed[0]?.date || "",
-      date_range_end: parsed[parsed.length - 1]?.date || "",
-      ca_total: parsed.reduce((sum, row) => sum + row.ca_caisse + row.ca_b2b, 0),
-      status: duplicates.length > 0 ? "partial" : "success",
-    }
+    const importRecord: ImportRecord = importInsertResult.data
 
     const upsertRows = parsed.map((row) => {
       const existing = existingSalesByDate.get(row.date)

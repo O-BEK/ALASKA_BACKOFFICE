@@ -1,4 +1,8 @@
 /**
+ * DÉPRÉCIÉ en V1 — utiliser /import dans l'interface ou /api/pos-sync.
+ * Ce script n'archive pas les fichiers sources et ne crée pas d'entrée pos_imports.
+ * Ne pas utiliser en production.
+ *
  * import-pos-csv.mjs
  *
  * Importe l'export POS complet (ventes par ticket avec "Moyens de paiements")

@@ -113,13 +113,21 @@ Importer l'historique Excel :
 node --env-file=.env.local scripts/seed-from-excel.mjs "<chemin/vers/Alaska_Suivi_Semaines_2026.xlsx>"
 ```
 
-Importer un export POS CSV complet :
+Charger les données de démonstration seulement si nécessaire :
 
 ```bash
-node --env-file=.env.local scripts/import-pos-csv.mjs "<chemin/vers/export-pos.csv>"
+node --env-file=.env.local scripts/seed-demo-data.mjs
 ```
 
 Après un seed, ouvrir le dashboard et vérifier que le mois attendu affiche le CA total, les dépenses et les jours importés.
+
+## Imports POS V1
+
+Le chemin recommandé pour les imports POS V1 est l'interface `/import` pour un fichier CSV manuel, ou l'API `/api/pos-sync` pour une synchronisation POS serveur.
+
+Ces chemins archivent le fichier source dans Supabase Storage (`pos-imports`) et créent une entrée `pos_imports` avec `storage_path`.
+
+Le script `scripts/import-pos-csv.mjs` est déprécié en V1. Il n'archive pas le fichier source et ne crée pas d'entrée `pos_imports`; il ne doit pas être utilisé en production.
 
 ## Lancement local
 
@@ -193,6 +201,33 @@ Après déploiement, vérifier :
 - import POS ventes
 - import journal caisse
 - reporting et exports CSV
+
+## Validation staging
+
+Avant la bascule V1, valider l'environnement Vercel cible avec le script staging :
+
+```bash
+STAGING_URL=https://mon-projet.vercel.app node --env-file=.env.local scripts/validate-v1-staging.mjs
+```
+
+Sous PowerShell :
+
+```powershell
+$env:STAGING_URL="https://mon-projet.vercel.app"
+node --env-file=.env.local scripts/validate-v1-staging.mjs
+```
+
+Variables lues par le script :
+
+- `STAGING_URL`
+- `ALASKA_ADMIN_EMAIL`
+- `ALASKA_ADMIN_PASSWORD`
+- `ALASKA_MANAGER_EMAIL`
+- `ALASKA_MANAGER_PASSWORD`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+
+Le script vérifie dans l'ordre : login admin, login manager, accès dashboard admin, refus manager sur dashboard/charges/reporting, puis accès manager à `daily-entry` et `week`. Il affiche un statut pour chaque vérification et termine en erreur si au moins une vérification échoue.
 
 ## Checklist avant mise en prod
 
