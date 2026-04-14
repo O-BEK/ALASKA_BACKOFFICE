@@ -331,7 +331,7 @@ export default function DashboardPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", LEVER_COLORS[action.lever] || "bg-gray-200 text-gray-700")}>{action.lever}</span>
-                            <span className={cn("text-[11px] font-medium", action.priority === "urgent" ? "text-red-500" : action.priority === "medium" ? "text-amber-600" : "text-alaska-sage")}>{action.priority === "urgent" ? "URGENT" : action.priority === "medium" ? "MOYEN" : "LOW"}</span>
+                            <span className={cn("text-[11px] font-medium", action.priority === "urgent" ? "text-red-500" : action.priority === "medium" ? "text-amber-600" : "text-alaska-sage")}>{action.priority === "urgent" ? "URGENT" : action.priority === "medium" ? "MOYEN" : "FAIBLE"}</span>
                           </div>
                           <p className="mt-2 text-sm font-medium text-alaska-dark">{action.title}</p>
                           <p className="mt-1 text-xs text-alaska-muted">{action.deadline}</p>

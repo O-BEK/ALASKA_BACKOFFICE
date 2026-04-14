@@ -395,7 +395,13 @@ export default function SaisiePage() {
             >
               <ChevronLeft size={18} className="text-alaska-muted" />
             </button>
-            <p className="text-sm font-semibold text-alaska-dark">{viewMonth}</p>
+            <p className="text-sm font-semibold text-alaska-dark">
+              {(() => {
+                const [y, m] = viewMonth.split("-")
+                const MONTHS_FR_LOCAL = ["Jan", "Fév", "Mars", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+                return `${MONTHS_FR_LOCAL[parseInt(m) - 1]} ${y}`
+              })()}
+            </p>
             <button
               onClick={() => {
                 const [year, month] = viewMonth.split("-").map(Number)
