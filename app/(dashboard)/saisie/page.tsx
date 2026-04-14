@@ -22,6 +22,8 @@ import { WeekGrid } from "@/components/saisie/WeekGrid"
 const TABS = ["Caisse", "Semaine", "Mois"] as const
 type Tab = typeof TABS[number]
 
+const MONTHS_FR = ["Jan", "Fév", "Mars", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+
 export default function SaisiePage() {
   const today = new Date()
   const initialRequestedDate = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("date") : null
@@ -396,11 +398,7 @@ export default function SaisiePage() {
               <ChevronLeft size={18} className="text-alaska-muted" />
             </button>
             <p className="text-sm font-semibold text-alaska-dark">
-              {(() => {
-                const [y, m] = viewMonth.split("-")
-                const MONTHS_FR_LOCAL = ["Jan", "Fév", "Mars", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
-                return `${MONTHS_FR_LOCAL[parseInt(m) - 1]} ${y}`
-              })()}
+              {`${MONTHS_FR[parseInt(viewMonth.split("-")[1]) - 1]} ${viewMonth.split("-")[0]}`}
             </p>
             <button
               onClick={() => {
