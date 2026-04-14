@@ -96,16 +96,16 @@ export default function SemainePage() {
         </Card>
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardContent className="pt-4 pb-4">
-            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">% Seuil hebdo</p>
-            <p className={cn("text-xl font-playfair font-bold mt-1",
-              pctSeuil >= 100 ? "text-alaska-sage" : pctSeuil >= 70 ? "text-amber-600" : "text-red-600")}>
+            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Seuil semaine</p>
+            <p className={cn(
+              "text-2xl font-playfair font-bold mt-1",
+              pctSeuil >= 100 ? "text-alaska-sage" : pctSeuil >= 70 ? "text-amber-500" : "text-red-500"
+            )}>
               {pctSeuil.toFixed(0)}%
             </p>
-            <div className="mt-2 w-full bg-alaska-sage-lt rounded-full h-1.5">
-              <div className="h-1.5 rounded-full bg-alaska-sage transition-all duration-700"
-                style={{ width: `${Math.min(pctSeuil, 100)}%` }}/>
-            </div>
-            <p className="text-[10px] text-alaska-muted mt-1">Seuil : {formatMAD(weeklyBreakeven)}</p>
+            <p className="text-xs text-alaska-muted mt-1">
+              {formatMAD(weekTotals.caGlobal)} / {formatMAD(weeklyBreakeven)}
+            </p>
           </CardContent>
         </Card>
       </div>
