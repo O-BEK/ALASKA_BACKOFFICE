@@ -88,6 +88,7 @@ export async function PUT(request: Request) {
       id: chargeId,
       amount: typeof body.amount === "number" ? body.amount : undefined,
       is_active: typeof body.is_active === "boolean" ? body.is_active : undefined,
+      changed_by: user.id,
     })
     return NextResponse.json({ charges })
   } catch {
@@ -111,5 +112,32 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inconnue"
     return NextResponse.json({ error: `Impossible de créer la charge. ${message}` }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request) {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user || !(await isAdmin(supabase, user.id))) {
+    return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+  }
+
+  const { searchParams } = new URL(request.url)
+  const chargeId = searchParams.get("id")
+  if (!chargeId) {
+    return NextResponse.json({ error: "Charge invalide." }, { status: 400 })
+  }
+
+  try {
+    const charges = await updateFixedCharge(supabase, {
+      id: chargeId,
+      is_active: false,
+      changed_by: user.id,
+    })
+    return NextResponse.json({ charges })
+  } catch {
+    return NextResponse.json({ error: "Impossible de désactiver la charge." }, { status: 500 })
   }
 }

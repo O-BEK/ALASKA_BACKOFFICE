@@ -160,6 +160,13 @@ export default function DashboardPage() {
 
       {error && <Alert message={`Erreur de chargement : ${error}`} tone="red" />}
       {csvMissing && <Alert message="CSV caisse non importé pour le mois courant." tone="amber" link={{ href: "/import", label: "Importer maintenant" }} />}
+      {!loading && !hasMonthData && (
+        <Alert
+          message="Aucune vente ni dépense sur le mois sélectionné : les indicateurs restent à zéro tant que le POS ou la saisie ne sont pas alimentés."
+          tone="amber"
+          link={{ href: "/import", label: "Importer le POS" }}
+        />
+      )}
 
       {loading ? (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-28 animate-pulse rounded-xl bg-alaska-sage-lt/40" />)}</div>

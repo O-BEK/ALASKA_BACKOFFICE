@@ -107,6 +107,7 @@ export interface MonthlyKPIs {
 export interface ImportRecord {
   id: string
   filename: string
+  storage_path: string | null
   import_type: ImportType
   imported_at: string
   rows_processed: number

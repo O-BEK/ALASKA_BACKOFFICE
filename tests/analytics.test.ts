@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-import { buildCaisseBalance, buildDashboardData, monthReporting } from "../lib/server/analytics"
+import { buildCaisseBalance, buildDashboardData, buildWeekData, monthReporting } from "../lib/server/analytics"
 import type { PilotDb } from "../lib/server/db-types"
 
 function makeDb(overrides: Partial<PilotDb> = {}): PilotDb {
@@ -130,6 +130,53 @@ describe("buildDashboardData", () => {
 })
 
 describe("monthReporting", () => {
+  it("keeps dashboard, weekly view, and reporting totals coherent for one fixed month", () => {
+    const sales = Array.from({ length: 10 }, (_, index) => {
+      const day = String(index + 2).padStart(2, "0")
+      return makeSale({
+        id: `s${index}`,
+        date: `2026-03-${day}`,
+        ca_caisse: 1000 + index * 10,
+        ca_b2b: 500,
+        ca_soir: 250,
+        tickets_count: 20 + index,
+      })
+    })
+    const expenses = sales.map((sale, index) => ({
+      id: `e${index}`,
+      date: sale.date,
+      category: index % 2 === 0 ? "MP" as const : "RH" as const,
+      label: index % 2 === 0 ? "Poisson" : "Equipe",
+      amount: 200 + index,
+      notes: "",
+      created_by: null,
+      updated_at: "",
+    }))
+    const db = makeDb({ daily_sales: sales, expenses })
+    const expectedCaTotal = sales.reduce((sum, sale) => sum + sale.ca_caisse + sale.ca_b2b, 0)
+    const expectedExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+
+    const dashboard = buildDashboardData(db, "2026-03")
+    const reporting = monthReporting(db, "2026-03")
+    const weekTotals = [
+      buildWeekData(db, new Date(2026, 2, 2)),
+      buildWeekData(db, new Date(2026, 2, 9)),
+    ].reduce(
+      (totals, week) => ({
+        ca: totals.ca + week.totalCA,
+        expenses: totals.expenses + week.totalDep,
+      }),
+      { ca: 0, expenses: 0 }
+    )
+
+    expect(dashboard.kpis.ca_total).toBe(expectedCaTotal)
+    expect(reporting.summary.ca_total).toBe(expectedCaTotal)
+    expect(weekTotals.ca).toBe(expectedCaTotal)
+    expect(dashboard.kpis.total_expenses).toBe(expectedExpenses)
+    expect(reporting.summary.total_expenses).toBe(expectedExpenses)
+    expect(weekTotals.expenses).toBe(expectedExpenses)
+  })
+
   it("builds summary, comparison, and charge reconciliation for the selected month", () => {
     const db = makeDb({
       daily_sales: [

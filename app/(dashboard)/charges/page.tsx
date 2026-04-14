@@ -65,7 +65,7 @@ export default function ChargesPage() {
         <p className="text-alaska-muted text-sm mt-1">Gestion et simulation d&apos;impact</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardContent className="pt-4 pb-4">
             <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Total mensuel</p>
@@ -145,13 +145,13 @@ export default function ChargesPage() {
             <CardContent className="space-y-3 pb-4">
               {items.map(c => (
                 <div key={c.id} className="space-y-1.5">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-alaska-dark">{c.name}</p>
                       {c.payment_day && <p className="text-xs text-alaska-muted">{c.payment_day === 1 ? "1er" : `${c.payment_day}`} du mois</p>}
                     </div>
                     {editId === c.id ? (
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
                         <Input type="number" value={editVal} onChange={e => setEditVal(e.target.value)}
                           className="w-24 h-8 text-right text-sm focus:ring-alaska-sage focus:border-alaska-sage"/>
                         <Button size="sm" className="h-8 text-xs bg-alaska-sage hover:bg-alaska-sage/90" onClick={() => handleSave(c.id)}>OK</Button>
@@ -188,7 +188,7 @@ export default function ChargesPage() {
                     onChange={e => setNewName(e.target.value)}
                     className="h-8 text-sm"
                   />
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Input
                       type="number"
                       placeholder="Montant MAD"
@@ -217,7 +217,7 @@ export default function ChargesPage() {
                       <option value="semi-fixed">Semi-fixe</option>
                     </select>
                   )}
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Button size="sm" className="flex-1 h-8 text-xs bg-alaska-sage hover:bg-alaska-sage/90" onClick={() => handleCreate(cat)}>
                       Créer
                     </Button>
@@ -263,8 +263,8 @@ export default function ChargesPage() {
           </CardHeader>
           <CardContent className="pb-4 space-y-2">
             {section.items.map(item => (
-              <div key={item.id} className="flex items-center justify-between py-1 border-b border-alaska-sage-lt/50 last:border-0">
-                <span className="text-sm text-alaska-dark">{item.label}</span>
+              <div key={item.id} className="flex items-center justify-between gap-3 py-1 border-b border-alaska-sage-lt/50 last:border-0">
+                <span className="min-w-0 flex-1 text-sm text-alaska-dark">{item.label}</span>
                 <button onClick={() => deleteItem(item.id)}
                   className="p-1 hover:bg-red-50 text-red-400 rounded">
                   <X size={12}/>
@@ -273,7 +273,7 @@ export default function ChargesPage() {
             ))}
 
             {addingItemSectionId === section.id ? (
-              <div className="flex gap-2 pt-1">
+              <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                 <Input
                   placeholder="Libellé (ex: Légumes)"
                   value={newItemLabel}
@@ -323,7 +323,7 @@ export default function ChargesPage() {
               <option value="CHARGES">CHARGES — Autres charges</option>
               <option value="AUTRE">AUTRE — Divers</option>
             </select>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Button size="sm" className="flex-1 h-8 text-xs bg-alaska-sage hover:bg-alaska-sage/90"
                 onClick={async () => {
                   if (!newSectionName.trim()) return
@@ -356,7 +356,7 @@ export default function ChargesPage() {
               className="h-8 text-sm"
             />
             <Input placeholder="Libellé" value={newName} onChange={e => setNewName(e.target.value)} className="h-8 text-sm"/>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input type="number" placeholder="Montant MAD" value={newAmount} onChange={e => setNewAmount(e.target.value)} className="flex-1 h-8 text-sm"/>
               <Input type="number" placeholder="Jour" value={newPayDay} onChange={e => setNewPayDay(e.target.value)} className="w-16 h-8 text-sm" min={1} max={31}/>
             </div>

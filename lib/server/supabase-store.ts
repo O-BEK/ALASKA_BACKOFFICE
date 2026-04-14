@@ -287,6 +287,7 @@ function mapImportRecord(row: any): ImportRecord {
   return {
     id: String(row.id),
     filename: String(row.filename || ""),
+    storage_path: row.storage_path ? String(row.storage_path) : null,
     import_type: row.import_type === "cash_journal_xls" ? "cash_journal_xls" : "sales_csv",
     imported_at: String(row.imported_at || nowIso()),
     rows_processed: Number(row.rows_processed || 0),
@@ -467,13 +468,46 @@ export async function saveDailyEntry(client: SupabaseClientLike, entry: DailyEnt
   return getDailyEntry(client, entry.date)
 }
 
-export async function updateFixedCharge(client: SupabaseClientLike, payload: { id: string; amount?: number; is_active?: boolean }) {
+export async function updateFixedCharge(
+  client: SupabaseClientLike,
+  payload: { id: string; amount?: number; is_active?: boolean; changed_by?: string | null }
+) {
+  const currentResult = await client
+    .from("fixed_charges")
+    .select("id, amount, is_active")
+    .eq("id", payload.id)
+    .single()
+  if (currentResult.error) throw new Error(currentResult.error.message)
+
+  const current = currentResult.data
+  const oldAmount = Number(current?.amount || 0)
+  const newAmount = typeof payload.amount === "number" ? payload.amount : oldAmount
+  const oldActive = Boolean(current?.is_active)
+  const newActive = typeof payload.is_active === "boolean" ? payload.is_active : oldActive
+
   const patch: Record<string, unknown> = { updated_at: nowIso() }
   if (typeof payload.amount === "number") patch.amount = payload.amount
   if (typeof payload.is_active === "boolean") patch.is_active = payload.is_active
 
   const result = await client.from("fixed_charges").update(patch).eq("id", payload.id)
   if (result.error) throw new Error(result.error.message)
+
+  const shouldRecordHistory = typeof payload.amount === "number" || typeof payload.is_active === "boolean"
+  if (shouldRecordHistory) {
+    const reasons = []
+    if (newAmount !== oldAmount) reasons.push("amount")
+    if (newActive !== oldActive) reasons.push(newActive ? "reactivation" : "deactivation")
+
+    const historyResult = await client.from("charge_history").insert({
+      charge_id: payload.id,
+      old_amount: oldAmount,
+      new_amount: newAmount,
+      changed_by: payload.changed_by || null,
+      reason: reasons.length > 0 ? reasons.join(",") : "update",
+      effective_date: new Date().toISOString().slice(0, 10),
+    })
+    if (historyResult.error) throw new Error(historyResult.error.message)
+  }
 
   const { data, error } = await client.from("fixed_charges").select("*").order("category", { ascending: true }).order("name", { ascending: true })
   if (error) throw new Error(error.message)
