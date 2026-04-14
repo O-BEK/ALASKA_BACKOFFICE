@@ -21,11 +21,197 @@ const LEVER_COLORS: Record<string, string> = {
   marketing: "bg-blue-500 text-white",
   pilotage: "bg-purple-500 text-white",
 }
+const LEVERS = ["soir", "terrasse", "b2b", "marketing", "pilotage"] as const
+const PRIORITIES = ["urgent", "medium", "low"] as const
 const MONTHS_FR = ["Jan","Fév","Mars","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
+
+type ActionFormData = {
+  lever: ActionItem["lever"]
+  title: string
+  description: string
+  priority: ActionItem["priority"]
+  deadline: string
+  budget_min: number
+  budget_max: number
+  impact: string
+}
+
+const EMPTY_FORM: ActionFormData = {
+  lever: "pilotage",
+  title: "",
+  description: "",
+  priority: "medium",
+  deadline: "",
+  budget_min: 0,
+  budget_max: 0,
+  impact: "",
+}
+
+function ActionFormModal({
+  initial,
+  onClose,
+  onSubmit,
+  loading,
+}: {
+  initial: ActionFormData
+  onClose: () => void
+  onSubmit: (_data: ActionFormData) => void
+  loading: boolean
+}) {
+  const [form, setForm] = useState<ActionFormData>(initial)
+  const set = <K extends keyof ActionFormData>(k: K, v: ActionFormData[K]) =>
+    setForm((f) => ({ ...f, [k]: v }))
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <h2 className="font-playfair text-xl font-bold text-alaska-dark">
+          {initial.title ? "Modifier l'action" : "Nouvelle action"}
+        </h2>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-alaska-dark">Levier</label>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {LEVERS.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => set("lever", l)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-medium border transition",
+                    form.lever === l
+                      ? LEVER_COLORS[l]
+                      : "bg-white text-alaska-muted border-alaska-sage-lt hover:bg-alaska-sage-lt"
+                  )}
+                >
+                  {LEVER_LABELS[l]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-alaska-dark">Titre *</label>
+            <Input
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              placeholder="Titre de l'action"
+              className="mt-1 h-9 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-alaska-dark">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              placeholder="Détails optionnels"
+              rows={2}
+              className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-alaska-sage/40"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-alaska-dark">Priorité</label>
+              <select
+                value={form.priority}
+                onChange={(e) => set("priority", e.target.value as ActionItem["priority"])}
+                className="mt-1 w-full border border-input rounded-md px-3 h-9 text-sm focus:outline-none focus:ring-2 focus:ring-alaska-sage/40"
+              >
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {p === "urgent" ? "🔴 Urgent" : p === "medium" ? "🟡 Normal" : "🟢 Faible"}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-alaska-dark">Deadline</label>
+              <Input
+                type="date"
+                value={form.deadline}
+                onChange={(e) => set("deadline", e.target.value)}
+                className="mt-1 h-9 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-alaska-dark">Budget min (MAD)</label>
+              <Input
+                type="number"
+                min={0}
+                value={form.budget_min}
+                onChange={(e) => set("budget_min", Number(e.target.value))}
+                className="mt-1 h-9 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-alaska-dark">Budget max (MAD)</label>
+              <Input
+                type="number"
+                min={0}
+                value={form.budget_max}
+                onChange={(e) => set("budget_max", Number(e.target.value))}
+                className="mt-1 h-9 text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-alaska-dark">Impact attendu</label>
+            <Input
+              value={form.impact}
+              onChange={(e) => set("impact", e.target.value)}
+              placeholder="ex: +15% CA soir"
+              className="mt-1 h-9 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="outline"
+            className="flex-1 border-alaska-sage-lt"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Annuler
+          </Button>
+          <Button
+            className="flex-1 bg-alaska-sage hover:bg-alaska-sage/90"
+            onClick={() => onSubmit(form)}
+            disabled={loading || !form.title.trim()}
+          >
+            {loading ? "Enregistrement..." : "Enregistrer"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function ObjectifsPage() {
   const [tab, setTab] = useState<"Objectifs" | "Plan d'action" | "Trajectoire">("Objectifs")
-  const { actions, updateActionStatus, cumulativeReal, yearlyTarget, pctAnnuel, byLever, monthlyObjectives, monthlyReal } = useObjectives()
+  const {
+    actions,
+    error,
+    updateActionStatus,
+    createAction,
+    updateAction,
+    deleteAction,
+    updateMonthlyObjective,
+    cumulativeReal,
+    yearlyTarget,
+    pctAnnuel,
+    byLever,
+    monthlyObjectives,
+    monthlyReal,
+  } = useObjectives()
+
   const [filterLever, setFilterLever] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const safeActions = Array.isArray(actions) ? actions : []
@@ -33,6 +219,25 @@ export default function ObjectifsPage() {
   const safeMonthlyObjectives = Array.isArray(monthlyObjectives) ? monthlyObjectives : []
   const safeMonthlyReal = Array.isArray(monthlyReal) ? monthlyReal : []
 
+  // Action form modal state
+  const [actionModal, setActionModal] = useState<{
+    open: boolean
+    mode: "create" | "edit"
+    editId?: string
+    initial: ActionFormData
+  }>({ open: false, mode: "create", initial: EMPTY_FORM })
+  const [actionFormLoading, setActionFormLoading] = useState(false)
+
+  // Delete confirm state
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
+  // Monthly objective inline edit
+  const [editingMonthly, setEditingMonthly] = useState<string | null>(null)
+  const [editingMonthlyValue, setEditingMonthlyValue] = useState<string>("")
+  const [monthlyLoading, setMonthlyLoading] = useState(false)
+
+  // Alcool dialogue state
   const [alcoolDialogue, setAlcoolDialogue] = useState(false)
   const [alcoolActionId, setAlcoolActionId] = useState("")
   const [alcoolUplift, setAlcoolUplift] = useState(47)
@@ -80,6 +285,42 @@ export default function ObjectifsPage() {
     }
   }
 
+  const handleActionFormSubmit = async (data: ActionFormData) => {
+    setActionFormLoading(true)
+    if (actionModal.mode === "create") {
+      await createAction(data)
+    } else if (actionModal.editId) {
+      await updateAction({ id: actionModal.editId, ...data })
+    }
+    setActionFormLoading(false)
+    setActionModal({ open: false, mode: "create", initial: EMPTY_FORM })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return
+    setDeleteLoading(true)
+    await deleteAction(deleteConfirm)
+    setDeleteLoading(false)
+    setDeleteConfirm(null)
+  }
+
+  const handleMonthlyEdit = (key: string, currentValue: number) => {
+    setEditingMonthly(key)
+    setEditingMonthlyValue(String(currentValue))
+  }
+
+  const handleMonthlyCommit = async (year: number, month: number) => {
+    const value = Number(editingMonthlyValue)
+    if (isNaN(value) || value < 0) {
+      setEditingMonthly(null)
+      return
+    }
+    setMonthlyLoading(true)
+    await updateMonthlyObjective(year, month, value)
+    setMonthlyLoading(false)
+    setEditingMonthly(null)
+  }
+
   const monthlyData = safeMonthlyObjectives.map((mo) => {
     const current = safeMonthlyReal.find((item) => item.year === mo.year && item.month === mo.month)
     return { month: MONTHS_FR[mo.month - 1], target: mo.target_ca, real: current?.real || null }
@@ -96,6 +337,10 @@ export default function ObjectifsPage() {
         <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Objectifs & Plan d&apos;action</h1>
         <p className="text-alaska-muted text-sm mt-1">Pilotage stratégique Alaska Neo Bistrot 2026</p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-4 py-2">{error}</div>
+      )}
 
       <div className="flex bg-white border border-alaska-sage-lt rounded-lg p-1 gap-1">
         {TABS.map(t => (
@@ -154,22 +399,48 @@ export default function ObjectifsPage() {
           <Card className="bg-white border border-alaska-sage-lt rounded-xl">
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm text-alaska-dark">Décomposition mensuelle</CardTitle>
+              <CardDescription className="text-xs text-alaska-muted">Cliquez sur le montant cible pour le modifier</CardDescription>
             </CardHeader>
             <CardContent className="pb-4">
               <div className="space-y-2">
-                {safeMonthlyObjectives.slice(0,4).map((mo) => {
+                {safeMonthlyObjectives.map((mo) => {
+                  const key = `${mo.year}-${mo.month}`
                   const real = safeMonthlyReal.find((item) => item.year === mo.year && item.month === mo.month)?.real || 0
                   const pct = mo.target_ca > 0 ? (real / mo.target_ca) * 100 : 0
                   const done = real > 0
+                  const isEditing = editingMonthly === key
                   return (
-                    <div key={`${mo.year}-${mo.month}`} className="flex items-center gap-3 p-2 hover:bg-alaska-sage-lt/40 rounded-lg">
+                    <div key={key} className="flex items-center gap-3 p-2 hover:bg-alaska-sage-lt/40 rounded-lg">
                       <span className="text-sm w-10 text-alaska-muted">{MONTHS_FR[mo.month - 1]}</span>
                       <div className="flex-1 bg-alaska-sage-lt rounded-full h-2">
                         <div className={cn("h-2 rounded-full", pct >= 100 ? "bg-alaska-sage" : pct >= 70 ? "bg-amber-400" : "bg-red-400")}
                           style={{ width: `${Math.min(pct,100)}%` }}/>
                       </div>
                       <span className="text-xs w-20 text-right font-medium text-alaska-dark">{done ? formatMAD(real) : "—"}</span>
-                      <span className="text-xs w-16 text-right text-alaska-muted">{formatMAD(mo.target_ca)}</span>
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          min={0}
+                          value={editingMonthlyValue}
+                          onChange={(e) => setEditingMonthlyValue(e.target.value)}
+                          onBlur={() => handleMonthlyCommit(mo.year, mo.month)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleMonthlyCommit(mo.year, mo.month)
+                            if (e.key === "Escape") setEditingMonthly(null)
+                          }}
+                          className="w-24 h-7 text-xs text-right px-2"
+                          disabled={monthlyLoading}
+                          autoFocus
+                        />
+                      ) : (
+                        <button
+                          onClick={() => handleMonthlyEdit(key, mo.target_ca)}
+                          className="text-xs w-16 text-right text-alaska-muted hover:text-alaska-dark hover:underline transition"
+                          title="Cliquer pour modifier"
+                        >
+                          {formatMAD(mo.target_ca)} ✏️
+                        </button>
+                      )}
                       <span className={cn("text-xs w-12 text-right font-medium",
                         pct >= 100 ? "text-alaska-sage" : pct > 0 ? "text-amber-500" : "text-alaska-muted")}>
                         {done ? `${pct >= 100 ? "✅" : "❌"} ${pct.toFixed(0)}%` : "⏳"}
@@ -185,6 +456,15 @@ export default function ObjectifsPage() {
 
       {tab === "Plan d'action" && (
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button
+              onClick={() => setActionModal({ open: true, mode: "create", initial: EMPTY_FORM })}
+              className="bg-alaska-sage hover:bg-alaska-sage/90 text-white text-xs h-9 px-4 rounded-lg"
+            >
+              + Nouvelle action
+            </Button>
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {safeByLever.map(({ lever, total, done, pct }) => (
               <button key={lever} onClick={() => setFilterLever(f => f === lever ? "all" : lever)}
@@ -221,8 +501,27 @@ export default function ObjectifsPage() {
                   setAlcoolPreview(computePreview(alcoolUplift, alcoolMonth))
                   setAlcoolDialogue(true)
                 }}
+                onEdit={(a) => setActionModal({
+                  open: true,
+                  mode: "edit",
+                  editId: a.id,
+                  initial: {
+                    lever: a.lever,
+                    title: a.title,
+                    description: a.description,
+                    priority: a.priority,
+                    deadline: a.deadline,
+                    budget_min: a.budget_min,
+                    budget_max: a.budget_max,
+                    impact: a.impact,
+                  },
+                })}
+                onDelete={(id) => setDeleteConfirm(id)}
               />
             ))}
+            {filteredActions.length === 0 && (
+              <p className="text-center text-sm text-alaska-muted py-8">Aucune action pour ce filtre</p>
+            )}
           </div>
         </div>
       )}
@@ -281,6 +580,44 @@ export default function ObjectifsPage() {
         </div>
       )}
 
+      {/* Action Form Modal */}
+      {actionModal.open && (
+        <ActionFormModal
+          initial={actionModal.initial}
+          onClose={() => setActionModal({ open: false, mode: "create", initial: EMPTY_FORM })}
+          onSubmit={handleActionFormSubmit}
+          loading={actionFormLoading}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
+            <h2 className="font-playfair text-lg font-bold text-alaska-dark">Supprimer l&apos;action ?</h2>
+            <p className="text-sm text-alaska-muted">Cette action sera supprimée définitivement.</p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 border-alaska-sage-lt"
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleteLoading}
+              >
+                Annuler
+              </Button>
+              <Button
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                onClick={handleDeleteConfirm}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? "Suppression..." : "Supprimer"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alcool Dialogue */}
       {alcoolDialogue && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
@@ -363,11 +700,20 @@ export default function ObjectifsPage() {
   )
 }
 
-function ActionCard({ action, onStatusChange, leverColors, onAlcoolValidate }: {
+function ActionCard({
+  action,
+  onStatusChange,
+  leverColors,
+  onAlcoolValidate,
+  onEdit,
+  onDelete,
+}: {
   action: ActionItem
   onStatusChange: (_id: string, _status: ActionItem["status"]) => void
   leverColors: Record<string, string>
   onAlcoolValidate?: (_id: string) => void
+  onEdit?: (_action: ActionItem) => void
+  onDelete?: (_id: string) => void
 }) {
   const next: Record<ActionItem["status"], ActionItem["status"]> = {
     todo: "in_progress", in_progress: "done", done: "todo", cancelled: "todo"
@@ -388,22 +734,42 @@ function ActionCard({ action, onStatusChange, leverColors, onAlcoolValidate }: {
             <p className="font-medium text-sm text-alaska-dark">{action.title}</p>
             {action.description && <p className="text-xs text-alaska-muted mt-1 leading-relaxed">{action.description}</p>}
           </div>
-          {isAlcool && action.status !== "done" && onAlcoolValidate ? (
-            <button
-              onClick={() => onAlcoolValidate(action.id)}
-              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
-            >
-              🍷 Valider licence
-            </button>
-          ) : (
-            <button onClick={() => onStatusChange(action.id, next[action.status])}
-              className={cn("flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition",
-                action.status === "done" ? "bg-alaska-sage-lt text-alaska-sage border-alaska-sage"
-                : action.status === "in_progress" ? "bg-amber-50 text-amber-700 border-amber-200"
-                : "bg-white text-alaska-muted border-alaska-sage-lt hover:bg-alaska-sage-lt")}>
-              {action.status === "done" ? "✅ Fait" : action.status === "in_progress" ? "🔄 En cours" : "○ À faire"}
-            </button>
-          )}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {onEdit && (
+              <button
+                onClick={() => onEdit(action)}
+                className="p-1.5 rounded-lg text-alaska-muted hover:text-alaska-dark hover:bg-alaska-sage-lt transition"
+                title="Modifier"
+              >
+                ✏️
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(action.id)}
+                className="p-1.5 rounded-lg text-alaska-muted hover:text-red-500 hover:bg-red-50 transition"
+                title="Supprimer"
+              >
+                🗑️
+              </button>
+            )}
+            {isAlcool && action.status !== "done" && onAlcoolValidate ? (
+              <button
+                onClick={() => onAlcoolValidate(action.id)}
+                className="px-3 py-1.5 rounded-full text-xs font-medium border transition bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+              >
+                🍷 Valider licence
+              </button>
+            ) : (
+              <button onClick={() => onStatusChange(action.id, next[action.status])}
+                className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                  action.status === "done" ? "bg-alaska-sage-lt text-alaska-sage border-alaska-sage"
+                  : action.status === "in_progress" ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : "bg-white text-alaska-muted border-alaska-sage-lt hover:bg-alaska-sage-lt")}>
+                {action.status === "done" ? "✅ Fait" : action.status === "in_progress" ? "🔄 En cours" : "○ À faire"}
+              </button>
+            )}
+          </div>
         </div>
         {action.budget_max > 0 && (
           <p className="text-xs text-alaska-muted mt-2">

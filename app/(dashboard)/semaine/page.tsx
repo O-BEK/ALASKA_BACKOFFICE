@@ -137,7 +137,7 @@ export default function SemainePage() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-playfair font-semibold text-alaska-dark">
-                    {day.entry ? formatMAD(day.entry.ca_caisse) : "—"}
+                    {day.entry ? formatMAD(getCashSalesReference(day.entry)) : "—"}
                   </p>
                   {day.totalExpenses > 0 && (
                     <p className="text-xs text-alaska-muted">Dép: {formatMAD(day.totalExpenses)}</p>

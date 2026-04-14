@@ -532,6 +532,77 @@ export async function updateActionStatus(client: SupabaseClientLike, payload: { 
   return (data || []).map(mapActionItem)
 }
 
+export async function createActionItem(
+  client: SupabaseClientLike,
+  payload: {
+    lever: string; title: string; description: string
+    priority: string; deadline: string
+    budget_min: number; budget_max: number; impact: string
+    userId: string
+  }
+): Promise<ActionItem[]> {
+  const { data: last } = await client.from("action_items")
+    .select("sort_order").order("sort_order", { ascending: false }).limit(1)
+  const nextOrder = ((last?.[0]?.sort_order) ?? 0) + 1
+  const { error } = await client.from("action_items").insert({
+    lever: payload.lever, title: payload.title, description: payload.description,
+    priority: payload.priority, deadline: payload.deadline,
+    budget_min: payload.budget_min, budget_max: payload.budget_max,
+    impact: payload.impact, status: "todo",
+    sort_order: nextOrder, created_by: payload.userId,
+  })
+  if (error) throw new Error(error.message)
+  const { data, error: fetchErr } = await client.from("action_items")
+    .select("*").order("sort_order", { ascending: true }).order("created_at", { ascending: true })
+  if (fetchErr) throw new Error(fetchErr.message)
+  return (data || []).map(mapActionItem)
+}
+
+export async function updateActionItem(
+  client: SupabaseClientLike,
+  payload: { id: string; [key: string]: unknown }
+): Promise<ActionItem[]> {
+  const { id, ...fields } = payload
+  const patch: Record<string, unknown> = { updated_at: nowIso() }
+  const allowed = ["lever", "title", "description", "priority", "deadline", "budget_min", "budget_max", "impact", "status"]
+  for (const key of allowed) {
+    if (fields[key] !== undefined) patch[key] = fields[key]
+  }
+  if (patch.status === "done") patch.completed_at = nowIso()
+  const { error } = await client.from("action_items").update(patch).eq("id", id)
+  if (error) throw new Error(error.message)
+  const { data, error: fetchErr } = await client.from("action_items")
+    .select("*").order("sort_order", { ascending: true }).order("created_at", { ascending: true })
+  if (fetchErr) throw new Error(fetchErr.message)
+  return (data || []).map(mapActionItem)
+}
+
+export async function deleteActionItem(
+  client: SupabaseClientLike,
+  id: string
+): Promise<ActionItem[]> {
+  const { error } = await client.from("action_items").delete().eq("id", id)
+  if (error) throw new Error(error.message)
+  const { data, error: fetchErr } = await client.from("action_items")
+    .select("*").order("sort_order", { ascending: true }).order("created_at", { ascending: true })
+  if (fetchErr) throw new Error(fetchErr.message)
+  return (data || []).map(mapActionItem)
+}
+
+export async function updateMonthlyObjective(
+  client: SupabaseClientLike,
+  year: number, month: number, target_ca: number
+): Promise<MonthlyObjective[]> {
+  const { error } = await client.from("monthly_objectives")
+    .update({ target_ca })
+    .eq("year", year).eq("month", month)
+  if (error) throw new Error(error.message)
+  const { data, error: fetchErr } = await client.from("monthly_objectives")
+    .select("*").order("year", { ascending: true }).order("month", { ascending: true })
+  if (fetchErr) throw new Error(fetchErr.message)
+  return (data || []).map(mapMonthlyObjective)
+}
+
 export async function applyAlcoolLicenseUplift(
   client: SupabaseClientLike,
   payload: { actionId: string; effectMonth: string; upliftPct: number }

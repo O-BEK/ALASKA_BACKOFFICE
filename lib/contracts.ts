@@ -586,6 +586,54 @@ export function parseCreateChargeBody(input: unknown): {
 
 export type ParsedExpenseItem = ExpenseItem
 
+export function parseCreateActionBody(input: unknown): {
+  lever: ActionItem["lever"]
+  title: string
+  description: string
+  priority: ActionItem["priority"]
+  deadline: string
+  budget_min: number
+  budget_max: number
+  impact: string
+} {
+  return z.object({
+    lever: z.enum(["soir", "terrasse", "b2b", "marketing", "pilotage"]),
+    title: z.string().min(1),
+    description: z.string().default(""),
+    priority: z.enum(["urgent", "medium", "low"]).default("medium"),
+    deadline: z.string().default(""),
+    budget_min: z.coerce.number().min(0).default(0),
+    budget_max: z.coerce.number().min(0).default(0),
+    impact: z.string().default(""),
+  }).parse(input)
+}
+
+export function parseUpdateActionBody(input: unknown): {
+  id: string
+  lever?: ActionItem["lever"]
+  title?: string
+  description?: string
+  priority?: ActionItem["priority"]
+  deadline?: string
+  budget_min?: number
+  budget_max?: number
+  impact?: string
+  status?: ActionItem["status"]
+} {
+  return z.object({
+    id: z.string().min(1),
+    lever: z.enum(["soir", "terrasse", "b2b", "marketing", "pilotage"]).optional(),
+    title: z.string().min(1).optional(),
+    description: z.string().optional(),
+    priority: z.enum(["urgent", "medium", "low"]).optional(),
+    deadline: z.string().optional(),
+    budget_min: z.coerce.number().min(0).optional(),
+    budget_max: z.coerce.number().min(0).optional(),
+    impact: z.string().optional(),
+    status: z.enum(["todo", "in_progress", "done", "cancelled"]).optional(),
+  }).parse(input)
+}
+
 export function parseExpenseTemplatesPayload(raw: unknown): { sections: ExpenseSection[] } {
   if (!raw || typeof raw !== "object") return { sections: [] }
   const obj = raw as Record<string, unknown>
