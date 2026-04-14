@@ -20,6 +20,13 @@ export default function ChargesPage() {
   const [showSim, setShowSim] = useState(false)
   const [simSalaire, setSimSalaire] = useState(5000)
 
+  const daysInCurrentMonth = new Date(
+    new Date().getFullYear(),
+    new Date().getMonth() + 1,
+    0
+  ).getDate()
+  const dailyMinCA = Math.round(breakeven / daysInCurrentMonth)
+
   const [addingCat, setAddingCat] = useState<string | null>(null)
   const [newName, setNewName] = useState("")
   const [newAmount, setNewAmount] = useState("")
@@ -65,7 +72,7 @@ export default function ChargesPage() {
         <p className="text-alaska-muted text-sm mt-1">Gestion et simulation d&apos;impact</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardContent className="pt-4 pb-4">
             <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Total mensuel</p>
@@ -76,6 +83,13 @@ export default function ChargesPage() {
           <CardContent className="pt-4 pb-4">
             <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Seuil rentabilité</p>
             <p className="text-2xl font-playfair font-bold text-alaska-dark">{formatMAD(breakeven)}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">CA / jour min.</p>
+            <p className="text-2xl font-playfair font-bold text-alaska-dark">{formatMAD(dailyMinCA)}</p>
+            <p className="text-[11px] text-alaska-muted mt-1">Sur {daysInCurrentMonth} jours ce mois</p>
           </CardContent>
         </Card>
       </div>
@@ -139,7 +153,14 @@ export default function ChargesPage() {
             <CardHeader className="pb-2 pt-4">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-alaska-dark">{label}</CardTitle>
-                <span className="text-sm font-playfair font-bold text-alaska-sage">{formatMAD(catTotal)}</span>
+                <div className="text-right">
+                  <span className="text-sm font-playfair font-bold text-alaska-sage">{formatMAD(catTotal)}</span>
+                  {totalActive > 0 && (
+                    <span className="ml-2 text-xs text-alaska-muted">
+                      {Math.round((catTotal / totalActive) * 100)}%
+                    </span>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3 pb-4">
