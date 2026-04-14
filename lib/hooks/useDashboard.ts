@@ -7,6 +7,8 @@ import type { MonthlyKPIs } from "@/lib/types"
 interface DashboardState {
   kpis: MonthlyKPIs
   delta_ca: number
+  delta_expenses: number
+  delta_marge: number
   last12: { month: string; ca_caisse: number; ca_b2b: number; ca_total: number; breakeven: number }[]
   hasMonthData: boolean
   monthObjective: {
@@ -66,6 +68,8 @@ export function useDashboard(month: string, enabled = true) {
   const [state, setState] = useState<DashboardState>({
     kpis: { ...emptyKpis, month },
     delta_ca: 0,
+    delta_expenses: 0,
+    delta_marge: 0,
     last12: [],
     hasMonthData: false,
     monthObjective: {
@@ -107,6 +111,8 @@ export function useDashboard(month: string, enabled = true) {
       setState({
         kpis: { ...emptyKpis, month },
         delta_ca: 0,
+        delta_expenses: 0,
+        delta_marge: 0,
         last12: [],
         hasMonthData: false,
         monthObjective: {
@@ -165,6 +171,8 @@ export function useDashboard(month: string, enabled = true) {
         setState({
           kpis: { ...emptyKpis, month },
           delta_ca: 0,
+          delta_expenses: 0,
+          delta_marge: 0,
           last12: [],
           hasMonthData: false,
           monthObjective: {

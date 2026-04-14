@@ -120,6 +120,8 @@ const dashboardStateSchema = z.object({
     ca_per_day: 0,
   }),
   delta_ca: z.coerce.number().catch(0),
+  delta_expenses: z.coerce.number().catch(0),
+  delta_marge: z.coerce.number().catch(0),
   last12: z.array(dashboardLast12Schema).catch([]),
   hasMonthData: z.coerce.boolean().catch(false),
   monthObjective: dashboardObjectiveSchema.catch({
@@ -451,6 +453,8 @@ const reportingPayloadSchema = z.object({
 export function parseDashboardState(input: unknown, month: string): {
   kpis: MonthlyKPIs
   delta_ca: number
+  delta_expenses: number
+  delta_marge: number
   last12: { month: string; ca_caisse: number; ca_b2b: number; ca_total: number; breakeven: number }[]
   hasMonthData: boolean
   monthObjective: {

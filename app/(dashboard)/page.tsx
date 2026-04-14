@@ -65,7 +65,7 @@ function WeeklyTooltip({
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
-  const { kpis, delta_ca, last12, hasMonthData, monthObjective, weeklyMonth, loading, error } = useDashboard(month)
+  const { kpis, delta_ca, delta_expenses, delta_marge, last12, hasMonthData, monthObjective, weeklyMonth, loading, error } = useDashboard(month)
   const [actions, setActions] = useState<ActionItem[]>([])
   const [imports, setImports] = useState<ImportRecord[]>([])
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
@@ -174,8 +174,8 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KPICard title="CA Total" value={formatMAD(kpis.ca_total)} delta={delta_ca} icon={<DollarSign size={16} className="text-alaska-sage" />} />
-            <KPICard title="Dépenses" value={formatMAD(kpis.total_expenses)} icon={<ShoppingCart size={16} className="text-orange-500" />} valueClass="text-orange-600" />
-            <KPICard title="Marge nette" value={formatMAD(kpis.marge_nette)} sub={`${kpis.taux_marge.toFixed(1)}% du CA`} icon={<Activity size={16} className={kpis.marge_nette >= 0 ? "text-alaska-sage" : "text-red-500"} />} valueClass={kpis.marge_nette >= 0 ? "text-alaska-gold" : "text-red-600"} />
+            <KPICard title="Dépenses" value={formatMAD(kpis.total_expenses)} delta={delta_expenses} deltaInverted icon={<ShoppingCart size={16} className="text-orange-500" />} valueClass="text-orange-600" />
+            <KPICard title="Marge nette" value={formatMAD(kpis.marge_nette)} sub={delta_marge !== 0 ? `${delta_marge >= 0 ? "+" : ""}${formatMAD(Math.abs(delta_marge))} ${delta_marge >= 0 ? "↑" : "↓"} vs mois préc.` : `${kpis.taux_marge.toFixed(1)}% du CA`} icon={<Activity size={16} className={kpis.marge_nette >= 0 ? "text-alaska-sage" : "text-red-500"} />} valueClass={kpis.marge_nette >= 0 ? "text-alaska-gold" : "text-red-600"} />
             <KPICard title="CA / Jour" value={formatMAD(kpis.ca_per_day)} sub={monthObjective.target ? `Obj. ${formatMAD(monthObjective.daily_target)}` : `${kpis.days_count} jours saisis`} icon={<CalendarDays size={16} className="text-alaska-sage" />} />
           </div>
 
@@ -414,6 +414,7 @@ function KPICard({
   value,
   sub,
   delta,
+  deltaInverted,
   icon,
   valueClass,
 }: {
@@ -421,6 +422,7 @@ function KPICard({
   value: string
   sub?: string
   delta?: number
+  deltaInverted?: boolean
   icon: ReactNode
   valueClass?: string
 }) {
@@ -432,7 +434,16 @@ function KPICard({
           {icon}
         </div>
         <p className={cn("text-xl font-playfair font-bold", valueClass || "text-alaska-dark")}>{value}</p>
-        {delta !== undefined && <p className={cn("mt-1 text-xs", delta >= 0 ? "text-alaska-sage" : "text-red-500")}>{formatPct(delta)} vs mois précédent</p>}
+        {delta !== undefined && (
+          <p className={cn(
+            "mt-1 text-xs",
+            deltaInverted
+              ? delta <= 0 ? "text-alaska-sage" : "text-red-500"
+              : delta >= 0 ? "text-alaska-sage" : "text-red-500"
+          )}>
+            {formatPct(delta)} vs mois précédent
+          </p>
+        )}
         {sub && <p className="mt-1 text-[11px] text-alaska-muted">{sub}</p>}
       </CardContent>
     </Card>

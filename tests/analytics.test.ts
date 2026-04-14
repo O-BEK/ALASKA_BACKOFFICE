@@ -129,6 +129,27 @@ describe("buildDashboardData", () => {
   })
 })
 
+describe("buildDashboardData delta fields", () => {
+  it("buildDashboardData inclut delta_expenses et delta_marge", () => {
+    const db = makeDb({
+      daily_sales: [
+        makeSale({ id: "s1", date: "2026-04-01", ca_caisse: 3000, ca_b2b: 1000 }),
+        makeSale({ id: "s2", date: "2026-03-01", ca_caisse: 2500, ca_b2b: 500 }),
+      ],
+      expenses: [
+        { id: "e1", date: "2026-04-01", category: "MP", label: "Poisson", amount: 800, notes: "", created_by: null, updated_at: "" },
+        { id: "e2", date: "2026-03-01", category: "MP", label: "Poisson", amount: 1000, notes: "", created_by: null, updated_at: "" },
+      ],
+    })
+
+    const result = buildDashboardData(db, "2026-04")
+
+    // dépenses avril (800) < dépenses mars (1000) → delta_expenses < 0
+    expect(result.delta_expenses).toBeLessThan(0)
+    expect(typeof result.delta_marge).toBe("number")
+  })
+})
+
 describe("monthReporting", () => {
   it("keeps dashboard, weekly view, and reporting totals coherent for one fixed month", () => {
     const sales = Array.from({ length: 10 }, (_, index) => {
