@@ -17,7 +17,9 @@ export async function GET() {
   try {
     const sections = await getExpenseSections(supabase)
     return NextResponse.json({ sections })
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/expense-templates GET]", message)
     return NextResponse.json({ error: "Impossible de charger les modèles." }, { status: 500 })
   }
 }
@@ -55,7 +57,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: "Type invalide." }, { status: 400 })
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/expense-templates POST]", message)
     return NextResponse.json({ error: "Impossible de créer l'élément." }, { status: 500 })
   }
 }
@@ -81,7 +85,9 @@ export async function DELETE(request: Request) {
         ? await deleteExpenseSection(supabase, id)
         : await deleteExpenseItem(supabase, id)
     return NextResponse.json({ sections })
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/expense-templates DELETE]", message)
     return NextResponse.json({ error: "Impossible de supprimer." }, { status: 500 })
   }
 }

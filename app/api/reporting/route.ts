@@ -24,7 +24,9 @@ export async function GET(request: Request) {
       ...monthReporting(db, month),
       last6: buildLastSixMonths(db, month),
     })
-  } catch {
-    return NextResponse.json({ error: "Impossible de charger le reporting." }, { status: 500 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/reporting]", message)
+    return NextResponse.json({ error: "Impossible de charger le reporting.", detail: message }, { status: 500 })
   }
 }

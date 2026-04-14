@@ -59,12 +59,31 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const actions = await updateActionStatus(supabase, {
+    await updateActionStatus(supabase, {
       id: actionId,
       status: status as "todo" | "in_progress" | "done" | "cancelled",
     })
-    return NextResponse.json({ actions })
-  } catch {
+    const db = await readSnapshot(supabase)
+    const monthlyReal = db.monthly_objectives.map((item) => {
+      const monthKey = `${item.year}-${String(item.month).padStart(2, "0")}`
+      const monthly = buildMonthlyKpis(db, monthKey)
+      return {
+        year: item.year,
+        month: item.month,
+        real: monthly.ca_total,
+        target: item.target_ca,
+        notes: item.notes || "",
+      }
+    })
+    return NextResponse.json({
+      actions: db.action_items,
+      objectives: db.objectives,
+      monthlyObjectives: db.monthly_objectives,
+      monthlyReal,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue"
+    console.error("[api/objectives PUT]", message)
     return NextResponse.json({ error: "Impossible de mettre à jour l'action." }, { status: 500 })
   }
 }

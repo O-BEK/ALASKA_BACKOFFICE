@@ -7,18 +7,18 @@ export function calcBreakeven(fixedCharges: number, variableCostRate = VARIABLE_
   return fixedCharges / (1 - variableCostRate)
 }
 
-export function calcNetMargin(caCaisse: number, expenses: number): number {
-  return caCaisse - expenses - caCaisse * VARIABLE_COST_RATE
+export function calcNetMargin(caTotal: number, expenses: number): number {
+  return caTotal - expenses - caTotal * VARIABLE_COST_RATE
 }
 
-export function calcMarginRate(netMargin: number, caCaisse: number): number {
-  if (caCaisse === 0) return 0
-  return (netMargin / caCaisse) * 100
+export function calcMarginRate(netMargin: number, caTotal: number): number {
+  if (caTotal === 0) return 0
+  return (netMargin / caTotal) * 100
 }
 
-export function calcBreakevenPct(caCaisse: number, breakeven: number): number {
+export function calcBreakevenPct(caTotal: number, breakeven: number): number {
   if (breakeven === 0) return 0
-  return (caCaisse / breakeven) * 100
+  return (caTotal / breakeven) * 100
 }
 
 export function calcYearEndProjection(cumulativeReal: number, monthsDone: number, totalMonths = 12): number {
