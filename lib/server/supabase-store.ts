@@ -594,7 +594,7 @@ export async function updateMonthlyObjective(
   year: number, month: number, target_ca: number
 ): Promise<MonthlyObjective[]> {
   const { error } = await client.from("monthly_objectives")
-    .update({ target_ca, updated_at: nowIso() })
+    .update({ target_ca })
     .eq("year", year).eq("month", month)
   if (error) throw new Error(error.message)
   const { data, error: fetchErr } = await client.from("monthly_objectives")
