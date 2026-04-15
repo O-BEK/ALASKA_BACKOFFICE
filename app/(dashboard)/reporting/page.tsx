@@ -220,7 +220,7 @@ export default function ReportingPage() {
                   )}
 
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[560px] text-sm">
+                    <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-alaska-sage-lt text-left text-xs uppercase tracking-wide text-alaska-muted">
                           <th className="pb-2 font-medium">Année</th>
@@ -247,16 +247,51 @@ export default function ReportingPage() {
                   {monthlyProjection.length > 0 && (
                     <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/30 px-3 py-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-alaska-muted">6 prochains mois</p>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+
+                      {/* Table desktop */}
+                      <div className="hidden sm:block mt-2 overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-alaska-sage-lt text-left text-xs uppercase tracking-wide text-alaska-muted">
+                              <th className="pb-2 font-medium">Mois</th>
+                              <th className="pb-2 font-medium">Sans alcool</th>
+                              <th className="pb-2 font-medium">Impact</th>
+                              <th className="pb-2 font-medium">Source</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {monthlyProjection.map((item) => (
+                              <tr key={item.month} className="border-b border-alaska-sage-lt/70 last:border-b-0">
+                                <td className="py-3 font-medium text-alaska-dark capitalize">{item.label}</td>
+                                <td className="py-3 text-alaska-dark">{formatMAD(item.sans_alcool)}</td>
+                                <td className="py-3 font-medium text-alaska-sage">
+                                  {item.delta > 0 ? `+${formatMAD(item.delta)}` : "—"}
+                                </td>
+                                <td className="py-3 text-xs text-alaska-muted">{item.source}{item.alcool_active ? " · alcool actif" : ""}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Cards mobile */}
+                      <div className="sm:hidden mt-2 grid gap-2">
                         {monthlyProjection.map((item) => (
-                          <div key={item.month} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-xs">
-                            <div>
-                              <p className="font-medium capitalize text-alaska-dark">{item.label}</p>
-                              <p className="text-alaska-muted">{item.source}{item.alcool_active ? " · alcool actif" : ""}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-alaska-dark">{formatMAD(item.sans_alcool)}</p>
-                              {item.delta > 0 && <p className="text-alaska-sage">+{formatMAD(item.delta)}</p>}
+                          <div key={item.month} className="rounded-lg border border-alaska-sage-lt bg-white p-3">
+                            <p className="text-sm font-semibold text-alaska-dark capitalize mb-2">{item.label}</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <p className="text-alaska-muted">Sans alcool</p>
+                                <p className="font-medium text-alaska-dark">{formatMAD(item.sans_alcool)}</p>
+                              </div>
+                              <div>
+                                <p className="text-alaska-muted">Impact</p>
+                                <p className="font-medium text-alaska-sage">{item.delta > 0 ? `+${formatMAD(item.delta)}` : "—"}</p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-alaska-muted">Source</p>
+                                <p className="font-medium text-alaska-dark text-xs">{item.source}{item.alcool_active ? " · alcool actif" : ""}</p>
+                              </div>
                             </div>
                           </div>
                         ))}
