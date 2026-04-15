@@ -1,8 +1,9 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { parseReportingPayload } from "@/lib/contracts"
 import { useObjectives } from "@/lib/hooks/useObjectives"
 import { formatMAD } from "@/lib/utils"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ActionItem } from "@/lib/types"
@@ -249,6 +250,23 @@ export default function ObjectifsPage() {
   const [alcoolLoading, setAlcoolLoading] = useState(false)
   const [alcoolError, setAlcoolError] = useState<string | null>(null)
   const [alcoolPreview, setAlcoolPreview] = useState<{ month: string; before: number; after: number }[]>([])
+
+  const [smartProjection, setSmartProjection] = useState<ReturnType<typeof parseReportingPayload>["smartProjection"] | null>(null)
+  const [projectionLoading, setProjectionLoading] = useState(false)
+
+  useEffect(() => {
+    if (tab !== "Trajectoire") return
+    setProjectionLoading(true)
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    fetch(`/api/reporting?month=${currentMonth}`)
+      .then(async (res) => {
+        const json = await res.json()
+        return parseReportingPayload(json)
+      })
+      .then((data) => setSmartProjection(data.smartProjection))
+      .catch(() => setSmartProjection(null))
+      .finally(() => setProjectionLoading(false))
+  }, [tab])
 
   const computePreview = (uplift: number, effectMonth: string) => {
     const [effYear, effMonth] = effectMonth.split("-").map(Number)
@@ -583,6 +601,37 @@ export default function ObjectifsPage() {
               </div>
             </CardContent>
           </Card>
+          {projectionLoading && (
+            <div className="h-40 animate-pulse rounded-xl bg-alaska-sage-lt/40 mt-4" />
+          )}
+          {!projectionLoading && smartProjection && (
+            <Card className="rounded-xl border border-alaska-sage-lt bg-white mt-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base text-alaska-dark">Projection intelligente</CardTitle>
+                <CardDescription className="text-xs text-alaska-muted">
+                  Scénario sans alcool vs avec licence alcool
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-4">
+                  {[
+                    { label: "Croissance retenue", value: `${smartProjection.assumptions.growth_pct.toFixed(1)}% / an` },
+                    { label: "Part caisse", value: `${smartProjection.assumptions.caisse_share_pct.toFixed(0)}% du CA` },
+                    { label: "Uplift alcool", value: `+${smartProjection.assumptions.alcool_uplift_pct.toFixed(0)}% ticket` },
+                    { label: "Effet CA total", value: `+${smartProjection.assumptions.alcool_effect_on_total_pct.toFixed(0)}%` },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="rounded-lg border border-alaska-sage-lt px-3 py-3">
+                      <p className="text-[11px] uppercase tracking-wide text-alaska-muted">{label}</p>
+                      <p className="mt-1 text-sm font-medium text-alaska-dark">{value}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-alaska-muted">
+                  Trajectoire annuelle complète disponible dans le Reporting.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
