@@ -1,11 +1,10 @@
 "use client"
 import { useEffect, useState } from "react"
-import { format, addDays, subDays, startOfWeek, addWeeks, subWeeks, parseISO } from "date-fns"
+import { format, addDays, subDays, startOfWeek, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
+import Link from "next/link"
 import { useDailyEntry } from "@/lib/hooks/useDailyEntry"
 import { useDashboard } from "@/lib/hooks/useDashboard"
-import { useWeekView } from "@/lib/hooks/useWeekView"
-import { useWeekEntries } from "@/lib/hooks/useWeekEntries"
 import { useCaisseBalance } from "@/lib/hooks/useCaisseBalance"
 import { useCharges } from "@/lib/hooks/useCharges"
 import { useExpenseTemplates } from "@/lib/hooks/useExpenseTemplates"
@@ -17,9 +16,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, ChevronRight, CheckCircle2, Minus, Plus, ChevronDown, ChevronUp, Save, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { WeekGrid } from "@/components/saisie/WeekGrid"
 
-const TABS = ["Caisse", "Semaine", "Mois"] as const
+const TABS = ["Caisse", "Mois"] as const
 type Tab = typeof TABS[number]
 
 const MONTHS_FR = ["Jan", "Fév", "Mars", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
@@ -27,6 +25,7 @@ const MONTHS_FR = ["Jan", "Fév", "Mars", "Avr", "Mai", "Jun", "Jul", "Aoû", "S
 export default function SaisiePage() {
   const today = new Date()
   const initialRequestedDate = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("date") : null
+  const cameFromWeek = !!initialRequestedDate
   const initialDate = initialRequestedDate ? parseISO(initialRequestedDate) : today
   const [tab, setTab] = useState<Tab>("Caisse")
   const [date, setDate] = useState(initialDate)
@@ -35,7 +34,7 @@ export default function SaisiePage() {
   const [showAllStaff, setShowAllStaff] = useState(false)
   const { role } = useUserRole()
   const isAdmin = role === "admin"
-  const availableTabs = isAdmin ? TABS : (TABS.filter((item) => item !== "Mois") as Tab[])
+  const availableTabs = isAdmin ? TABS : (["Caisse"] as const as readonly Tab[])
   const setActiveDate = (nextDate: Date) => {
     setDate(nextDate)
     setWeekStart(startOfWeek(nextDate, { weekStartsOn: 1 }))
@@ -58,31 +57,9 @@ export default function SaisiePage() {
   const dateStr = format(date, "yyyy-MM-dd")
   const { entry, update, updateExpense, addExpense, save, saved, error: entryError } = useDailyEntry(dateStr)
   const { cashMonth } = useDashboard(viewMonth, isAdmin)
-  const weekData = useWeekView(weekStart)
-  const {
-    entries: weekEntries,
-    dates: weekDates,
-    updateCA: updateWeekCA,
-    updateExpense: updateWeekExpense,
-    error: weekEntriesError,
-  } = useWeekEntries(weekStart)
   const balanceSince = format(weekStart, "yyyy-MM-dd")
   const { balance, toDeposit, since, error: balanceError, refetch: refetchBalance } = useCaisseBalance(balanceSince)
   const safeExpenses = Array.isArray(entry.expenses) ? entry.expenses : []
-  const safeWeekDays = Array.isArray(weekData.days) ? weekData.days : []
-  const weekTotals = weekDates.reduce(
-    (totals, weekDate) => {
-      const weekEntry = weekEntries[weekDate]
-      const expenses = weekEntry?.expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) ?? 0
-      totals.cashSales += getCashSalesReference(weekEntry)
-      totals.cashMovements += getCashMovementsReference(weekEntry)
-      totals.expenses += expenses
-      totals.envelope += getCashEnvelope(weekEntry, expenses)
-      totals.caGlobal += getGlobalIndicativeCA(weekEntry)
-      return totals
-    },
-    { cashSales: 0, cashMovements: 0, expenses: 0, envelope: 0, caGlobal: 0 }
-  )
 
   const { charges } = useCharges("staff")
   const { sections } = useExpenseTemplates()
@@ -113,22 +90,17 @@ export default function SaisiePage() {
   const soldeCaisse = getCashEnvelope(entry, totalExpenses)
   const statusIcon = cashSalesReference > 0 && totalExpenses > 0 ? "✅"
     : cashSalesReference > 0 || totalExpenses > 0 ? "🟡" : "⬜"
-  const handleWeekCAUpdate = async (weekDate: string, ca: number) => {
-    await updateWeekCA(weekDate, ca)
-    refetchBalance()
-  }
-  const handleWeekExpenseUpdate = async (
-    weekDate: string,
-    category: "MP" | "RH" | "CHARGES" | "AUTRE",
-    label: string,
-    amount: number
-  ) => {
-    await updateWeekExpense(weekDate, category, label, amount)
-    refetchBalance()
-  }
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
+      {cameFromWeek && (
+        <Link
+          href="/semaine"
+          className="inline-flex items-center gap-1.5 text-sm text-alaska-sage hover:underline"
+        >
+          <ChevronLeft size={14} /> Retour semaine
+        </Link>
+      )}
       <div className="flex bg-white border border-alaska-sage-lt rounded-lg p-1 gap-1">
         {availableTabs.map((item) => (
           <button
@@ -147,12 +119,6 @@ export default function SaisiePage() {
       {tab === "Caisse" && (entryError || balanceError) && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {entryError || balanceError}
-        </div>
-      )}
-
-      {tab === "Semaine" && weekEntriesError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {weekEntriesError}
         </div>
       )}
 
@@ -320,68 +286,6 @@ export default function SaisiePage() {
               {!saved && <p className="text-center text-xs text-alaska-muted flex items-center justify-center gap-1"><Clock size={10} />Sauvegarde auto dans 2s</p>}
             </CardContent>
           </Card>
-        </div>
-      )}
-
-      {tab === "Semaine" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between bg-white border border-alaska-sage-lt rounded-lg p-3">
-            <button onClick={() => setWeekStart((current) => subWeeks(current, 1))} className="p-1 hover:bg-alaska-sage-lt rounded transition">
-              <ChevronLeft size={18} className="text-alaska-muted" />
-            </button>
-            <p className="text-sm font-semibold text-alaska-dark">
-              {format(weekStart, "d MMM", { locale: fr })} – {format(addDays(weekStart, 6), "d MMM yyyy", { locale: fr })}
-            </p>
-            <button onClick={() => setWeekStart((current) => addWeeks(current, 1))} className="p-1 hover:bg-alaska-sage-lt rounded transition">
-              <ChevronRight size={18} className="text-alaska-muted" />
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Card className="bg-alaska-dark text-white rounded-xl">
-              <CardContent className="pt-4 pb-4">
-                <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash théorique enveloppe</p>
-                <p className={cn("text-2xl font-playfair font-bold mt-1", weekTotals.envelope >= 0 ? "text-alaska-gold" : "text-red-400")}>
-                  {weekTotals.envelope < 0 ? "-" : ""}{formatMAD(Math.abs(weekTotals.envelope))}
-                </p>
-                <p className="text-xs text-alaska-muted mt-1">Cash POS + mouvements - achats cash</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-white border border-alaska-sage-lt rounded-xl">
-              <CardContent className="pt-4 pb-4">
-                <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash POS semaine</p>
-                <p className="text-2xl font-playfair font-bold text-alaska-dark mt-1">{formatMAD(weekTotals.cashSales)}</p>
-                <p className="text-xs text-alaska-muted mt-1">Achats: {formatMAD(weekTotals.expenses)} · Mouvements: {formatMAD(weekTotals.cashMovements)}</p>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="hidden md:block bg-white border border-alaska-sage-lt rounded-xl p-4">
-            <WeekGrid entries={weekEntries} dates={weekDates} onUpdateCA={handleWeekCAUpdate} onUpdateExpense={handleWeekExpenseUpdate} />
-          </div>
-          <div className="md:hidden space-y-4">
-            <Card className="bg-white border border-alaska-sage-lt rounded-xl">
-              <CardContent className="pt-4 pb-2 space-y-2">
-                {safeWeekDays.map((day) => (
-                  <button
-                    key={day.date}
-                    onClick={() => {
-                      setActiveDate(new Date(day.date))
-                      setTab("Caisse")
-                    }}
-                    className="w-full flex items-center justify-between p-3 bg-alaska-sage-lt/40 hover:bg-alaska-sage-lt rounded-lg transition text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm">{day.status === "full" ? "✅" : day.status === "partial" ? "🟡" : "⬜"}</span>
-                      <span className="text-sm font-medium capitalize text-alaska-dark">{day.label}</span>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-alaska-dark">{day.entry ? formatMAD(getCashSalesReference(day.entry)) : "—"}</p>
-                      {day.totalExpenses > 0 && <p className="text-xs text-alaska-muted">Achats: {formatMAD(day.totalExpenses)}</p>}
-                    </div>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
         </div>
       )}
 

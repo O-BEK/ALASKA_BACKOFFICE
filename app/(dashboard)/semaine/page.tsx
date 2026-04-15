@@ -128,13 +128,16 @@ export default function SemainePage() {
                   </span>
                   <p className="text-sm font-medium capitalize text-alaska-dark">{day.label}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-playfair font-semibold text-alaska-dark">
-                    {day.entry ? formatMAD(getCashSalesReference(day.entry)) : "—"}
-                  </p>
-                  {day.totalExpenses > 0 && (
-                    <p className="text-xs text-alaska-muted">Dép: {formatMAD(day.totalExpenses)}</p>
-                  )}
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <p className="text-sm font-playfair font-semibold text-alaska-dark">
+                      {day.entry ? formatMAD(getCashSalesReference(day.entry)) : "—"}
+                    </p>
+                    {day.totalExpenses > 0 && (
+                      <p className="text-xs text-alaska-muted">Dép: {formatMAD(day.totalExpenses)}</p>
+                    )}
+                  </div>
+                  <ChevronRight size={14} className="text-alaska-muted flex-shrink-0" />
                 </div>
               </button>
             ))}
