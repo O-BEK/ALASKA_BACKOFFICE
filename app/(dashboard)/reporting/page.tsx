@@ -377,8 +377,9 @@ export default function ReportingPage() {
               <CardDescription className="text-xs text-alaska-muted">Lecture mois par mois de l&apos;année courante</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px] text-sm">
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-alaska-sage-lt text-left text-xs uppercase tracking-wide text-alaska-muted">
                       <th className="pb-2 font-medium">Mois</th>
@@ -400,6 +401,21 @@ export default function ReportingPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              {/* Mobile cards */}
+              <div className="sm:hidden space-y-2">
+                {payload.comparison.map((item) => (
+                  <div key={item.month} className="flex items-center justify-between rounded-lg border border-alaska-sage-lt px-3 py-2">
+                    <span className="text-sm font-medium text-alaska-dark">{item.month}</span>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-alaska-muted">{formatMAD(item.previous)}</span>
+                      <span className="text-alaska-dark">{formatMAD(item.current)}</span>
+                      <span className={cn("font-medium", item.delta_pct === null ? "text-alaska-muted" : item.delta_pct >= 0 ? "text-alaska-sage" : "text-red-500")}>
+                        {item.delta_pct === null ? "—" : formatPct(item.delta_pct)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
