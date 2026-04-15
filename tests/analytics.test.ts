@@ -129,6 +129,26 @@ describe("buildDashboardData", () => {
   })
 })
 
+describe("buildDashboardData kpis_secondary", () => {
+  it("buildDashboardData inclut kpis_secondary avec avg_ticket, coverage_pct, mix_cash_pct", () => {
+    // jour 1 : ca_caisse: 2000, ca_b2b: 500, tickets_count: 20
+    // jour 2 : ca_caisse: 1800, ca_b2b: 400, tickets_count: 18
+    // avg_ticket = (2000+500+1800+400) / (20+18) = 4700/38 ≈ 123.68
+    // coverage_pct = 2/30 * 100 ≈ 6.67
+    // mix_cash_pct = (2000+1800) / (2000+500+1800+400) * 100 = 3800/4700 * 100 ≈ 80.85
+    const db = makeDb({
+      daily_sales: [
+        makeSale({ id: "s1", date: "2026-04-01", ca_caisse: 2000, ca_b2b: 500, tickets_count: 20 }),
+        makeSale({ id: "s2", date: "2026-04-02", ca_caisse: 1800, ca_b2b: 400, tickets_count: 18 }),
+      ],
+    })
+    const result = buildDashboardData(db, "2026-04")
+    expect(result.kpis_secondary.avg_ticket).toBeCloseTo(123.68, 0)
+    expect(result.kpis_secondary.coverage_pct).toBeCloseTo(6.67, 0)
+    expect(result.kpis_secondary.mix_cash_pct).toBeCloseTo(80.85, 0)
+  })
+})
+
 describe("buildDashboardData delta fields", () => {
   it("buildDashboardData inclut delta_expenses et delta_marge", () => {
     const db = makeDb({

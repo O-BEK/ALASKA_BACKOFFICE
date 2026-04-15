@@ -65,7 +65,7 @@ function WeeklyTooltip({
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
-  const { kpis, delta_ca, delta_expenses, delta_marge, last12, hasMonthData, monthObjective, weeklyMonth, loading, error } = useDashboard(month)
+  const { kpis, kpis_secondary, delta_ca, delta_expenses, delta_marge, last12, hasMonthData, monthObjective, weeklyMonth, loading, error } = useDashboard(month)
   const [actions, setActions] = useState<ActionItem[]>([])
   const [imports, setImports] = useState<ImportRecord[]>([])
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
@@ -178,6 +178,23 @@ export default function DashboardPage() {
             <KPICard title="Marge nette" value={formatMAD(kpis.marge_nette)} sub={delta_marge !== 0 ? `${delta_marge >= 0 ? "+" : ""}${formatMAD(Math.abs(delta_marge))} ${delta_marge >= 0 ? "↑" : "↓"} vs mois préc.` : `${kpis.taux_marge.toFixed(1)}% du CA`} icon={<Activity size={16} className={kpis.marge_nette >= 0 ? "text-alaska-sage" : "text-red-500"} />} valueClass={kpis.marge_nette >= 0 ? "text-alaska-gold" : "text-red-600"} />
             <KPICard title="CA / Jour" value={formatMAD(kpis.ca_per_day)} sub={monthObjective.target ? `Obj. ${formatMAD(monthObjective.daily_target)}` : `${kpis.days_count} jours saisis`} icon={<CalendarDays size={16} className="text-alaska-sage" />} />
           </div>
+
+          {kpis.ca_total > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              <SecondaryKPI
+                label="Ticket moyen"
+                value={kpis_secondary.avg_ticket > 0 ? formatMAD(kpis_secondary.avg_ticket) : "—"}
+              />
+              <SecondaryKPI
+                label={`${kpis.days_count} / ${monthDays} jours`}
+                value={`${kpis_secondary.coverage_pct.toFixed(0)}% couvert`}
+              />
+              <SecondaryKPI
+                label="Mix espèces"
+                value={kpis_secondary.mix_cash_pct > 0 ? `${kpis_secondary.mix_cash_pct.toFixed(0)}%` : "—"}
+              />
+            </div>
+          )}
 
           <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
             <div className="space-y-6">
@@ -455,6 +472,15 @@ function MetricBox({ label, value, tone }: { label: string; value: string; tone:
     <div className="rounded-lg border border-alaska-sage-lt bg-white px-3 py-3">
       <p className="text-[11px] uppercase tracking-wide text-alaska-muted">{label}</p>
       <p className={cn("mt-1 text-sm font-medium", tone)}>{value}</p>
+    </div>
+  )
+}
+
+function SecondaryKPI({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-alaska-sage-lt bg-white px-3 py-2.5 text-center">
+      <p className="text-[10px] uppercase tracking-wide text-alaska-muted">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-alaska-dark">{value}</p>
     </div>
   )
 }

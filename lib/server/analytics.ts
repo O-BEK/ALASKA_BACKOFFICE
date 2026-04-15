@@ -388,6 +388,15 @@ export function buildDashboardData(db: PilotDb, month: string) {
     },
     cashMonth,
     weeklyMonth,
+    kpis_secondary: (() => {
+      const monthSales = monthEntries(db, month)
+      const totalTickets = monthSales.reduce((sum, s) => sum + (s.tickets_count ?? 0), 0)
+      return {
+        avg_ticket: totalTickets > 0 ? kpis.ca_total / totalTickets : 0,
+        coverage_pct: monthEnd.getDate() > 0 ? (kpis.days_count / monthEnd.getDate()) * 100 : 0,
+        mix_cash_pct: kpis.ca_total > 0 ? (kpis.ca_caisse / kpis.ca_total) * 100 : 0,
+      }
+    })(),
   }
 }
 

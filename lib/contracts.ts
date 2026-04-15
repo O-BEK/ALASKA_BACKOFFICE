@@ -103,6 +103,12 @@ const cashMonthSchema = z.object({
   days_count: z.coerce.number().catch(0),
 })
 
+const dashboardKpisSecondarySchema = z.object({
+  avg_ticket: z.coerce.number().catch(0),
+  coverage_pct: z.coerce.number().catch(0),
+  mix_cash_pct: z.coerce.number().catch(0),
+})
+
 const dashboardStateSchema = z.object({
   kpis: monthlyKpisSchema.catch({
     month: "",
@@ -152,6 +158,11 @@ const dashboardStateSchema = z.object({
     days_count: 0,
   }),
   weeklyMonth: z.array(dashboardWeeklySchema).catch([]),
+  kpis_secondary: dashboardKpisSecondarySchema.catch({
+    avg_ticket: 0,
+    coverage_pct: 0,
+    mix_cash_pct: 0,
+  }),
 })
 
 const actionItemSchema = z.object({
@@ -492,6 +503,11 @@ export function parseDashboardState(input: unknown, month: string): {
     ca_per_day: number
     breakeven: number
   }[]
+  kpis_secondary: {
+    avg_ticket: number
+    coverage_pct: number
+    mix_cash_pct: number
+  }
 } {
   const parsed = dashboardStateSchema.parse(input)
   return {
