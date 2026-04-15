@@ -69,11 +69,11 @@ export default function SemainePage() {
       </div>
 
       {/* KPIs semaine */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card className="bg-alaska-dark text-white rounded-xl">
           <CardContent className="pt-4 pb-4">
             <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash théorique enveloppe</p>
-            <p className={cn("text-xl font-playfair font-bold mt-1",
+            <p className={cn("text-2xl font-playfair font-bold mt-1",
               weekTotals.envelope >= 0 ? "text-alaska-gold" : "text-red-400")}>
               {weekTotals.envelope < 0 ? "-" : ""}{formatMAD(Math.abs(weekTotals.envelope))}
             </p>
@@ -83,29 +83,22 @@ export default function SemainePage() {
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardContent className="pt-4 pb-4">
             <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Cash POS semaine</p>
-            <p className="text-xl font-playfair font-bold text-alaska-dark mt-1">{formatMAD(weekTotals.cashSales)}</p>
+            <p className="text-2xl font-playfair font-bold text-alaska-dark mt-1">{formatMAD(weekTotals.cashSales)}</p>
             <p className="text-[10px] text-alaska-muted mt-1">CA global : {formatMAD(weekTotals.caGlobal)}</p>
           </CardContent>
         </Card>
         <Card className="bg-white border border-alaska-sage-lt rounded-xl">
           <CardContent className="pt-4 pb-4">
-            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Achats cash</p>
-            <p className="text-xl font-playfair font-bold text-orange-600 mt-1">{formatMAD(weekTotals.expenses)}</p>
-            <p className="text-[10px] text-alaska-muted mt-1">Mouvements : {formatMAD(weekTotals.cashMovements)}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white border border-alaska-sage-lt rounded-xl">
-          <CardContent className="pt-4 pb-4">
-            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">% Seuil hebdo</p>
-            <p className={cn("text-xl font-playfair font-bold mt-1",
-              pctSeuil >= 100 ? "text-alaska-sage" : pctSeuil >= 70 ? "text-amber-600" : "text-red-600")}>
+            <p className="text-[11px] text-alaska-muted uppercase tracking-wide">Seuil semaine</p>
+            <p className={cn(
+              "text-2xl font-playfair font-bold mt-1",
+              pctSeuil >= 100 ? "text-alaska-sage" : pctSeuil >= 70 ? "text-amber-500" : "text-red-500"
+            )}>
               {pctSeuil.toFixed(0)}%
             </p>
-            <div className="mt-2 w-full bg-alaska-sage-lt rounded-full h-1.5">
-              <div className="h-1.5 rounded-full bg-alaska-sage transition-all duration-700"
-                style={{ width: `${Math.min(pctSeuil, 100)}%` }}/>
-            </div>
-            <p className="text-[10px] text-alaska-muted mt-1">Seuil : {formatMAD(weeklyBreakeven)}</p>
+            <p className="text-xs text-alaska-muted mt-1">
+              {formatMAD(weekTotals.caGlobal)} / {formatMAD(weeklyBreakeven)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -135,13 +128,16 @@ export default function SemainePage() {
                   </span>
                   <p className="text-sm font-medium capitalize text-alaska-dark">{day.label}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-playfair font-semibold text-alaska-dark">
-                    {day.entry ? formatMAD(getCashSalesReference(day.entry)) : "—"}
-                  </p>
-                  {day.totalExpenses > 0 && (
-                    <p className="text-xs text-alaska-muted">Dép: {formatMAD(day.totalExpenses)}</p>
-                  )}
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <p className="text-sm font-playfair font-semibold text-alaska-dark">
+                      {day.entry ? formatMAD(getCashSalesReference(day.entry)) : "—"}
+                    </p>
+                    {day.totalExpenses > 0 && (
+                      <p className="text-xs text-alaska-muted">Dép: {formatMAD(day.totalExpenses)}</p>
+                    )}
+                  </div>
+                  <ChevronRight size={14} className="text-alaska-muted flex-shrink-0" />
                 </div>
               </button>
             ))}

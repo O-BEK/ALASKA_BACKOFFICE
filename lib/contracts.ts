@@ -103,6 +103,12 @@ const cashMonthSchema = z.object({
   days_count: z.coerce.number().catch(0),
 })
 
+const dashboardKpisSecondarySchema = z.object({
+  avg_ticket: z.coerce.number().catch(0),
+  coverage_pct: z.coerce.number().catch(0),
+  mix_cash_pct: z.coerce.number().catch(0),
+})
+
 const dashboardStateSchema = z.object({
   kpis: monthlyKpisSchema.catch({
     month: "",
@@ -120,6 +126,8 @@ const dashboardStateSchema = z.object({
     ca_per_day: 0,
   }),
   delta_ca: z.coerce.number().catch(0),
+  delta_expenses: z.coerce.number().catch(0),
+  delta_marge: z.coerce.number().catch(0),
   last12: z.array(dashboardLast12Schema).catch([]),
   hasMonthData: z.coerce.boolean().catch(false),
   monthObjective: dashboardObjectiveSchema.catch({
@@ -150,6 +158,11 @@ const dashboardStateSchema = z.object({
     days_count: 0,
   }),
   weeklyMonth: z.array(dashboardWeeklySchema).catch([]),
+  kpis_secondary: dashboardKpisSecondarySchema.catch({
+    avg_ticket: 0,
+    coverage_pct: 0,
+    mix_cash_pct: 0,
+  }),
 })
 
 const actionItemSchema = z.object({
@@ -451,6 +464,8 @@ const reportingPayloadSchema = z.object({
 export function parseDashboardState(input: unknown, month: string): {
   kpis: MonthlyKPIs
   delta_ca: number
+  delta_expenses: number
+  delta_marge: number
   last12: { month: string; ca_caisse: number; ca_b2b: number; ca_total: number; breakeven: number }[]
   hasMonthData: boolean
   monthObjective: {
@@ -488,6 +503,11 @@ export function parseDashboardState(input: unknown, month: string): {
     ca_per_day: number
     breakeven: number
   }[]
+  kpis_secondary: {
+    avg_ticket: number
+    coverage_pct: number
+    mix_cash_pct: number
+  }
 } {
   const parsed = dashboardStateSchema.parse(input)
   return {

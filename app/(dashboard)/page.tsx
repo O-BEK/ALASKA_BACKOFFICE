@@ -65,7 +65,7 @@ function WeeklyTooltip({
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
-  const { kpis, delta_ca, last12, hasMonthData, monthObjective, weeklyMonth, loading, error } = useDashboard(month)
+  const { kpis, kpis_secondary, delta_ca, delta_expenses, delta_marge, last12, hasMonthData, monthObjective, weeklyMonth, loading, error } = useDashboard(month)
   const [actions, setActions] = useState<ActionItem[]>([])
   const [imports, setImports] = useState<ImportRecord[]>([])
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
@@ -174,10 +174,27 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KPICard title="CA Total" value={formatMAD(kpis.ca_total)} delta={delta_ca} icon={<DollarSign size={16} className="text-alaska-sage" />} />
-            <KPICard title="Dépenses" value={formatMAD(kpis.total_expenses)} icon={<ShoppingCart size={16} className="text-orange-500" />} valueClass="text-orange-600" />
-            <KPICard title="Marge nette" value={formatMAD(kpis.marge_nette)} sub={`${kpis.taux_marge.toFixed(1)}% du CA`} icon={<Activity size={16} className={kpis.marge_nette >= 0 ? "text-alaska-sage" : "text-red-500"} />} valueClass={kpis.marge_nette >= 0 ? "text-alaska-gold" : "text-red-600"} />
+            <KPICard title="Dépenses" value={formatMAD(kpis.total_expenses)} delta={delta_expenses} deltaInverted icon={<ShoppingCart size={16} className="text-orange-500" />} valueClass="text-orange-600" />
+            <KPICard title="Marge nette" value={formatMAD(kpis.marge_nette)} sub={delta_marge !== 0 ? `${delta_marge >= 0 ? "+" : ""}${formatMAD(Math.abs(delta_marge))} ${delta_marge >= 0 ? "↑" : "↓"} vs mois préc.` : `${kpis.taux_marge.toFixed(1)}% du CA`} icon={<Activity size={16} className={kpis.marge_nette >= 0 ? "text-alaska-sage" : "text-red-500"} />} valueClass={kpis.marge_nette >= 0 ? "text-alaska-gold" : "text-red-600"} />
             <KPICard title="CA / Jour" value={formatMAD(kpis.ca_per_day)} sub={monthObjective.target ? `Obj. ${formatMAD(monthObjective.daily_target)}` : `${kpis.days_count} jours saisis`} icon={<CalendarDays size={16} className="text-alaska-sage" />} />
           </div>
+
+          {kpis.ca_total > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              <SecondaryKPI
+                label="Ticket moyen"
+                value={kpis_secondary.avg_ticket > 0 ? formatMAD(kpis_secondary.avg_ticket) : "—"}
+              />
+              <SecondaryKPI
+                label={`${kpis.days_count} / ${monthDays} jours`}
+                value={`${kpis_secondary.coverage_pct.toFixed(0)}% couvert`}
+              />
+              <SecondaryKPI
+                label="Mix espèces"
+                value={kpis_secondary.mix_cash_pct > 0 ? `${kpis_secondary.mix_cash_pct.toFixed(0)}%` : "—"}
+              />
+            </div>
+          )}
 
           <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
             <div className="space-y-6">
@@ -331,7 +348,7 @@ export default function DashboardPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", LEVER_COLORS[action.lever] || "bg-gray-200 text-gray-700")}>{action.lever}</span>
-                            <span className={cn("text-[11px] font-medium", action.priority === "urgent" ? "text-red-500" : action.priority === "medium" ? "text-amber-600" : "text-alaska-sage")}>{action.priority === "urgent" ? "URGENT" : action.priority === "medium" ? "MOYEN" : "LOW"}</span>
+                            <span className={cn("text-[11px] font-medium", action.priority === "urgent" ? "text-red-500" : action.priority === "medium" ? "text-amber-600" : "text-alaska-sage")}>{action.priority === "urgent" ? "URGENT" : action.priority === "medium" ? "MOYEN" : "FAIBLE"}</span>
                           </div>
                           <p className="mt-2 text-sm font-medium text-alaska-dark">{action.title}</p>
                           <p className="mt-1 text-xs text-alaska-muted">{action.deadline}</p>
@@ -414,6 +431,7 @@ function KPICard({
   value,
   sub,
   delta,
+  deltaInverted,
   icon,
   valueClass,
 }: {
@@ -421,6 +439,7 @@ function KPICard({
   value: string
   sub?: string
   delta?: number
+  deltaInverted?: boolean
   icon: ReactNode
   valueClass?: string
 }) {
@@ -432,7 +451,16 @@ function KPICard({
           {icon}
         </div>
         <p className={cn("text-xl font-playfair font-bold", valueClass || "text-alaska-dark")}>{value}</p>
-        {delta !== undefined && <p className={cn("mt-1 text-xs", delta >= 0 ? "text-alaska-sage" : "text-red-500")}>{formatPct(delta)} vs mois précédent</p>}
+        {delta !== undefined && (
+          <p className={cn(
+            "mt-1 text-xs",
+            deltaInverted
+              ? delta <= 0 ? "text-alaska-sage" : "text-red-500"
+              : delta >= 0 ? "text-alaska-sage" : "text-red-500"
+          )}>
+            {formatPct(delta)} vs mois précédent
+          </p>
+        )}
         {sub && <p className="mt-1 text-[11px] text-alaska-muted">{sub}</p>}
       </CardContent>
     </Card>
@@ -444,6 +472,15 @@ function MetricBox({ label, value, tone }: { label: string; value: string; tone:
     <div className="rounded-lg border border-alaska-sage-lt bg-white px-3 py-3">
       <p className="text-[11px] uppercase tracking-wide text-alaska-muted">{label}</p>
       <p className={cn("mt-1 text-sm font-medium", tone)}>{value}</p>
+    </div>
+  )
+}
+
+function SecondaryKPI({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-alaska-sage-lt bg-white px-3 py-2.5 text-center">
+      <p className="text-[10px] uppercase tracking-wide text-alaska-muted">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-alaska-dark">{value}</p>
     </div>
   )
 }

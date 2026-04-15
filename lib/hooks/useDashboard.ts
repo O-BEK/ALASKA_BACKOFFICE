@@ -7,6 +7,8 @@ import type { MonthlyKPIs } from "@/lib/types"
 interface DashboardState {
   kpis: MonthlyKPIs
   delta_ca: number
+  delta_expenses: number
+  delta_marge: number
   last12: { month: string; ca_caisse: number; ca_b2b: number; ca_total: number; breakeven: number }[]
   hasMonthData: boolean
   monthObjective: {
@@ -44,6 +46,11 @@ interface DashboardState {
     ca_per_day: number
     breakeven: number
   }[]
+  kpis_secondary: {
+    avg_ticket: number
+    coverage_pct: number
+    mix_cash_pct: number
+  }
 }
 
 const emptyKpis: MonthlyKPIs = {
@@ -66,6 +73,8 @@ export function useDashboard(month: string, enabled = true) {
   const [state, setState] = useState<DashboardState>({
     kpis: { ...emptyKpis, month },
     delta_ca: 0,
+    delta_expenses: 0,
+    delta_marge: 0,
     last12: [],
     hasMonthData: false,
     monthObjective: {
@@ -96,6 +105,7 @@ export function useDashboard(month: string, enabled = true) {
       days_count: 0,
     },
     weeklyMonth: [],
+    kpis_secondary: { avg_ticket: 0, coverage_pct: 0, mix_cash_pct: 0 },
   })
   const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
@@ -107,6 +117,8 @@ export function useDashboard(month: string, enabled = true) {
       setState({
         kpis: { ...emptyKpis, month },
         delta_ca: 0,
+        delta_expenses: 0,
+        delta_marge: 0,
         last12: [],
         hasMonthData: false,
         monthObjective: {
@@ -137,6 +149,7 @@ export function useDashboard(month: string, enabled = true) {
           days_count: 0,
         },
         weeklyMonth: [],
+        kpis_secondary: { avg_ticket: 0, coverage_pct: 0, mix_cash_pct: 0 },
       })
       setError(null)
       setLoading(false)
@@ -165,6 +178,8 @@ export function useDashboard(month: string, enabled = true) {
         setState({
           kpis: { ...emptyKpis, month },
           delta_ca: 0,
+          delta_expenses: 0,
+          delta_marge: 0,
           last12: [],
           hasMonthData: false,
           monthObjective: {
@@ -195,6 +210,7 @@ export function useDashboard(month: string, enabled = true) {
             days_count: 0,
           },
           weeklyMonth: [],
+          kpis_secondary: { avg_ticket: 0, coverage_pct: 0, mix_cash_pct: 0 },
         })
       })
       .finally(() => {

@@ -303,6 +303,14 @@ export function buildDashboardData(db: PilotDb, month: string) {
   const previousMonth = rawMonth === 1 ? `${year - 1}-12` : `${year}-${String(rawMonth - 1).padStart(2, "0")}`
   const previous = buildMonthlyKpis(db, previousMonth)
   const delta_ca = previous.ca_total > 0 ? ((kpis.ca_total - previous.ca_total) / previous.ca_total) * 100 : 0
+  const delta_expenses =
+    previous.total_expenses > 0
+      ? ((kpis.total_expenses - previous.total_expenses) / previous.total_expenses) * 100
+      : 0
+  const delta_marge =
+    previous.marge_nette !== 0
+      ? kpis.marge_nette - previous.marge_nette
+      : 0
 
   const breakeven = liveBreakeven(db)
   const monthlyObjective =
@@ -357,6 +365,8 @@ export function buildDashboardData(db: PilotDb, month: string) {
   return {
     kpis,
     delta_ca,
+    delta_expenses,
+    delta_marge,
     last12,
     hasMonthData: kpis.ca_total > 0 || kpis.total_expenses > 0,
     monthObjective: {
@@ -378,6 +388,15 @@ export function buildDashboardData(db: PilotDb, month: string) {
     },
     cashMonth,
     weeklyMonth,
+    kpis_secondary: (() => {
+      const monthSales = monthEntries(db, month)
+      const totalTickets = monthSales.reduce((sum, s) => sum + (s.tickets_count ?? 0), 0)
+      return {
+        avg_ticket: totalTickets > 0 ? kpis.ca_total / totalTickets : 0,
+        coverage_pct: monthEnd.getDate() > 0 ? (kpis.days_count / monthEnd.getDate()) * 100 : 0,
+        mix_cash_pct: kpis.ca_total > 0 ? (kpis.ca_caisse / kpis.ca_total) * 100 : 0,
+      }
+    })(),
   }
 }
 
