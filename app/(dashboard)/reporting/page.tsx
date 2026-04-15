@@ -6,7 +6,7 @@ import { cn, formatMAD, formatPct } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Banknote, ChevronLeft, ChevronRight, Database, Download, FileText, Scale, TrendingUp, Users } from "lucide-react"
-import { Area, AreaChart, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 const MONTHS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 const PIE_COLORS = ["#4a6741", "#c9a96e", "#e6a830", "#7a7a6a"]
@@ -73,9 +73,6 @@ export default function ReportingPage() {
   const dataQuality = payload.dataQuality
   const cashFlow = payload.cashFlow
   const performanceDays = payload.performanceDays
-  const smartProjection = payload.smartProjection
-  const annualProjection = smartProjection.annual
-  const monthlyProjection = smartProjection.monthly.slice(0, 6)
   const bestDays = performanceDays.slice(0, 5)
   const slowDays = [...performanceDays].filter((item) => item.ca_total > 0).sort((a, b) => a.ca_total - b.ca_total).slice(0, 3)
   const hasSalesMix = payload.salesMix.some((item) => item.value > 0)
@@ -190,79 +187,6 @@ export default function ReportingPage() {
                   <p className="text-xs text-alaska-muted">
                     La cible suivie est {projection.reference_type === "objective" ? "l'objectif mensuel" : "le seuil de rentabilité"}.
                   </p>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-xl border border-alaska-sage-lt bg-white">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base text-alaska-dark">Projection intelligente</CardTitle>
-                  <CardDescription className="text-xs text-alaska-muted">Scénario sans alcool vs licence alcool sur les années à venir</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-4">
-                    <MetricBox label="Croissance retenue" value={`${smartProjection.assumptions.growth_pct.toFixed(1)}% / an`} />
-                    <MetricBox label="Part caisse" value={`${smartProjection.assumptions.caisse_share_pct.toFixed(0)}% du CA`} />
-                    <MetricBox label="Uplift alcool" value={`+${smartProjection.assumptions.alcool_uplift_pct.toFixed(0)}% ticket`} />
-                    <MetricBox label="Effet CA total" value={`+${smartProjection.assumptions.alcool_effect_on_total_pct.toFixed(0)}%`} tone="text-alaska-sage" />
-                  </div>
-
-                  {annualProjection.length > 0 && (
-                    <ResponsiveContainer width="100%" height={240}>
-                      <LineChart data={annualProjection} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                        <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#7a7a6a" }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: "#7a7a6a" }} tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} axisLine={false} tickLine={false} />
-                        <Tooltip formatter={(value: number) => formatMAD(value)} contentStyle={{ borderRadius: "8px", border: "1px solid #e8ede7", fontSize: "12px" }} />
-                        <Line type="monotone" dataKey="sans_alcool" stroke="#7a7a6a" strokeWidth={2} name="Sans alcool" dot={{ r: 3, fill: "#7a7a6a" }} />
-                        <Line type="monotone" dataKey="avec_alcool" stroke="#4a6741" strokeWidth={2.5} name="Avec alcool" dot={{ r: 3, fill: "#4a6741" }} />
-                        <Line type="monotone" dataKey="objective" stroke="#c9a96e" strokeWidth={1.5} strokeDasharray="5 5" name="Objectif" dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[560px] text-sm">
-                      <thead>
-                        <tr className="border-b border-alaska-sage-lt text-left text-xs uppercase tracking-wide text-alaska-muted">
-                          <th className="pb-2 font-medium">Année</th>
-                          <th className="pb-2 font-medium">Sans alcool</th>
-                          <th className="pb-2 font-medium">Avec alcool</th>
-                          <th className="pb-2 font-medium">Impact</th>
-                          <th className="pb-2 font-medium">Base</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {annualProjection.map((item) => (
-                          <tr key={item.year} className="border-b border-alaska-sage-lt/70 last:border-b-0">
-                            <td className="py-3 font-medium text-alaska-dark">{item.year}</td>
-                            <td className="py-3 text-alaska-dark">{formatMAD(item.sans_alcool)}</td>
-                            <td className="py-3 font-semibold text-alaska-sage">{formatMAD(item.avec_alcool)}</td>
-                            <td className="py-3 font-medium text-alaska-sage">{signedMAD(item.delta)}</td>
-                            <td className="py-3 text-xs text-alaska-muted">{item.source}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {monthlyProjection.length > 0 && (
-                    <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/30 px-3 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-alaska-muted">6 prochains mois</p>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        {monthlyProjection.map((item) => (
-                          <div key={item.month} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-xs">
-                            <div>
-                              <p className="font-medium capitalize text-alaska-dark">{item.label}</p>
-                              <p className="text-alaska-muted">{item.source}{item.alcool_active ? " · alcool actif" : ""}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-alaska-dark">{formatMAD(item.sans_alcool)}</p>
-                              {item.delta > 0 && <p className="text-alaska-sage">+{formatMAD(item.delta)}</p>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
 
@@ -453,8 +377,9 @@ export default function ReportingPage() {
               <CardDescription className="text-xs text-alaska-muted">Lecture mois par mois de l&apos;année courante</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px] text-sm">
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-alaska-sage-lt text-left text-xs uppercase tracking-wide text-alaska-muted">
                       <th className="pb-2 font-medium">Mois</th>
@@ -476,6 +401,21 @@ export default function ReportingPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              {/* Mobile cards */}
+              <div className="sm:hidden space-y-2">
+                {payload.comparison.map((item) => (
+                  <div key={item.month} className="flex items-center justify-between rounded-lg border border-alaska-sage-lt px-3 py-2">
+                    <span className="text-sm font-medium text-alaska-dark">{item.month}</span>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-alaska-muted">{formatMAD(item.previous)}</span>
+                      <span className="text-alaska-dark">{formatMAD(item.current)}</span>
+                      <span className={cn("font-medium", item.delta_pct === null ? "text-alaska-muted" : item.delta_pct >= 0 ? "text-alaska-sage" : "text-red-500")}>
+                        {item.delta_pct === null ? "—" : formatPct(item.delta_pct)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
