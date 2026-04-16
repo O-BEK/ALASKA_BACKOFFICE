@@ -50,8 +50,7 @@ export default function ImportPage() {
 
   // POS Sync
   const today = new Date().toISOString().slice(0, 10)
-  const twoMonthsAgo = new Date(); twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
-  const defaultSyncStart = twoMonthsAgo.toISOString().slice(0, 7) + "-01"
+  const defaultSyncStart = today.slice(0, 7) + "-01"
   const [syncStart, setSyncStart] = useState(defaultSyncStart)
   const [syncEnd, setSyncEnd] = useState(today)
   const [syncing, setSyncing] = useState(false)
