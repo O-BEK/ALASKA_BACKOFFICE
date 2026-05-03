@@ -14,6 +14,17 @@ export async function GET(
     return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
   }
 
-  const transactions = await getBankTransactions(createAdminClient(), params.id)
-  return NextResponse.json({ transactions })
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(params.id)) {
+    return NextResponse.json({ error: "Identifiant invalide." }, { status: 400 })
+  }
+
+  try {
+    const transactions = await getBankTransactions(createAdminClient(), params.id)
+    return NextResponse.json({ transactions })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur interne"
+    console.error("[api/bank-statements/[id]]", message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

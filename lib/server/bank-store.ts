@@ -80,12 +80,18 @@ export async function getBankTransactionsByPeriod(
   supabase: any,
   month: string
 ): Promise<BankTransaction[]> {
+  const [year, mon] = month.split("-").map(Number)
+  const lastDay = new Date(year, mon, 0).toISOString().slice(0, 10)
   const { data, error } = await supabase
     .from("bank_transactions")
     .select("*")
     .gte("date", `${month}-01`)
-    .lte("date", `${month}-31`)
+    .lte("date", lastDay)
     .order("date", { ascending: true })
   if (error) throw new Error(error.message)
   return (data ?? []) as BankTransaction[]
+}
+
+export async function deleteBankImport(supabase: any, importId: string): Promise<void> {
+  await supabase.from("bank_statement_imports").delete().eq("id", importId)
 }

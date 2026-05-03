@@ -2,7 +2,7 @@ import "server-only"
 import { NextResponse } from "next/server"
 import { createClient, isAdmin } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { saveBankImport, saveBankTransactions } from "@/lib/server/bank-store"
+import { saveBankImport, saveBankTransactions, deleteBankImport } from "@/lib/server/bank-store"
 import type { ParsedStatement } from "@/lib/bank-parsers/types"
 
 export async function POST(request: Request) {
@@ -21,8 +21,18 @@ export async function POST(request: Request) {
   const { statement, filename } = body
   const storagePath = `${statement.bank}/${statement.period_start?.slice(0, 7)}/${filename}`
 
-  const importRecord = await saveBankImport(admin, user.id, statement, storagePath)
-  await saveBankTransactions(admin, importRecord.id, statement.bank, statement.transactions)
-
-  return NextResponse.json({ import: importRecord, count: statement.transactions.length })
+  try {
+    const importRecord = await saveBankImport(admin, user.id, statement, storagePath)
+    try {
+      await saveBankTransactions(admin, importRecord.id, statement.bank, statement.transactions)
+    } catch (txErr) {
+      await deleteBankImport(admin, importRecord.id)
+      throw txErr
+    }
+    return NextResponse.json({ import: importRecord, count: statement.transactions.length })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur interne"
+    console.error("[api/bank-statements/commit]", message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
