@@ -26,7 +26,8 @@ Deux sprints :
 ```
 Cash POS mensuel        :  XX XXX MAD
 Mouvements POS          :     XXX MAD
-  Achats & charges cash :  -X XXX MAD
+  Achats MP & divers    :  -X XXX MAD
+  Charges cash          :  -X XXX MAD
   Salaires cash         :  -X XXX MAD
   Dépôt cash banque     :  -X XXX MAD
 Cash théorique enveloppe:  XX XXX MAD
@@ -34,7 +35,8 @@ CA global indicatif     :  XX XXX MAD
 ```
 
 **Règles de ventilation** :
-- `cash_mp_divers` = dépenses de catégorie `MP` + `AUTRE` + `CHARGES` dont le label n'est **pas** `"Virement banque"` (inclut loyer, électricité, etc. payés en cash)
+- `cash_mp_divers` = dépenses de catégorie `MP` + `AUTRE`
+- `cash_charges` = dépenses de catégorie `CHARGES` dont le label n'est **pas** `"Virement banque"` (loyer, électricité, etc.)
 - `cash_rh` = dépenses de catégorie `RH`
 - `cash_depot` = dépenses de catégorie `CHARGES` dont le label est exactement `"Virement banque"`
 
@@ -42,8 +44,8 @@ CA global indicatif     :  XX XXX MAD
 
 | Fichier | Changement |
 |---|---|
-| `lib/server/analytics.ts` | `buildCashMonthSummary()` retourne `cash_mp_divers`, `cash_rh`, `cash_depot` à la place de `cash_purchases` |
-| `lib/contracts.ts` | Schéma Zod `cashMonthSchema` : remplacer `cash_purchases` par les 3 nouveaux champs |
+| `lib/server/analytics.ts` | `buildCashMonthSummary()` retourne `cash_mp_divers`, `cash_charges`, `cash_rh`, `cash_depot` à la place de `cash_purchases` |
+| `lib/contracts.ts` | Schéma Zod `cashMonthSchema` : remplacer `cash_purchases` par les 4 nouveaux champs |
 | `lib/hooks/useDashboard.ts` | Mettre à jour le type et la valeur par défaut de `cashMonth` |
 | `app/(dashboard)/saisie/page.tsx` | Mois tab : 3 lignes à la place d'une |
 | `app/api/dashboard/route.ts` | Vérifier que `cashMonth` est bien transmis (pas de changement de contrat API externe attendu) |
