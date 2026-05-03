@@ -198,7 +198,7 @@ export default function ImportPage() {
             <CardContent className="pb-4 space-y-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <div className="flex-1">
-                  <label className="text-xs text-alaska-muted block mb-1">Du</label>
+                  <label className="text-xs text-alaska-muted block mb-1 text-center sm:text-left">Du</label>
                   <input
                     type="date"
                     value={syncStart}
@@ -208,7 +208,7 @@ export default function ImportPage() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-alaska-muted block mb-1">Au</label>
+                  <label className="text-xs text-alaska-muted block mb-1 text-center sm:text-left">Au</label>
                   <input
                     type="date"
                     value={syncEnd}

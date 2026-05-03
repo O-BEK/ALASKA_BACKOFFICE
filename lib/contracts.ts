@@ -96,6 +96,10 @@ const cashMonthSchema = z.object({
   month: z.string().catch(""),
   cash_sales: z.coerce.number().catch(0),
   cash_movements: z.coerce.number().catch(0),
+  cash_mp_divers: z.coerce.number().catch(0),
+  cash_charges: z.coerce.number().catch(0),
+  cash_rh: z.coerce.number().catch(0),
+  cash_depot: z.coerce.number().catch(0),
   cash_purchases: z.coerce.number().catch(0),
   cash_envelope: z.coerce.number().catch(0),
   ca_global: z.coerce.number().catch(0),
@@ -151,6 +155,10 @@ const dashboardStateSchema = z.object({
     month: "",
     cash_sales: 0,
     cash_movements: 0,
+    cash_mp_divers: 0,
+    cash_charges: 0,
+    cash_rh: 0,
+    cash_depot: 0,
     cash_purchases: 0,
     cash_envelope: 0,
     ca_global: 0,
@@ -489,6 +497,10 @@ export function parseDashboardState(input: unknown, month: string): {
     month: string
     cash_sales: number
     cash_movements: number
+    cash_mp_divers: number
+    cash_charges: number
+    cash_rh: number
+    cash_depot: number
     cash_purchases: number
     cash_envelope: number
     ca_global: number

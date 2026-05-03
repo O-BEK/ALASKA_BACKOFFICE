@@ -155,6 +155,12 @@ export default function SaisiePage() {
                   <ChevronRight size={20} className="text-alaska-muted" />
                 </button>
               </div>
+              <input
+                type="date"
+                value={format(date, "yyyy-MM-dd")}
+                onChange={(e) => { if (e.target.value) setActiveDate(parseISO(e.target.value)) }}
+                className="w-full mt-2 border border-alaska-sage-lt rounded-lg px-3 py-1.5 text-sm text-center text-alaska-dark focus:outline-none focus:ring-1 focus:ring-alaska-sage"
+              />
               <button onClick={() => setActiveDate(today)} className="w-full mt-2 text-xs text-alaska-sage hover:underline">Aujourd&apos;hui</button>
             </CardContent>
           </Card>
@@ -325,8 +331,20 @@ export default function SaisiePage() {
                 <span className="font-playfair font-bold text-alaska-dark">{formatMAD(cashMonth.cash_movements)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-alaska-muted">Achats cash</span>
-                <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_purchases)}</span>
+                <span className="text-sm text-alaska-muted">Achats MP & divers</span>
+                <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_mp_divers)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-alaska-muted">Charges cash</span>
+                <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_charges)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-alaska-muted">Salaires cash</span>
+                <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_rh)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-alaska-muted">Dépôt cash banque</span>
+                <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_depot)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-alaska-muted">Cash théorique enveloppe</span>

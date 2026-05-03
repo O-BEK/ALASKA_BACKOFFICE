@@ -270,3 +270,25 @@ describe("monthReporting", () => {
     })
   })
 })
+
+describe("buildDashboardData cashMonth split", () => {
+  it("splits expenses into 4 breakdown fields", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-01-15", ca_caisse: 5000 })],
+      expenses: [
+        { id: "e1", date: "2026-01-15", category: "MP",      label: "Poissonnier",    amount: 1000, notes: "", created_by: null, updated_at: "" },
+        { id: "e2", date: "2026-01-15", category: "AUTRE",   label: "Divers",          amount: 200,  notes: "", created_by: null, updated_at: "" },
+        { id: "e3", date: "2026-01-15", category: "CHARGES", label: "Loyer",           amount: 800,  notes: "", created_by: null, updated_at: "" },
+        { id: "e4", date: "2026-01-15", category: "CHARGES", label: "Virement banque", amount: 2000, notes: "", created_by: null, updated_at: "" },
+        { id: "e5", date: "2026-01-15", category: "RH",      label: "Ramzi",           amount: 1500, notes: "", created_by: null, updated_at: "" },
+      ],
+    })
+    const result = buildDashboardData(db, "2026-01")
+    expect(result.cashMonth.cash_mp_divers).toBe(1200)  // MP 1000 + AUTRE 200
+    expect(result.cashMonth.cash_charges).toBe(800)     // CHARGES hors "Virement banque"
+    expect(result.cashMonth.cash_rh).toBe(1500)         // RH uniquement
+    expect(result.cashMonth.cash_depot).toBe(2000)      // CHARGES label "Virement banque"
+    expect(result.cashMonth.cash_purchases).toBe(5500)  // somme totale (backward compat)
+    expect(result.cashMonth.cash_envelope).toBe(-500)   // 5000 - 5500
+  })
+})
