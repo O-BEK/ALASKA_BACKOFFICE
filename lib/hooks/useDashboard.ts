@@ -32,6 +32,10 @@ interface DashboardState {
     month: string
     cash_sales: number
     cash_movements: number
+    cash_mp_divers: number
+    cash_charges: number
+    cash_rh: number
+    cash_depot: number
     cash_purchases: number
     cash_envelope: number
     ca_global: number
@@ -98,6 +102,10 @@ export function useDashboard(month: string, enabled = true) {
       month,
       cash_sales: 0,
       cash_movements: 0,
+      cash_mp_divers: 0,
+      cash_charges: 0,
+      cash_rh: 0,
+      cash_depot: 0,
       cash_purchases: 0,
       cash_envelope: 0,
       ca_global: 0,
@@ -142,6 +150,10 @@ export function useDashboard(month: string, enabled = true) {
           month,
           cash_sales: 0,
           cash_movements: 0,
+          cash_mp_divers: 0,
+          cash_charges: 0,
+          cash_rh: 0,
+          cash_depot: 0,
           cash_purchases: 0,
           cash_envelope: 0,
           ca_global: 0,
@@ -203,6 +215,10 @@ export function useDashboard(month: string, enabled = true) {
             month,
             cash_sales: 0,
             cash_movements: 0,
+            cash_mp_divers: 0,
+            cash_charges: 0,
+            cash_rh: 0,
+            cash_depot: 0,
             cash_purchases: 0,
             cash_envelope: 0,
             ca_global: 0,
