@@ -57,6 +57,21 @@ interface DashboardState {
   }
 }
 
+const emptyCashMonth = (month: string) => ({
+  month,
+  cash_sales: 0,
+  cash_movements: 0,
+  cash_mp_divers: 0,
+  cash_charges: 0,
+  cash_rh: 0,
+  cash_depot: 0,
+  cash_purchases: 0,
+  cash_envelope: 0,
+  ca_global: 0,
+  anomaly_days: 0,
+  days_count: 0,
+})
+
 const emptyKpis: MonthlyKPIs = {
   month: "",
   ca_caisse: 0,
@@ -98,20 +113,7 @@ export function useDashboard(month: string, enabled = true) {
       notes: [],
       status: "missing",
     },
-    cashMonth: {
-      month,
-      cash_sales: 0,
-      cash_movements: 0,
-      cash_mp_divers: 0,
-      cash_charges: 0,
-      cash_rh: 0,
-      cash_depot: 0,
-      cash_purchases: 0,
-      cash_envelope: 0,
-      ca_global: 0,
-      anomaly_days: 0,
-      days_count: 0,
-    },
+    cashMonth: emptyCashMonth(month),
     weeklyMonth: [],
     kpis_secondary: { avg_ticket: 0, coverage_pct: 0, mix_cash_pct: 0 },
   })

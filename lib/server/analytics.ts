@@ -7,6 +7,8 @@ import { getCashEnvelope, getCashMovementsReference, getCashSalesReference, hasC
 import type { DailyEntry, MonthlyKPIs } from "@/lib/types"
 import type { DailySaleRecord, ExpenseRecord, PilotDb } from "@/lib/server/db-types"
 
+const VIREMENT_BANQUE_LABEL = "Virement banque"
+
 function liveBreakeven(db: PilotDb): number {
   const total = db.fixed_charges
     .filter((c) => c.is_active)
@@ -252,13 +254,13 @@ function buildCashMonthSummary(db: PilotDb, month: string) {
     .filter((e) => e.category === "MP" || e.category === "AUTRE")
     .reduce((sum, e) => sum + e.amount, 0)
   const cash_charges = expenses
-    .filter((e) => e.category === "CHARGES" && e.label !== "Virement banque")
+    .filter((e) => e.category === "CHARGES" && e.label !== VIREMENT_BANQUE_LABEL)
     .reduce((sum, e) => sum + e.amount, 0)
   const cash_rh = expenses
     .filter((e) => e.category === "RH")
     .reduce((sum, e) => sum + e.amount, 0)
   const cash_depot = expenses
-    .filter((e) => e.category === "CHARGES" && e.label === "Virement banque")
+    .filter((e) => e.category === "CHARGES" && e.label === VIREMENT_BANQUE_LABEL)
     .reduce((sum, e) => sum + e.amount, 0)
   const cash_purchases = cash_mp_divers + cash_charges + cash_rh + cash_depot
   const ca_global = sales.reduce((sum, item) => sum + item.ca_caisse + item.ca_b2b, 0)
