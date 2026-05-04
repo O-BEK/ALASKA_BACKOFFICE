@@ -4,7 +4,7 @@
 
 Alaska Pilot est la webapp interne de pilotage financier du restaurant Alaska Neo Bistrot à Rabat. Elle remplace le suivi Excel manuel par une application Next.js 14 + Supabase pour suivre le chiffre d'affaires POS, la caisse physique, les dépenses, les charges fixes, les objectifs et le reporting mensuel.
 
-La source de vérité runtime est Supabase/PostgreSQL. Les rôles applicatifs sont `admin` et `manager`, stockés dans `public.profiles`. Les décisions de sécurité ne doivent jamais lire `user_metadata`..
+La source de vérité runtime est Supabase/PostgreSQL. Les rôles applicatifs sont `admin` et `manager`, stockés dans `public.profiles`. Les décisions de sécurité ne doivent jamais lire `user_metadata`.
 
 ## Prérequis
 
