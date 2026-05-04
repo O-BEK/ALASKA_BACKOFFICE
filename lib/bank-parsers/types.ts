@@ -6,6 +6,7 @@ export interface BankTransaction {
   debit: number
   credit: number
   balance: number
+  bank?: string  // present when fetched from DB, absent when parsed from PDF
 }
 
 export interface ParsedStatement {

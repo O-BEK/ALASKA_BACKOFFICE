@@ -20,7 +20,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
     }
     const db = await readSnapshot(supabase)
-    const bankConsolidation = await buildBankConsolidation(createAdminClient(), month)
+    const bankConsolidation = await buildBankConsolidation(createAdminClient(), month).catch(() => ({
+      has_data: false,
+      banks: [] as Array<{ bank: string; label: string; total_debit: number; total_credit: number; transaction_count: number }>,
+      total_debit: 0,
+      total_credit: 0,
+      import_count: 0,
+    }))
 
     return NextResponse.json({
       ...monthReporting(db, month),
