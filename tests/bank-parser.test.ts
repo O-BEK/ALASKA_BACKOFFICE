@@ -15,6 +15,12 @@ const CFG_SAMPLE = [
   "18/01/2026  VIREMENT RECU CLIENT        +7,000.00       64,000.00",
 ].join("\n")
 
+const CFG_CAPTURE_SAMPLE = [
+  "17/04/2026  17/04/2026 205341474 Frais VI                                      12,00        9 988,00",
+  "18/04/2026  18/04/2026 205428376 Virement reçu 050 810 KAYZARAN                            5 000,00      14 988,00",
+  "21/04/2026  21/04/2026 205900001 Virement instantané émis ESTHER BITON         15 000,00                    12 000,00",
+].join("\n")
+
 describe("parseBanquePopulaire", () => {
   it("extrait les transactions du texte brut", () => {
     const result = parseBanquePopulaire(BP_SAMPLE)
@@ -61,5 +67,30 @@ describe("parseCfg", () => {
   it("parse correctement les dates", () => {
     const result = parseCfg(CFG_SAMPLE)
     expect(result.transactions[0].date).toBe("2026-01-02")
+  })
+
+  it("nettoie la date répétée du libellé et récupère les montants CFG extraits en colonnes", () => {
+    const result = parseCfg(CFG_CAPTURE_SAMPLE)
+
+    expect(result.transactions).toHaveLength(3)
+    expect(result.transactions[0]).toMatchObject({
+      date: "2026-04-17",
+      label: "205341474 Frais VI",
+      debit: 12,
+      credit: 0,
+      balance: 9988,
+    })
+    expect(result.transactions[1]).toMatchObject({
+      label: "205428376 Virement reçu 050 810 KAYZARAN",
+      debit: 0,
+      credit: 5000,
+      balance: 14988,
+    })
+    expect(result.transactions[2]).toMatchObject({
+      label: "205900001 Virement instantané émis ESTHER BITON",
+      debit: 15000,
+      credit: 0,
+      balance: 12000,
+    })
   })
 })

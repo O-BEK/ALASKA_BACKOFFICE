@@ -34,6 +34,57 @@ export const BANK_CLASSIFICATION_LABELS: Record<BankTransactionClassification, s
   uncategorized: "À classer",
 }
 
+export const DEFAULT_BANK_TRANSACTION_RULES: BankTransactionRule[] = [
+  {
+    match_text: "salaire",
+    classification: "staff_payment",
+    expense_category: "RH",
+    matched_label: "Salaire",
+  },
+  {
+    match_text: "wafasalaf",
+    classification: "fixed_charge",
+    expense_category: "CHARGES",
+    matched_label: "Crédit moto Wafasalaf",
+  },
+  {
+    match_text: "esther biton",
+    classification: "fixed_charge",
+    expense_category: "CHARGES",
+    matched_label: "Loyer",
+  },
+  {
+    match_text: "frais",
+    classification: "bank_fee",
+    expense_category: "CHARGES",
+    matched_label: "Frais bancaires",
+  },
+  {
+    match_text: "mohamed othman bekri",
+    classification: "owner_injection",
+    expense_category: null,
+    matched_label: "Apport propriétaire",
+  },
+  {
+    match_text: "othman bekri",
+    classification: "owner_injection",
+    expense_category: null,
+    matched_label: "Apport propriétaire",
+  },
+  {
+    match_text: "bekri",
+    classification: "owner_injection",
+    expense_category: null,
+    matched_label: "Apport propriétaire",
+  },
+  {
+    match_text: "kayzaran",
+    classification: "cash_deposit",
+    expense_category: null,
+    matched_label: "Transfert interne BP Kayzaran",
+  },
+]
+
 function normalize(value: string) {
   return value
     .normalize("NFD")
@@ -52,7 +103,10 @@ export function classifyBankTransaction(
   rules: BankTransactionRule[] = []
 ): ClassifiedBankTransaction {
   const label = normalize(transaction.label)
-  const activeRules = rules.filter((rule) => rule.is_active !== false && rule.match_text.trim())
+  const activeRules = [
+    ...rules.filter((rule) => rule.is_active !== false && rule.match_text.trim()),
+    ...DEFAULT_BANK_TRANSACTION_RULES,
+  ]
   const matchedRule = activeRules.find((rule) => label.includes(normalize(rule.match_text)))
 
   if (matchedRule) {

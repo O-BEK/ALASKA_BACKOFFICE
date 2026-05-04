@@ -73,35 +73,53 @@
 
   alter table public.bank_transaction_rules enable row level security;
 
+  drop policy if exists "admin read bank transaction rules" on public.bank_transaction_rules;
   create policy "admin read bank transaction rules"
     on public.bank_transaction_rules for select
     using (public.auth_user_role() = 'admin');
 
+  drop policy if exists "admin insert bank transaction rules" on public.bank_transaction_rules;
   create policy "admin insert bank transaction rules"
     on public.bank_transaction_rules for insert
     with check (public.auth_user_role() = 'admin');
 
+  drop policy if exists "admin update bank transaction rules" on public.bank_transaction_rules;
   create policy "admin update bank transaction rules"
     on public.bank_transaction_rules for update
     using (public.auth_user_role() = 'admin')
     with check (public.auth_user_role() = 'admin');
 
+  drop policy if exists "admin delete bank transaction rules" on public.bank_transaction_rules;
   create policy "admin delete bank transaction rules"
     on public.bank_transaction_rules for delete
     using (public.auth_user_role() = 'admin');
 
+  drop policy if exists "admin update bank transactions" on public.bank_transactions;
   create policy "admin update bank transactions"
     on public.bank_transactions for update
     using (public.auth_user_role() = 'admin')
     with check (public.auth_user_role() = 'admin');
 
-  create policy "admin update bank statement files"
-    on storage.objects for update
-    using (
-      bucket_id = 'bank-statements'
-      and public.auth_user_role() = 'admin'
+drop policy if exists "admin update bank statement files" on storage.objects;
+create policy "admin update bank statement files"
+  on storage.objects for update
+  using (
+    bucket_id = 'bank-statements'
+    and public.auth_user_role() = 'admin'
     )
     with check (
-      bucket_id = 'bank-statements'
-      and public.auth_user_role() = 'admin'
-    );
+    bucket_id = 'bank-statements'
+    and public.auth_user_role() = 'admin'
+  );
+
+insert into public.bank_transaction_rules (match_text, classification, expense_category, matched_label)
+values
+  ('salaire', 'staff_payment', 'RH', 'Salaire'),
+  ('wafasalaf', 'fixed_charge', 'CHARGES', 'Crédit moto Wafasalaf'),
+  ('esther biton', 'fixed_charge', 'CHARGES', 'Loyer'),
+  ('frais', 'bank_fee', 'CHARGES', 'Frais bancaires'),
+  ('mohamed othman bekri', 'owner_injection', null, 'Apport propriétaire'),
+  ('othman bekri', 'owner_injection', null, 'Apport propriétaire'),
+  ('bekri', 'owner_injection', null, 'Apport propriétaire'),
+  ('kayzaran', 'cash_deposit', null, 'Transfert interne BP Kayzaran')
+on conflict do nothing;
