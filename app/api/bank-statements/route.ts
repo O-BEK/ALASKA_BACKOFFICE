@@ -6,7 +6,6 @@ import { parseBanquePopulaire } from "@/lib/bank-parsers/banque-populaire"
 import { parseCfg } from "@/lib/bank-parsers/cfg"
 import { listBankImports } from "@/lib/server/bank-store"
 import type { BankCode } from "@/lib/bank-parsers/types"
-import { PDFParse } from "pdf-parse"
 
 export async function GET() {
   const supabase = createClient()
@@ -43,6 +42,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { PDFParse } = await import("pdf-parse")
     const buffer = Buffer.from(await file.arrayBuffer())
     const parser = new PDFParse({ data: buffer })
     const parsed = await parser.getText()
