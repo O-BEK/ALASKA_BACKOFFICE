@@ -43,6 +43,17 @@ export async function POST(request: Request) {
 
   try {
     const arrayBuffer = await file.arrayBuffer()
+
+    // pdfjs-dist uses browser DOM APIs — stub them for Node.js
+    if (typeof (globalThis as Record<string, unknown>).DOMMatrix === "undefined") {
+      class DOMMatrixStub {
+        a=1;b=0;c=0;d=1;e=0;f=0
+        translate() { return this } scale() { return this }
+        rotate() { return this } multiply() { return this } inverse() { return this }
+      }
+      ;(globalThis as Record<string, unknown>).DOMMatrix = DOMMatrixStub
+    }
+
     const pdfjsLib = require("pdfjs-dist/legacy/build/pdf") as typeof import("pdfjs-dist")
     const { pathToFileURL } = await import("url")
     const workerPath = process.cwd() + "/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
