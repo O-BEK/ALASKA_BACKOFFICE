@@ -43,7 +43,6 @@ export async function POST(request: Request) {
 
   try {
     const arrayBuffer = await file.arrayBuffer()
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfjsLib = require("pdfjs-dist/legacy/build/pdf") as typeof import("pdfjs-dist")
     const { pathToFileURL } = await import("url")
     const workerPath = process.cwd() + "/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
