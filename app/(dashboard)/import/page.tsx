@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, FileText, RefreshCw, UploadCloud, X, XCircle } from "lucide-react"
 import type { ImportRecord } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { BANK_CLASSIFICATION_LABELS } from "@/lib/bank-classification"
+import type { BankExpenseCategory, BankTransaction, BankTransactionClassification, BankTransactionReviewStatus } from "@/lib/bank-parsers/types"
 
 type ParsedDay = {
   date: string
@@ -37,6 +39,8 @@ function monthLabel(m: string) {
 
 const IMPORT_TABS = ["POS", "Relevés"] as const
 type ImportTab = typeof IMPORT_TABS[number]
+const BANK_CLASSIFICATIONS = Object.keys(BANK_CLASSIFICATION_LABELS) as BankTransactionClassification[]
+const BANK_EXPENSE_CATEGORIES: BankExpenseCategory[] = ["MP", "RH", "CHARGES", "AUTRE"]
 
 export default function ImportPage() {
   const [step, setStep] = useState<Step>("upload")
@@ -61,6 +65,8 @@ export default function ImportPage() {
   const [bankError, setBankError] = useState("")
   const [bankSuccess, setBankSuccess] = useState("")
   const [bankImports, setBankImports] = useState<Array<{ id: string; bank: string; period_start: string; period_end: string; transaction_count: number; imported_at: string }>>([])
+  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([])
+  const [bankReviewLoading, setBankReviewLoading] = useState(false)
 
   // POS Sync
   const today = new Date().toISOString().slice(0, 10)
@@ -114,6 +120,14 @@ export default function ImportPage() {
       }
     }
   }
+
+  const fileToBase64 = async (selected: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result ?? ""))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(selected)
+    })
 
   const handleFile = async (selected: File) => {
     if (!selected.name.endsWith(".csv")) {
@@ -231,10 +245,11 @@ export default function ImportPage() {
     setBankCommitting(true)
     setBankError("")
     try {
+      const file_base64 = await fileToBase64(bankFile)
       const res = await fetch("/api/bank-statements/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ statement: bankPreview, filename: bankFile.name }),
+        body: JSON.stringify({ statement: bankPreview, filename: bankFile.name, file_base64 }),
       })
       const data = await res.json()
       if (!res.ok) { setBankError(data.error || "Erreur commit"); return }
@@ -242,11 +257,76 @@ export default function ImportPage() {
       setBankPreview(null)
       setBankFile(null)
       setBankImports((prev) => [data.import, ...prev])
+      await loadBankTransactions(data.import.id)
     } catch {
       setBankError("Erreur réseau")
     } finally {
       setBankCommitting(false)
     }
+  }
+
+  const loadBankTransactions = async (importId: string) => {
+    setBankReviewLoading(true)
+    setBankError("")
+    try {
+      const res = await fetch(`/api/bank-statements/${importId}`)
+      const data = await res.json()
+      if (!res.ok) {
+        setBankError(data.error || "Impossible de charger les transactions.")
+        return
+      }
+      setBankTransactions(data.transactions ?? [])
+    } catch {
+      setBankError("Erreur réseau")
+    } finally {
+      setBankReviewLoading(false)
+    }
+  }
+
+  const patchBankTransaction = async (
+    tx: BankTransaction,
+    patch: Partial<Pick<BankTransaction, "classification" | "expense_category" | "matched_label" | "review_status" | "notes">>
+  ) => {
+    if (!tx.id) return
+    const next = {
+      classification: patch.classification ?? tx.classification ?? "uncategorized",
+      expense_category: patch.expense_category === undefined ? tx.expense_category ?? null : patch.expense_category,
+      matched_label: patch.matched_label === undefined ? tx.matched_label ?? null : patch.matched_label,
+      review_status: patch.review_status ?? tx.review_status ?? "confirmed",
+      notes: patch.notes === undefined ? tx.notes ?? null : patch.notes,
+    }
+    const res = await fetch(`/api/bank-transactions/${tx.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setBankError(data.error || "Modification impossible.")
+      return
+    }
+    setBankTransactions((prev) => prev.map((item) => item.id === tx.id ? data.transaction : item))
+  }
+
+  const createRuleFromTransaction = async (tx: BankTransaction) => {
+    const matched_label = tx.matched_label || tx.label
+    const match_text = tx.label.split(/\s+/).slice(0, 3).join(" ")
+    const res = await fetch("/api/bank-transaction-rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        match_text,
+        classification: tx.classification ?? "supplier_payment",
+        expense_category: tx.expense_category ?? null,
+        matched_label,
+      }),
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      setBankError(data.error || "Règle impossible à créer.")
+      return
+    }
+    setBankSuccess(`Règle créée pour "${match_text}"`)
   }
 
   return (
@@ -709,16 +789,118 @@ export default function ImportPage() {
               <CardContent className="pb-4">
                 <div className="space-y-2">
                   {bankImports.map((imp) => (
-                    <div key={imp.id} className="flex justify-between items-center text-sm py-1.5 border-b border-alaska-sage-lt last:border-0">
+                    <button
+                      key={imp.id}
+                      className="w-full flex justify-between items-center text-sm py-1.5 border-b border-alaska-sage-lt last:border-0 text-left hover:bg-alaska-sage-lt/30"
+                      onClick={() => void loadBankTransactions(imp.id)}
+                    >
                       <span className="text-alaska-dark font-medium">{imp.bank === "bp" ? "Banque Populaire" : "CFG Bank"}</span>
                       <span className="text-alaska-muted text-xs">{imp.period_start} → {imp.period_end}</span>
                       <span className="text-alaska-sage text-xs">{imp.transaction_count} tx</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </CardContent>
             </Card>
           )}
+
+          <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm text-alaska-dark">Revue des transactions bancaires</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4">
+              {bankReviewLoading ? (
+                <p className="text-sm text-alaska-muted">Chargement...</p>
+              ) : bankTransactions.length === 0 ? (
+                <p className="text-sm text-alaska-muted">Clique sur un import de l&apos;historique pour revoir ses transactions.</p>
+              ) : (
+                <div className="space-y-2">
+                  {bankTransactions.map((tx) => (
+                    <div key={tx.id ?? `${tx.date}-${tx.label}`} className="rounded-lg border border-alaska-sage-lt p-3 space-y-2">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-xs text-alaska-muted">{tx.date}</p>
+                          <p className="text-sm font-medium text-alaska-dark truncate">{tx.label}</p>
+                        </div>
+                        <div className="text-sm font-playfair font-bold text-right">
+                          {tx.debit > 0 ? <span className="text-orange-600">-{formatMAD(tx.debit)}</span> : <span className="text-alaska-sage">+{formatMAD(tx.credit)}</span>}
+                        </div>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-[1.2fr_0.8fr_1fr]">
+                        <select
+                          value={tx.classification ?? "uncategorized"}
+                          className="border border-alaska-sage-lt rounded-lg px-2 py-1.5 text-xs"
+                          onChange={(e) => void patchBankTransaction(tx, {
+                            classification: e.target.value as BankTransactionClassification,
+                            review_status: e.target.value === "ignore" ? "ignored" : "confirmed",
+                          })}
+                        >
+                          {BANK_CLASSIFICATIONS.map((classification) => (
+                            <option key={classification} value={classification}>{BANK_CLASSIFICATION_LABELS[classification]}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={tx.expense_category ?? ""}
+                          className="border border-alaska-sage-lt rounded-lg px-2 py-1.5 text-xs"
+                          onChange={(e) => void patchBankTransaction(tx, {
+                            expense_category: e.target.value ? e.target.value as BankExpenseCategory : null,
+                            review_status: "confirmed",
+                          })}
+                        >
+                          <option value="">Sans catégorie</option>
+                          {BANK_EXPENSE_CATEGORIES.map((category) => (
+                            <option key={category} value={category}>{category}</option>
+                          ))}
+                        </select>
+                        <input
+                          value={tx.matched_label ?? ""}
+                          placeholder="Libellé rapproché"
+                          className="border border-alaska-sage-lt rounded-lg px-2 py-1.5 text-xs"
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setBankTransactions((prev) => prev.map((item) => item.id === tx.id ? { ...item, matched_label: value } : item))
+                          }}
+                          onBlur={(e) => void patchBankTransaction(tx, { matched_label: e.target.value || null, review_status: "confirmed" })}
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          className="h-8 bg-alaska-sage hover:bg-alaska-sage/90 text-white text-xs"
+                          onClick={() => void patchBankTransaction(tx, { review_status: "confirmed" as BankTransactionReviewStatus })}
+                        >
+                          Confirmer
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 border-alaska-sage-lt text-xs"
+                          onClick={() => void patchBankTransaction(tx, { classification: "ignore", review_status: "ignored", expense_category: null })}
+                        >
+                          Ignorer
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 border-alaska-sage-lt text-xs"
+                          onClick={() => void createRuleFromTransaction(tx)}
+                          disabled={!tx.classification || tx.classification === "uncategorized"}
+                        >
+                          Créer règle
+                        </Button>
+                        <span className={cn(
+                          "ml-auto text-xs self-center",
+                          tx.review_status === "confirmed" ? "text-alaska-sage" : tx.review_status === "ignored" ? "text-alaska-muted" : "text-amber-600"
+                        )}>
+                          {tx.review_status === "confirmed" ? "confirmé" : tx.review_status === "ignored" ? "ignoré" : "à revoir"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

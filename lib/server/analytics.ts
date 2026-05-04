@@ -2,6 +2,7 @@ import "server-only"
 
 import { eachDayOfInterval, eachWeekOfInterval, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns"
 import { getBankTransactionsByPeriod, listBankImports } from "@/lib/server/bank-store"
+import { isBankExpenseClassification } from "@/lib/bank-classification"
 import { fr } from "date-fns/locale"
 import { BREAKEVEN, CAISSE_RESERVE, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin, getWeeklyBreakeven } from "@/lib/calculations"
 import { getCashEnvelope, getCashMovementsReference, getCashSalesReference, hasCashJournal } from "@/lib/cash"
@@ -790,5 +791,73 @@ export async function buildBankConsolidation(
     total_debit,
     total_credit,
     import_count: monthImports.length,
+  }
+}
+
+export async function buildFinancialConsolidation(
+  db: PilotDb,
+  supabase: any,
+  month: string
+) {
+  const monthly = buildMonthlyKpis(db, month)
+  const cashMonth = buildCashMonthSummary(db, month)
+  const bankTransactions = await getBankTransactionsByPeriod(supabase, month)
+  const reviewed = bankTransactions.filter((tx) => tx.review_status !== "ignored")
+  const confirmed = reviewed.filter((tx) => tx.review_status === "confirmed")
+  const pending = reviewed.filter((tx) => tx.review_status !== "confirmed")
+
+  const cash_expenses = cashMonth.cash_mp_divers + cashMonth.cash_charges + cashMonth.cash_rh
+  const cash_deposits = cashMonth.cash_depot
+  const bank_expenses = confirmed
+    .filter((tx) => isBankExpenseClassification(tx.classification ?? "uncategorized"))
+    .reduce((sum, tx) => sum + tx.debit, 0)
+  const external_income = confirmed
+    .filter((tx) => tx.classification === "external_income")
+    .reduce((sum, tx) => sum + tx.credit, 0)
+  const owner_injections = reviewed
+    .filter((tx) => tx.classification === "owner_injection")
+    .reduce((sum, tx) => sum + tx.credit, 0)
+  const bank_cash_deposits = reviewed
+    .filter((tx) => tx.classification === "cash_deposit")
+    .reduce((sum, tx) => sum + tx.credit, 0)
+  const bank_debits = reviewed.reduce((sum, tx) => sum + tx.debit, 0)
+  const bank_credits = reviewed.reduce((sum, tx) => sum + tx.credit, 0)
+  const real_result = monthly.ca_total + external_income - cash_expenses - bank_expenses
+  const owner_support_needed = real_result < 0 ? Math.abs(real_result) : 0
+
+  const byClassification = reviewed.reduce<Record<string, { debit: number; credit: number; count: number }>>((acc, tx) => {
+    const key = tx.classification ?? "uncategorized"
+    acc[key] = acc[key] ?? { debit: 0, credit: 0, count: 0 }
+    acc[key].debit += tx.debit
+    acc[key].credit += tx.credit
+    acc[key].count += 1
+    return acc
+  }, {})
+
+  return {
+    has_data: monthly.ca_total > 0 || cash_expenses > 0 || bankTransactions.length > 0,
+    ca_pos: monthly.ca_total,
+    cash_expenses,
+    cash_deposits,
+    bank_expenses,
+    external_income,
+    owner_injections,
+    bank_cash_deposits,
+    bank_debits,
+    bank_credits,
+    bank_net: bank_credits - bank_debits,
+    real_result,
+    owner_support_needed,
+    pending_review_count: pending.length,
+    confirmed_count: confirmed.length,
+    status: real_result >= 0 ? "profit" : "loss",
+    alert:
+      owner_injections > 0 || real_result < 0
+        ? `Tu as probablement rajouté ${Math.max(owner_injections, owner_support_needed).toFixed(2)} MAD de ta poche.`
+        : "",
+    by_classification: Object.entries(byClassification).map(([classification, totals]) => ({
+      classification,
+      ...totals,
+    })),
   }
 }

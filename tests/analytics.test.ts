@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-import { buildCaisseBalance, buildDashboardData, buildWeekData, monthReporting } from "../lib/server/analytics"
+import { buildCaisseBalance, buildDashboardData, buildFinancialConsolidation, buildWeekData, monthReporting } from "../lib/server/analytics"
 import type { PilotDb } from "../lib/server/db-types"
 
 function makeDb(overrides: Partial<PilotDb> = {}): PilotDb {
@@ -43,6 +43,16 @@ function makeSale(overrides: Partial<PilotDb["daily_sales"][number]> = {}): Pilo
     updated_at: "",
     ...overrides,
   }
+}
+
+function makeBankSupabase(rows: any[]) {
+  const chain = {
+    select: () => chain,
+    gte: () => chain,
+    lte: () => chain,
+    order: () => ({ data: rows, error: null }),
+  }
+  return { from: () => chain }
 }
 
 describe("buildCaisseBalance", () => {
@@ -290,5 +300,33 @@ describe("buildDashboardData cashMonth split", () => {
     expect(result.cashMonth.cash_depot).toBe(2000)      // CHARGES label "Virement banque"
     expect(result.cashMonth.cash_purchases).toBe(5500)  // somme totale (backward compat)
     expect(result.cashMonth.cash_envelope).toBe(-500)   // 5000 - 5500
+  })
+})
+
+describe("buildFinancialConsolidation", () => {
+  it("ne double-compte pas le virement banque et calcule une perte réelle", async () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-04-01", ca_caisse: 5000, ca_b2b: 1000 })],
+      expenses: [
+        { id: "e1", date: "2026-04-01", category: "MP", label: "Poisson cash", amount: 1500, notes: "", created_by: null, updated_at: "" },
+        { id: "e2", date: "2026-04-01", category: "CHARGES", label: "Virement banque", amount: 2000, notes: "", created_by: null, updated_at: "" },
+      ],
+    })
+    const bankRows = [
+      { date: "2026-04-02", label: "Fournisseur", debit: 7000, credit: 0, balance: 0, classification: "supplier_payment", review_status: "confirmed" },
+      { date: "2026-04-03", label: "Versement especes", debit: 0, credit: 2000, balance: 0, classification: "cash_deposit", review_status: "confirmed" },
+      { date: "2026-04-04", label: "Apport Othman", debit: 0, credit: 3000, balance: 0, classification: "owner_injection", review_status: "suggested" },
+    ]
+
+    const result = await buildFinancialConsolidation(db, makeBankSupabase(bankRows), "2026-04")
+
+    expect(result.ca_pos).toBe(6000)
+    expect(result.cash_expenses).toBe(1500)
+    expect(result.cash_deposits).toBe(2000)
+    expect(result.bank_cash_deposits).toBe(2000)
+    expect(result.bank_expenses).toBe(7000)
+    expect(result.real_result).toBe(-2500)
+    expect(result.owner_injections).toBe(3000)
+    expect(result.status).toBe("loss")
   })
 })

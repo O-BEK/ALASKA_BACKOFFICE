@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { buildBankConsolidation, buildLastSixMonths, monthReporting } from "@/lib/server/analytics"
+import { buildBankConsolidation, buildFinancialConsolidation, buildLastSixMonths, monthReporting } from "@/lib/server/analytics"
 import { createClient, isAdmin } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { readSnapshot } from "@/lib/server/supabase-store"
@@ -20,18 +20,40 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
     }
     const db = await readSnapshot(supabase)
-    const bankConsolidation = await buildBankConsolidation(createAdminClient(), month).catch(() => ({
+    const admin = createAdminClient()
+    const bankConsolidation = await buildBankConsolidation(admin, month).catch(() => ({
       has_data: false,
       banks: [] as Array<{ bank: string; label: string; total_debit: number; total_credit: number; transaction_count: number }>,
       total_debit: 0,
       total_credit: 0,
       import_count: 0,
     }))
+    const financialConsolidation = await buildFinancialConsolidation(db, admin, month).catch(() => ({
+      has_data: false,
+      ca_pos: 0,
+      cash_expenses: 0,
+      cash_deposits: 0,
+      bank_expenses: 0,
+      external_income: 0,
+      owner_injections: 0,
+      bank_cash_deposits: 0,
+      bank_debits: 0,
+      bank_credits: 0,
+      bank_net: 0,
+      real_result: 0,
+      owner_support_needed: 0,
+      pending_review_count: 0,
+      confirmed_count: 0,
+      status: "loss" as const,
+      alert: "",
+      by_classification: [] as Array<{ classification: string; debit: number; credit: number; count: number }>,
+    }))
 
     return NextResponse.json({
       ...monthReporting(db, month),
       last6: buildLastSixMonths(db, month),
       bankConsolidation,
+      financialConsolidation,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue"

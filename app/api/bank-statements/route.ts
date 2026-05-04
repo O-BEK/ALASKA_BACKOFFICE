@@ -7,6 +7,53 @@ import { parseCfg } from "@/lib/bank-parsers/cfg"
 import { listBankImports } from "@/lib/server/bank-store"
 import type { BankCode } from "@/lib/bank-parsers/types"
 
+async function extractPdfText(arrayBuffer: ArrayBuffer): Promise<string> {
+  // pdfjs-dist is ESM-only in the installed version.
+  if (typeof (globalThis as Record<string, unknown>).DOMMatrix === "undefined") {
+    class DOMMatrixStub {
+      a = 1
+      b = 0
+      c = 0
+      d = 1
+      e = 0
+      f = 0
+      translate() { return this }
+      scale() { return this }
+      rotate() { return this }
+      multiply() { return this }
+      inverse() { return this }
+    }
+    ;(globalThis as Record<string, unknown>).DOMMatrix = DOMMatrixStub
+  }
+
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs")
+  const { pathToFileURL } = await import("url")
+  const workerPath = process.cwd() + "/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise
+
+  let text = ""
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const content = await page.getTextContent()
+
+    const lineMap = new Map<number, Array<{ str: string; x: number }>>()
+    for (const item of content.items as Array<{ str: string; transform: number[] }>) {
+      const y = Math.round(item.transform[5])
+      if (!lineMap.has(y)) lineMap.set(y, [])
+      lineMap.get(y)!.push({ str: item.str, x: item.transform[4] })
+    }
+
+    const lines = Array.from(lineMap.entries())
+      .sort(([a], [b]) => b - a)
+      .map(([, items]) => items.sort((a, b) => a.x - b.x).map((item) => item.str).join("  "))
+
+    text += lines.join("\n") + "\n"
+  }
+
+  return text
+}
+
 export async function GET() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -43,43 +90,7 @@ export async function POST(request: Request) {
 
   try {
     const arrayBuffer = await file.arrayBuffer()
-
-    // pdfjs-dist uses browser DOM APIs — stub them for Node.js
-    if (typeof (globalThis as Record<string, unknown>).DOMMatrix === "undefined") {
-      class DOMMatrixStub {
-        a=1;b=0;c=0;d=1;e=0;f=0
-        translate() { return this } scale() { return this }
-        rotate() { return this } multiply() { return this } inverse() { return this }
-      }
-      ;(globalThis as Record<string, unknown>).DOMMatrix = DOMMatrixStub
-    }
-
-    const pdfjsLib = require("pdfjs-dist/legacy/build/pdf") as typeof import("pdfjs-dist")
-    const { pathToFileURL } = await import("url")
-    const workerPath = process.cwd() + "/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href
-    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise
-
-    let text = ""
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i)
-      const content = await page.getTextContent()
-
-      // Group items by rounded Y position to reconstruct lines
-      const lineMap = new Map<number, Array<{ str: string; x: number }>>()
-      for (const item of content.items as Array<{ str: string; transform: number[] }>) {
-        const y = Math.round(item.transform[5])
-        if (!lineMap.has(y)) lineMap.set(y, [])
-        lineMap.get(y)!.push({ str: item.str, x: item.transform[4] })
-      }
-
-      // Sort lines top-to-bottom (Y desc on PDF coords), items left-to-right
-      const lines = Array.from(lineMap.entries())
-        .sort(([a], [b]) => b - a)
-        .map(([, items]) => items.sort((a, b) => a.x - b.x).map((i) => i.str).join("  "))
-
-      text += lines.join("\n") + "\n"
-    }
+    const text = await extractPdfText(arrayBuffer)
 
     const statement = bank === "bp" ? parseBanquePopulaire(text) : parseCfg(text)
 

@@ -32,6 +32,7 @@ vi.mock("@/lib/server/analytics", () => ({
   buildWeekEntries: vi.fn(() => []),
   monthReporting: vi.fn(() => ({ ok: true })),
   buildBankConsolidation: vi.fn(() => ({ has_data: false, banks: [], total_debit: 0, total_credit: 0, import_count: 0 })),
+  buildFinancialConsolidation: vi.fn(() => ({ has_data: false, ca_pos: 0, cash_expenses: 0, cash_deposits: 0, bank_expenses: 0, external_income: 0, owner_injections: 0, bank_cash_deposits: 0, bank_debits: 0, bank_credits: 0, bank_net: 0, real_result: 0, owner_support_needed: 0, pending_review_count: 0, confirmed_count: 0, status: "loss", alert: "", by_classification: [] })),
 }))
 
 vi.mock("@/lib/server/bank-store", () => ({
@@ -41,6 +42,9 @@ vi.mock("@/lib/server/bank-store", () => ({
   saveBankTransactions: vi.fn(),
   deleteBankImport: vi.fn(),
   getBankTransactionsByPeriod: vi.fn(() => []),
+  updateBankTransactionReview: vi.fn(),
+  createBankTransactionRule: vi.fn(),
+  listBankTransactionRules: vi.fn(() => []),
 }))
 
 vi.mock("pdf-parse", () => ({
@@ -153,6 +157,35 @@ describe("API route authorization", () => {
     const response = await GET(
       new Request("http://localhost/api/bank-statements/fake-id"),
       { params: { id: "fake-id" } }
+    )
+    expect(response.status).toBe(403)
+  })
+
+  it("retourne 403 pour un manager sur PATCH /api/bank-transactions/[id]", async () => {
+    vi.mocked(createServerClient).mockReturnValue(
+      makeSupabaseMock({ id: "manager-id" }, "manager") as any
+    )
+    const { PATCH } = await import("../app/api/bank-transactions/[id]/route")
+    const response = await PATCH(
+      new Request("http://localhost/api/bank-transactions/11111111-1111-1111-1111-111111111111", {
+        method: "PATCH",
+        body: JSON.stringify({ classification: "ignore", review_status: "ignored", expense_category: null, matched_label: null }),
+      }),
+      { params: { id: "11111111-1111-1111-1111-111111111111" } }
+    )
+    expect(response.status).toBe(403)
+  })
+
+  it("retourne 403 pour un manager sur POST /api/bank-transaction-rules", async () => {
+    vi.mocked(createServerClient).mockReturnValue(
+      makeSupabaseMock({ id: "manager-id" }, "manager") as any
+    )
+    const { POST } = await import("../app/api/bank-transaction-rules/route")
+    const response = await POST(
+      new Request("http://localhost/api/bank-transaction-rules", {
+        method: "POST",
+        body: JSON.stringify({ match_text: "ALI", classification: "supplier_payment", expense_category: "MP", matched_label: "Ali" }),
+      })
     )
     expect(response.status).toBe(403)
   })

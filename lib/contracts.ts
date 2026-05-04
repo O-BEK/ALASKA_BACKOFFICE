@@ -304,6 +304,34 @@ export const bankConsolidationSchema = z.object({
 
 export type BankConsolidation = z.infer<typeof bankConsolidationSchema>
 
+export const financialConsolidationSchema = z.object({
+  has_data: z.boolean().catch(false),
+  ca_pos: z.coerce.number().catch(0),
+  cash_expenses: z.coerce.number().catch(0),
+  cash_deposits: z.coerce.number().catch(0),
+  bank_expenses: z.coerce.number().catch(0),
+  external_income: z.coerce.number().catch(0),
+  owner_injections: z.coerce.number().catch(0),
+  bank_cash_deposits: z.coerce.number().catch(0),
+  bank_debits: z.coerce.number().catch(0),
+  bank_credits: z.coerce.number().catch(0),
+  bank_net: z.coerce.number().catch(0),
+  real_result: z.coerce.number().catch(0),
+  owner_support_needed: z.coerce.number().catch(0),
+  pending_review_count: z.coerce.number().catch(0),
+  confirmed_count: z.coerce.number().catch(0),
+  status: z.enum(["profit", "loss"]).catch("loss"),
+  alert: z.string().catch(""),
+  by_classification: z.array(z.object({
+    classification: z.string().catch(""),
+    debit: z.coerce.number().catch(0),
+    credit: z.coerce.number().catch(0),
+    count: z.coerce.number().catch(0),
+  })).catch([]),
+})
+
+export type FinancialConsolidation = z.infer<typeof financialConsolidationSchema>
+
 const reportingPayloadSchema = z.object({
   summary: z.object({
     ca_caisse: z.coerce.number().catch(0),
@@ -489,6 +517,26 @@ const reportingPayloadSchema = z.object({
     total_debit: 0,
     total_credit: 0,
     import_count: 0,
+  }),
+  financialConsolidation: financialConsolidationSchema.catch({
+    has_data: false,
+    ca_pos: 0,
+    cash_expenses: 0,
+    cash_deposits: 0,
+    bank_expenses: 0,
+    external_income: 0,
+    owner_injections: 0,
+    bank_cash_deposits: 0,
+    bank_debits: 0,
+    bank_credits: 0,
+    bank_net: 0,
+    real_result: 0,
+    owner_support_needed: 0,
+    pending_review_count: 0,
+    confirmed_count: 0,
+    status: "loss",
+    alert: "",
+    by_classification: [],
   }),
 })
 

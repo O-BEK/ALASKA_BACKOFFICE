@@ -72,6 +72,7 @@ export default function ReportingPage() {
   const projection = payload.projection
   const dataQuality = payload.dataQuality
   const cashFlow = payload.cashFlow
+  const financial = payload.financialConsolidation
   const performanceDays = payload.performanceDays
   const bestDays = performanceDays.slice(0, 5)
   const slowDays = [...performanceDays].filter((item) => item.ca_total > 0).sort((a, b) => a.ca_total - b.ca_total).slice(0, 3)
@@ -356,14 +357,14 @@ export default function ReportingPage() {
 
               <Card className="rounded-xl border border-alaska-sage-lt bg-white">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base text-alaska-dark">Consolidation bancaire</CardTitle>
-                  <CardDescription className="text-xs text-alaska-muted">Relevés Banque Populaire et CFG Bank</CardDescription>
+                  <CardTitle className="text-base text-alaska-dark">Banque + Cash — résultat réel</CardTitle>
+                  <CardDescription className="text-xs text-alaska-muted">Vue encaissée, hors transferts internes</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {!payload.bankConsolidation.has_data ? (
+                  {!financial.has_data ? (
                     <div className="space-y-2">
                       <p className="text-sm text-alaska-muted">
-                        Aucun relevé bancaire importé pour ce mois.
+                        Aucune donnée cash/banque consolidée pour ce mois.
                       </p>
                       <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/30 px-3 py-2 text-xs text-alaska-muted">
                         Importer un relevé PDF dans l&apos;onglet{" "}
@@ -375,33 +376,41 @@ export default function ReportingPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {payload.bankConsolidation.banks.map((bank) => (
-                        <div key={bank.bank} className="space-y-1.5">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-alaska-dark">{bank.label}</p>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-alaska-muted">Sorties (débits)</span>
-                            <span className="font-playfair font-bold text-orange-600">-{formatMAD(bank.total_debit)}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-alaska-muted">Entrées (crédits)</span>
-                            <span className="font-playfair font-bold text-alaska-sage">+{formatMAD(bank.total_credit)}</span>
-                          </div>
-                          <div className="flex justify-between text-sm border-t border-alaska-sage-lt pt-1">
-                            <span className="text-alaska-muted">Flux net</span>
-                            <span className={cn("font-playfair font-bold", bank.total_credit - bank.total_debit >= 0 ? "text-alaska-sage" : "text-orange-600")}>
-                              {signedMAD(bank.total_credit - bank.total_debit)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                      {payload.bankConsolidation.banks.length > 1 && (
-                        <div className="border-t border-alaska-sage-lt pt-2 flex justify-between text-sm font-semibold">
-                          <span className="text-alaska-dark">Total — sorties</span>
-                          <span className="font-playfair text-orange-600">-{formatMAD(payload.bankConsolidation.total_debit)}</span>
+                      <div className={cn(
+                        "rounded-lg border px-3 py-3",
+                        financial.real_result >= 0 ? "border-alaska-sage/30 bg-alaska-sage-lt/40" : "border-orange-200 bg-orange-50"
+                      )}>
+                        <p className="text-[11px] uppercase tracking-wide text-alaska-muted">
+                          {financial.real_result >= 0 ? "Bénéfice réel estimé" : "Perte réelle estimée"}
+                        </p>
+                        <p className={cn("mt-1 font-playfair text-2xl font-bold", financial.real_result >= 0 ? "text-alaska-sage" : "text-orange-700")}>
+                          {signedMAD(financial.real_result)}
+                        </p>
+                      </div>
+                      <MetricBox label="CA POS" value={formatMAD(financial.ca_pos)} />
+                      <MetricBox label="Dépenses cash" value={`-${formatMAD(financial.cash_expenses)}`} tone="text-orange-600" />
+                      <MetricBox label="Paiements banque fournisseurs/charges" value={`-${formatMAD(financial.bank_expenses)}`} tone="text-orange-600" />
+                      {financial.external_income > 0 && (
+                        <MetricBox label="Revenus hors POS confirmés" value={`+${formatMAD(financial.external_income)}`} tone="text-alaska-sage" />
+                      )}
+                      <MetricBox label="Flux net banque" value={signedMAD(financial.bank_net)} tone={financial.bank_net >= 0 ? "text-alaska-sage" : "text-orange-600"} />
+                      <MetricBox label="Dépôts cash neutres" value={`${formatMAD(financial.cash_deposits)} cash · ${formatMAD(financial.bank_cash_deposits)} banque`} />
+                      {financial.owner_injections > 0 && (
+                        <MetricBox label="Apports à vérifier" value={formatMAD(financial.owner_injections)} tone="text-amber-700" />
+                      )}
+                      {financial.alert && (
+                        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                          <AlertTriangle size={14} />
+                          {financial.alert}
                         </div>
                       )}
+                      {financial.pending_review_count > 0 && (
+                        <p className="text-xs text-amber-700">
+                          {financial.pending_review_count} transaction(s) bancaire(s) à confirmer avant lecture définitive.
+                        </p>
+                      )}
                       <p className="text-xs text-alaska-muted pt-1">
-                        {payload.bankConsolidation.import_count} relevé(s) importé(s) ce mois
+                        {financial.confirmed_count} transaction(s) confirmée(s) · {payload.bankConsolidation.import_count} relevé(s)
                       </p>
                     </div>
                   )}
