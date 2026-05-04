@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+vi.mock("server-only", () => ({}))
+
 vi.mock("next/headers", () => ({
   cookies: vi.fn(() => ({
     get: vi.fn(),
@@ -29,6 +31,20 @@ vi.mock("@/lib/server/analytics", () => ({
   buildWeekData: vi.fn(() => ({ ok: true })),
   buildWeekEntries: vi.fn(() => []),
   monthReporting: vi.fn(() => ({ ok: true })),
+  buildBankConsolidation: vi.fn(() => ({ has_data: false, banks: [], total_debit: 0, total_credit: 0, import_count: 0 })),
+}))
+
+vi.mock("@/lib/server/bank-store", () => ({
+  listBankImports: vi.fn(() => []),
+  getBankTransactions: vi.fn(() => []),
+  saveBankImport: vi.fn(),
+  saveBankTransactions: vi.fn(),
+  deleteBankImport: vi.fn(),
+  getBankTransactionsByPeriod: vi.fn(() => []),
+}))
+
+vi.mock("pdf-parse", () => ({
+  PDFParse: vi.fn(),
 }))
 
 import { createServerClient } from "@supabase/ssr"
@@ -119,5 +135,25 @@ describe("API route authorization", () => {
       "http://localhost/api/week?start=2026-04-13",
       200
     )
+  })
+
+  it("retourne 403 pour un manager sur GET /api/bank-statements", async () => {
+    await expectManagerStatus(
+      () => import("../app/api/bank-statements/route"),
+      "http://localhost/api/bank-statements",
+      403
+    )
+  })
+
+  it("retourne 403 pour un manager sur GET /api/bank-statements/[id]", async () => {
+    vi.mocked(createServerClient).mockReturnValue(
+      makeSupabaseMock({ id: "manager-id" }, "manager") as any
+    )
+    const { GET } = await import("../app/api/bank-statements/[id]/route")
+    const response = await GET(
+      new Request("http://localhost/api/bank-statements/fake-id"),
+      { params: { id: "fake-id" } }
+    )
+    expect(response.status).toBe(403)
   })
 })

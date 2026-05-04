@@ -35,6 +35,9 @@ function monthLabel(m: string) {
   return `${MONTHS_FR[parseInt(mo) - 1]} ${y}`
 }
 
+const IMPORT_TABS = ["POS", "Relevés"] as const
+type ImportTab = typeof IMPORT_TABS[number]
+
 export default function ImportPage() {
   const [step, setStep] = useState<Step>("upload")
   const [dragging, setDragging] = useState(false)
@@ -47,6 +50,17 @@ export default function ImportPage() {
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [error, setError] = useState("")
+  const [importTab, setImportTab] = useState<ImportTab>("POS")
+
+  // Bank statement states
+  const [bankFile, setBankFile] = useState<File | null>(null)
+  const [bankCode, setBankCode] = useState<"bp" | "cfg">("bp")
+  const [bankPreview, setBankPreview] = useState<import("@/lib/bank-parsers/types").ParsedStatement | null>(null)
+  const [bankImporting, setBankImporting] = useState(false)
+  const [bankCommitting, setBankCommitting] = useState(false)
+  const [bankError, setBankError] = useState("")
+  const [bankSuccess, setBankSuccess] = useState("")
+  const [bankImports, setBankImports] = useState<Array<{ id: string; bank: string; period_start: string; period_end: string; transaction_count: number; imported_at: string }>>([])
 
   // POS Sync
   const today = new Date().toISOString().slice(0, 10)
@@ -79,6 +93,13 @@ export default function ImportPage() {
   }
 
   useEffect(() => { loadData() }, [])
+
+  useEffect(() => {
+    fetch("/api/bank-statements")
+      .then(async (r) => r.json())
+      .then((data) => setBankImports(data.imports ?? []))
+      .catch(() => setBankImports([]))
+  }, [])
 
   const readJsonSafely = async (response: Response) => {
     const raw = await response.text()
@@ -181,12 +202,78 @@ export default function ImportPage() {
     loadData()
   }, [syncStart, syncEnd])
 
+  const handleBankFile = async (file: File) => {
+    setBankPreview(null)
+    setBankError("")
+    setBankSuccess("")
+    setBankImporting(true)
+    try {
+      const form = new FormData()
+      form.append("file", file)
+      form.append("bank", bankCode)
+      const res = await fetch("/api/bank-statements", { method: "POST", body: form })
+      const data = await res.json()
+      if (!res.ok) {
+        setBankError(data.error || "Erreur parsing PDF")
+        return
+      }
+      setBankFile(file)
+      setBankPreview(data.preview)
+    } catch {
+      setBankError("Erreur réseau")
+    } finally {
+      setBankImporting(false)
+    }
+  }
+
+  const handleBankCommit = async () => {
+    if (!bankPreview || !bankFile || bankCommitting) return
+    setBankCommitting(true)
+    setBankError("")
+    try {
+      const res = await fetch("/api/bank-statements/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statement: bankPreview, filename: bankFile.name }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setBankError(data.error || "Erreur commit"); return }
+      setBankSuccess(`${data.count} transactions importées (${data.import.period_start} → ${data.import.period_end})`)
+      setBankPreview(null)
+      setBankFile(null)
+      setBankImports((prev) => [data.import, ...prev])
+    } catch {
+      setBankError("Erreur réseau")
+    } finally {
+      setBankCommitting(false)
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Imports POS</h1>
-        <p className="text-alaska-muted text-sm mt-1">Ventes POS pour le CA global, journal de caisse pour le pilotage cash physique</p>
+        <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Imports</h1>
+        <p className="text-alaska-muted text-sm mt-1">Ventes POS, journal caisse et relevés bancaires</p>
       </div>
+
+      {/* Sélecteur onglets POS / Relevés */}
+      <div className="flex bg-white border border-alaska-sage-lt rounded-lg p-1 gap-1">
+        {IMPORT_TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setImportTab(t)}
+            className={cn(
+              "flex-1 py-2 rounded-md text-sm font-medium transition",
+              importTab === t ? "bg-alaska-sage text-white" : "text-alaska-muted hover:bg-alaska-sage-lt"
+            )}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {importTab === "POS" && (
+      <>
 
       {step === "upload" && (
         <div className="space-y-4">
@@ -497,6 +584,142 @@ export default function ImportPage() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      </>
+      )}
+
+      {importTab === "Relevés" && (
+        <div className="space-y-4">
+          <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm text-alaska-dark">Uploader un relevé bancaire PDF</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4 space-y-3">
+              {/* Sélection banque */}
+              <div className="flex gap-2">
+                {(["bp", "cfg"] as const).map((code) => (
+                  <button
+                    key={code}
+                    onClick={() => {
+                      setBankCode(code)
+                      setBankPreview(null)
+                      setBankFile(null)
+                      setBankError("")
+                    }}
+                    className={cn(
+                      "flex-1 py-2 rounded-lg border text-sm font-medium transition",
+                      bankCode === code
+                        ? "border-alaska-sage bg-alaska-sage-lt text-alaska-sage"
+                        : "border-alaska-sage-lt text-alaska-muted hover:bg-alaska-sage-lt"
+                    )}
+                  >
+                    {code === "bp" ? "Banque Populaire" : "CFG Bank"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Zone upload */}
+              {!bankPreview && (
+                <label className="block w-full cursor-pointer border-2 border-dashed border-alaska-sage-lt rounded-xl p-6 text-center hover:border-alaska-sage transition">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleBankFile(f) }}
+                  />
+                  <p className="text-sm text-alaska-muted">
+                    {bankImporting ? "Analyse en cours..." : "Déposer le relevé PDF ici ou cliquer pour choisir"}
+                  </p>
+                  {bankFile && !bankImporting && (
+                    <p className="text-xs text-alaska-sage mt-1">{bankFile.name}</p>
+                  )}
+                </label>
+              )}
+
+              {/* Erreur */}
+              {bankError && (
+                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">
+                  <AlertCircle size={16} /><span>{bankError}</span>
+                </div>
+              )}
+
+              {/* Succès */}
+              {bankSuccess && (
+                <div className="flex items-center gap-2 text-sm text-alaska-sage bg-alaska-sage-lt p-3 rounded-xl">
+                  <CheckCircle2 size={16} /><span>{bankSuccess}</span>
+                </div>
+              )}
+
+              {/* Preview transactions */}
+              {bankPreview && (
+                <div className="space-y-3">
+                  <p className="text-sm text-alaska-dark">
+                    <span className="font-semibold">{bankPreview.transactions.length} transactions</span>
+                    {" · "}{bankPreview.period_start} → {bankPreview.period_end}
+                  </p>
+                  <div className="overflow-x-auto rounded-lg border border-alaska-sage-lt">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-alaska-sage-lt">
+                          <th className="px-3 py-2 text-left text-alaska-muted">Date</th>
+                          <th className="px-3 py-2 text-left text-alaska-muted">Libellé</th>
+                          <th className="px-3 py-2 text-right text-alaska-muted">Débit</th>
+                          <th className="px-3 py-2 text-right text-alaska-muted">Crédit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bankPreview.transactions.slice(0, 15).map((tx, i) => (
+                          <tr key={i} className="border-t border-alaska-sage-lt">
+                            <td className="px-3 py-1.5 text-alaska-muted">{tx.date}</td>
+                            <td className="px-3 py-1.5 text-alaska-dark max-w-[200px] truncate">{tx.label}</td>
+                            <td className="px-3 py-1.5 text-right text-orange-600">{tx.debit > 0 ? formatMAD(tx.debit) : "—"}</td>
+                            <td className="px-3 py-1.5 text-right text-alaska-sage">{tx.credit > 0 ? formatMAD(tx.credit) : "—"}</td>
+                          </tr>
+                        ))}
+                        {bankPreview.transactions.length > 15 && (
+                          <tr><td colSpan={4} className="px-3 py-2 text-center text-alaska-muted text-xs">+{bankPreview.transactions.length - 15} autres transactions</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1 border-alaska-sage-lt" onClick={() => { setBankPreview(null); setBankFile(null) }}>
+                      Annuler
+                    </Button>
+                    <Button
+                      className="flex-1 bg-alaska-sage hover:bg-alaska-sage/90 text-white"
+                      onClick={() => void handleBankCommit()}
+                      disabled={bankCommitting}
+                    >
+                      {bankCommitting ? "Import en cours..." : `Confirmer (${bankPreview.transactions.length} tx)`}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Historique imports relevés */}
+          {bankImports.length > 0 && (
+            <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm text-alaska-dark">Historique des relevés importés</CardTitle>
+              </CardHeader>
+              <CardContent className="pb-4">
+                <div className="space-y-2">
+                  {bankImports.map((imp) => (
+                    <div key={imp.id} className="flex justify-between items-center text-sm py-1.5 border-b border-alaska-sage-lt last:border-0">
+                      <span className="text-alaska-dark font-medium">{imp.bank === "bp" ? "Banque Populaire" : "CFG Bank"}</span>
+                      <span className="text-alaska-muted text-xs">{imp.period_start} → {imp.period_end}</span>
+                      <span className="text-alaska-sage text-xs">{imp.transaction_count} tx</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   )
