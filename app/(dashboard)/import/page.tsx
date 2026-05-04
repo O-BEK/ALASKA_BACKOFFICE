@@ -203,7 +203,6 @@ export default function ImportPage() {
   }, [syncStart, syncEnd])
 
   const handleBankFile = async (file: File) => {
-    setBankFile(file)
     setBankPreview(null)
     setBankError("")
     setBankSuccess("")
@@ -214,7 +213,11 @@ export default function ImportPage() {
       form.append("bank", bankCode)
       const res = await fetch("/api/bank-statements", { method: "POST", body: form })
       const data = await res.json()
-      if (!res.ok) { setBankError(data.error || "Erreur parsing PDF"); return }
+      if (!res.ok) {
+        setBankError(data.error || "Erreur parsing PDF")
+        return
+      }
+      setBankFile(file)
       setBankPreview(data.preview)
     } catch {
       setBankError("Erreur réseau")
@@ -224,7 +227,7 @@ export default function ImportPage() {
   }
 
   const handleBankCommit = async () => {
-    if (!bankPreview || !bankFile) return
+    if (!bankPreview || !bankFile || bankCommitting) return
     setBankCommitting(true)
     setBankError("")
     try {
@@ -598,7 +601,12 @@ export default function ImportPage() {
                 {(["bp", "cfg"] as const).map((code) => (
                   <button
                     key={code}
-                    onClick={() => setBankCode(code)}
+                    onClick={() => {
+                      setBankCode(code)
+                      setBankPreview(null)
+                      setBankFile(null)
+                      setBankError("")
+                    }}
                     className={cn(
                       "flex-1 py-2 rounded-lg border text-sm font-medium transition",
                       bankCode === code
