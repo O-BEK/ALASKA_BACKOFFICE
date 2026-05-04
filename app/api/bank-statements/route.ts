@@ -42,12 +42,34 @@ export async function POST(request: Request) {
   }
 
   try {
+    const arrayBuffer = await file.arrayBuffer()
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PDFParse } = require("pdf-parse") as typeof import("pdf-parse")
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const parser = new PDFParse({ data: buffer })
-    const parsed = await parser.getText()
-    const text = parsed.text
+    const pdfjsLib = require("pdfjs-dist/legacy/build/pdf") as typeof import("pdfjs-dist")
+    const { pathToFileURL } = await import("url")
+    const workerPath = process.cwd() + "/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise
+
+    let text = ""
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const content = await page.getTextContent()
+
+      // Group items by rounded Y position to reconstruct lines
+      const lineMap = new Map<number, Array<{ str: string; x: number }>>()
+      for (const item of content.items as Array<{ str: string; transform: number[] }>) {
+        const y = Math.round(item.transform[5])
+        if (!lineMap.has(y)) lineMap.set(y, [])
+        lineMap.get(y)!.push({ str: item.str, x: item.transform[4] })
+      }
+
+      // Sort lines top-to-bottom (Y desc on PDF coords), items left-to-right
+      const lines = Array.from(lineMap.entries())
+        .sort(([a], [b]) => b - a)
+        .map(([, items]) => items.sort((a, b) => a.x - b.x).map((i) => i.str).join("  "))
+
+      text += lines.join("\n") + "\n"
+    }
 
     const statement = bank === "bp" ? parseBanquePopulaire(text) : parseCfg(text)
 
