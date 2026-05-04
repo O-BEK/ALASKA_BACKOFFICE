@@ -757,3 +757,39 @@ export function buildCaisseBalance(db: PilotDb, sinceOverride?: string): { balan
   const balance = totalCA + totalMvt - totalExp
   return { balance, toDeposit: Math.max(0, balance - CAISSE_RESERVE), since }
 }
+
+export async function buildBankConsolidation(
+  supabase: any,
+  month: string
+) {
+  const { getBankTransactionsByPeriod, listBankImports } = await import("@/lib/server/bank-store")
+  const rawTransactions: Array<{ bank: string; date: string; label: string; debit: number; credit: number; balance: number }> =
+    (await getBankTransactionsByPeriod(supabase, month)) as any
+  const imports = await listBankImports(supabase)
+  const monthImports = imports.filter(
+    (imp: { period_start: string; period_end: string }) =>
+      imp.period_start.startsWith(month) || imp.period_end.startsWith(month)
+  )
+
+  const byBank = (["bp", "cfg"] as const).map((bank) => {
+    const bankTx = rawTransactions.filter((t) => t.bank === bank)
+    return {
+      bank,
+      label: bank === "bp" ? "Banque Populaire" : "CFG Bank",
+      total_debit: bankTx.reduce((sum: number, t) => sum + t.debit, 0),
+      total_credit: bankTx.reduce((sum: number, t) => sum + t.credit, 0),
+      transaction_count: bankTx.length,
+    }
+  }).filter((b: { transaction_count: number }) => b.transaction_count > 0)
+
+  const total_debit = byBank.reduce((sum: number, b: { total_debit: number }) => sum + b.total_debit, 0)
+  const total_credit = byBank.reduce((sum: number, b: { total_credit: number }) => sum + b.total_credit, 0)
+
+  return {
+    has_data: byBank.length > 0,
+    banks: byBank,
+    total_debit,
+    total_credit,
+    import_count: monthImports.length,
+  }
+}

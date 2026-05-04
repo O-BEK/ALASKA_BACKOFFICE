@@ -288,6 +288,22 @@ const weekPayloadSchema = z.object({
   entries: weekEntriesSchema,
 })
 
+export const bankConsolidationSchema = z.object({
+  has_data: z.boolean().catch(false),
+  banks: z.array(z.object({
+    bank: z.string().catch(""),
+    label: z.string().catch(""),
+    total_debit: z.coerce.number().catch(0),
+    total_credit: z.coerce.number().catch(0),
+    transaction_count: z.coerce.number().catch(0),
+  })).catch([]),
+  total_debit: z.coerce.number().catch(0),
+  total_credit: z.coerce.number().catch(0),
+  import_count: z.coerce.number().catch(0),
+})
+
+export type BankConsolidation = z.infer<typeof bankConsolidationSchema>
+
 const reportingPayloadSchema = z.object({
   summary: z.object({
     ca_caisse: z.coerce.number().catch(0),
@@ -467,6 +483,13 @@ const reportingPayloadSchema = z.object({
     previous: z.coerce.number().catch(0),
     delta_pct: z.coerce.number().nullable().catch(null),
   })).catch([]),
+  bankConsolidation: bankConsolidationSchema.catch({
+    has_data: false,
+    banks: [],
+    total_debit: 0,
+    total_credit: 0,
+    import_count: 0,
+  }),
 })
 
 export function parseDashboardState(input: unknown, month: string): {

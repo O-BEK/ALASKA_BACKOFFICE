@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
-import { buildLastSixMonths, monthReporting } from "@/lib/server/analytics"
+import { buildBankConsolidation, buildLastSixMonths, monthReporting } from "@/lib/server/analytics"
 import { createClient, isAdmin } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { readSnapshot } from "@/lib/server/supabase-store"
 
 export async function GET(request: Request) {
@@ -19,10 +20,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
     }
     const db = await readSnapshot(supabase)
+    const bankConsolidation = await buildBankConsolidation(createAdminClient(), month)
 
     return NextResponse.json({
       ...monthReporting(db, month),
       last6: buildLastSixMonths(db, month),
+      bankConsolidation,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue"
