@@ -354,18 +354,57 @@ export default function ReportingPage() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-xl border border-dashed border-alaska-sage bg-white">
+              <Card className="rounded-xl border border-alaska-sage-lt bg-white">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base text-alaska-dark">Consolidation externe</CardTitle>
-                  <CardDescription className="text-xs text-alaska-muted">Virements, banque et factures hors caisse</CardDescription>
+                  <CardTitle className="text-base text-alaska-dark">Consolidation bancaire</CardTitle>
+                  <CardDescription className="text-xs text-alaska-muted">Relevés Banque Populaire et CFG Bank</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-alaska-dark">
-                    Le reporting affiche aujourd&apos;hui le cash et les ventes POS. Les virements ne sont pas encore consolidés dans ces chiffres.
-                  </p>
-                  <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/30 px-3 py-3 text-xs text-alaska-muted">
-                    Prochaine étape : déposer un relevé bancaire ou fournisseur pour rapprocher virements, charges et cash.
-                  </div>
+                  {!payload.bankConsolidation.has_data ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-alaska-muted">
+                        Aucun relevé bancaire importé pour ce mois.
+                      </p>
+                      <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/30 px-3 py-2 text-xs text-alaska-muted">
+                        Importer un relevé PDF dans l&apos;onglet{" "}
+                        <a href="/import" className="text-alaska-sage underline hover:no-underline">
+                          Imports → Relevés
+                        </a>
+                        .
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {payload.bankConsolidation.banks.map((bank) => (
+                        <div key={bank.bank} className="space-y-1.5">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-alaska-dark">{bank.label}</p>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-alaska-muted">Sorties (débits)</span>
+                            <span className="font-playfair font-bold text-orange-600">-{formatMAD(bank.total_debit)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-alaska-muted">Entrées (crédits)</span>
+                            <span className="font-playfair font-bold text-alaska-sage">+{formatMAD(bank.total_credit)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm border-t border-alaska-sage-lt pt-1">
+                            <span className="text-alaska-muted">Flux net</span>
+                            <span className={cn("font-playfair font-bold", bank.total_credit - bank.total_debit >= 0 ? "text-alaska-sage" : "text-orange-600")}>
+                              {signedMAD(bank.total_credit - bank.total_debit)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      {payload.bankConsolidation.banks.length > 1 && (
+                        <div className="border-t border-alaska-sage-lt pt-2 flex justify-between text-sm font-semibold">
+                          <span className="text-alaska-dark">Total — sorties</span>
+                          <span className="font-playfair text-orange-600">-{formatMAD(payload.bankConsolidation.total_debit)}</span>
+                        </div>
+                      )}
+                      <p className="text-xs text-alaska-muted pt-1">
+                        {payload.bankConsolidation.import_count} relevé(s) importé(s) ce mois
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
