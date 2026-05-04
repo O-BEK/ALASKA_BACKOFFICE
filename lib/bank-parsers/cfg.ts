@@ -30,6 +30,13 @@ function stripLeadingDate(label: string): string {
   return label.replace(/^\d{2}\/\d{2}\/\d{4}\s+/, "").trim()
 }
 
+function cleanLabel(label: string): string {
+  return stripLeadingDate(label)
+    .replace(/^\d{6,}\s+/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 function looksLikeAmount(raw: string): boolean {
   return /^[+-]?\s*\d[\d\s.,]*$/.test(raw.trim())
 }
@@ -75,7 +82,7 @@ function parseSplitParts(line: string): BankTransaction | null {
 
   if (amountParts.length < 2) return null
 
-  const label = stripLeadingDate(labelParts.join(" "))
+  const label = cleanLabel(labelParts.join(" "))
   if (!label) return null
 
   const balance = parseMadAmount(amountParts[amountParts.length - 1])
@@ -101,6 +108,40 @@ function parseSplitParts(line: string): BankTransaction | null {
   return { date, label, debit, credit, balance }
 }
 
+function parseByDecimalAmounts(line: string): BankTransaction | null {
+  const dateMatch = line.match(/^(\d{2}\/\d{2}\/\d{4})\s+/)
+  if (!dateMatch) return null
+  const date = parseDate(dateMatch[1])
+  if (!date) return null
+
+  const rest = line.slice(dateMatch[0].length)
+  const amountMatches = Array.from(rest.matchAll(/[+-]?\s*(?:\d{1,3}(?:[ ,.]\d{3})+|\d+)[,.]\d{2}/g))
+  if (amountMatches.length < 2) return null
+
+  const movementMatch = amountMatches[amountMatches.length - 2]
+  const balanceMatch = amountMatches[amountMatches.length - 1]
+  const label = cleanLabel(rest.slice(0, movementMatch.index).trim())
+  if (!label) return null
+
+  const movementRaw = movementMatch[0]
+  const mouvement = parseMadAmount(movementRaw)
+  const balance = parseMadAmount(balanceMatch[0])
+  let debit = 0
+  let credit = 0
+
+  if (movementRaw.trim().startsWith("-")) {
+    debit = Math.abs(mouvement)
+  } else if (movementRaw.trim().startsWith("+")) {
+    credit = mouvement
+  } else if (inferUnsignedMovementSide(label) === "debit") {
+    debit = mouvement
+  } else {
+    credit = mouvement
+  }
+
+  return { date, label, debit, credit, balance }
+}
+
 /**
  * CFG Bank signed format: DATE  LABEL  [+|-]MOUVEMENT  BALANCE
  * The movement amount carries a sign: positive = credit, negative = debit.
@@ -119,6 +160,12 @@ export function parseCfg(text: string): ParsedStatement {
   const transactions: BankTransaction[] = []
 
   for (const line of lines) {
+    const decimalTx = parseByDecimalAmounts(line)
+    if (decimalTx) {
+      transactions.push(decimalTx)
+      continue
+    }
+
     const splitTx = parseSplitParts(line)
     if (splitTx) {
       transactions.push(splitTx)
@@ -130,7 +177,7 @@ export function parseCfg(text: string): ParsedStatement {
     if (match) {
       const date = parseDate(match[1])
       if (!date) continue
-      const label = stripLeadingDate(match[2].trim())
+      const label = cleanLabel(match[2].trim())
       if (!label) continue
       const mouvement = parseMadAmount(match[3]) // preserves sign (+/-)
       const balance = parseMadAmount(match[4])
@@ -145,7 +192,7 @@ export function parseCfg(text: string): ParsedStatement {
     if (match) {
       const date = parseDate(match[1])
       if (!date) continue
-      const label = stripLeadingDate(match[2].trim())
+      const label = cleanLabel(match[2].trim())
       if (!label) continue
       const debit = parseMadAmount(match[3] ?? "")
       const credit = parseMadAmount(match[4] ?? "")

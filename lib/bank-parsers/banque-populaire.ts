@@ -29,6 +29,13 @@ function stripLeadingDate(label: string): string {
   return label.replace(/^\d{2}\/\d{2}\/\d{4}\s+/, "").trim()
 }
 
+function cleanLabel(label: string): string {
+  return stripLeadingDate(label)
+    .replace(/^\d{6,}\s+/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 /**
  * Column-position threshold (chars after date prefix) to distinguish debit vs credit.
  * In BP statements, the debit column appears at ~40-45 chars and the credit column
@@ -53,7 +60,7 @@ function parseLine(line: string): BankTransaction | null {
 
   if (parts.length < 2) return null
 
-  const label = stripLeadingDate(parts[0])
+  const label = cleanLabel(parts[0])
   if (!label) return null
 
   const balance = parseMadAmount(parts[parts.length - 1])
