@@ -4,20 +4,20 @@ import { useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { CalendarDays, Edit3, FileBarChart, Home, LogOut, Menu, Target, UploadCloud, X, Calculator } from "lucide-react"
+import { CalendarDays, Edit3, FileBarChart, Home, LogOut, Menu, Settings, Target, UploadCloud, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/lib/types"
 import { createClient } from "@/lib/supabase/client"
 
 const navByRole: Record<UserRole, { href: string; label: string; icon: any }[]> = {
   admin: [
-    { href: "/", icon: Home, label: "Dashboard" },
+    { href: "/", icon: Home, label: "Accueil" },
     { href: "/saisie", icon: Edit3, label: "Caisse" },
     { href: "/semaine", icon: CalendarDays, label: "Semaine" },
-    { href: "/charges", icon: Calculator, label: "Charges" },
+    { href: "/reporting", icon: FileBarChart, label: "Pilotage" },
     { href: "/objectifs", icon: Target, label: "Objectifs" },
-    { href: "/import", icon: UploadCloud, label: "Import CSV" },
-    { href: "/reporting", icon: FileBarChart, label: "Reporting" },
+    { href: "/import", icon: UploadCloud, label: "Imports" },
+    { href: "/charges", icon: Settings, label: "Réglages" },
   ],
   manager: [
     { href: "/saisie", icon: Edit3, label: "Caisse" },
@@ -65,8 +65,8 @@ export function AppShell({
           <aside className="relative w-64 bg-alaska-dark text-white flex flex-col h-full z-50">
             <div className="p-4 flex items-center justify-between border-b border-white/10">
               <Image src="/logo.png" alt="Alaska Neo Bistrot" width={80} height={80} className="object-contain" />
-              <button onClick={() => setMobileOpen(false)} className="p-1.5 hover:bg-white/10 rounded-lg">
-                <X size={18} className="text-alaska-muted" />
+              <button onClick={() => setMobileOpen(false)} className="p-1.5 hover:bg-white/10 rounded-lg" aria-label="Fermer le menu">
+                <X size={18} className="text-alaska-muted" aria-hidden="true" />
               </button>
             </div>
             <SidebarContent
@@ -83,8 +83,8 @@ export function AppShell({
       <main className="flex-1 flex flex-col min-w-0">
         <header className="md:hidden bg-alaska-dark text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <Image src="/logo.png" alt="Alaska Neo Bistrot" width={36} height={36} className="object-contain" />
-          <button onClick={() => setMobileOpen(true)} className="p-1.5 hover:bg-white/10 rounded-lg">
-            <Menu size={20} />
+          <button onClick={() => setMobileOpen(true)} className="p-1.5 hover:bg-white/10 rounded-lg" aria-label="Ouvrir le menu">
+            <Menu size={20} aria-hidden="true" />
           </button>
         </header>
         <div className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">{children}</div>
@@ -119,7 +119,7 @@ function SidebarContent({
               pathname === href ? "bg-alaska-sage text-white font-medium" : "text-alaska-muted hover:bg-white/5 hover:text-white"
             )}
           >
-            <Icon size={16} />
+            <Icon size={16} aria-hidden="true" />
             {label}
           </Link>
         ))}
@@ -131,7 +131,7 @@ function SidebarContent({
           onClick={onSignOut}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-alaska-muted hover:bg-white/5 hover:text-white transition mt-2"
         >
-          <LogOut size={15} /> Déconnexion
+          <LogOut size={15} aria-hidden="true" /> Déconnexion
         </button>
       </div>
     </>

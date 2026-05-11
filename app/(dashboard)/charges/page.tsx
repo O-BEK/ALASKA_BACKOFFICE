@@ -69,7 +69,8 @@ export default function ChargesPage() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Charges</h1>
+        <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Réglages</h1>
+        <p className="mt-1 text-sm text-alaska-muted">Charges fixes et modèles de saisie</p>
         <div className="flex gap-1 mt-3 bg-white border border-alaska-sage-lt rounded-lg p-1 w-fit">
           <button
             onClick={() => setActiveTab("charges")}
