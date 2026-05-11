@@ -33,6 +33,7 @@ interface DashboardState {
     cash_sales: number
     cash_movements: number
     cash_mp_divers: number
+    mp_divers_items: { label: string; amount: number }[]
     cash_charges: number
     cash_rh: number
     cash_depot: number
@@ -62,6 +63,7 @@ const emptyCashMonth = (month: string) => ({
   cash_sales: 0,
   cash_movements: 0,
   cash_mp_divers: 0,
+  mp_divers_items: [] as { label: string; amount: number }[],
   cash_charges: 0,
   cash_rh: 0,
   cash_depot: 0,
@@ -153,6 +155,7 @@ export function useDashboard(month: string, enabled = true) {
           cash_sales: 0,
           cash_movements: 0,
           cash_mp_divers: 0,
+          mp_divers_items: [],
           cash_charges: 0,
           cash_rh: 0,
           cash_depot: 0,
@@ -218,6 +221,7 @@ export function useDashboard(month: string, enabled = true) {
             cash_sales: 0,
             cash_movements: 0,
             cash_mp_divers: 0,
+            mp_divers_items: [],
             cash_charges: 0,
             cash_rh: 0,
             cash_depot: 0,

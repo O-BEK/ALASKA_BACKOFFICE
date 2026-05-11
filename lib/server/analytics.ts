@@ -252,9 +252,17 @@ function buildCashMonthSummary(db: PilotDb, month: string) {
   const expenses = monthExpenses(db, month)
   const cash_sales = sales.reduce((sum, item) => sum + getCashSalesReference(item), 0)
   const cash_movements = sales.reduce((sum, item) => sum + getCashMovementsReference(item), 0)
-  const cash_mp_divers = expenses
-    .filter((e) => e.category === "MP" || e.category === "AUTRE")
-    .reduce((sum, e) => sum + e.amount, 0)
+  const mpDiversExpenses = expenses.filter((e) => e.category === "MP" || e.category === "AUTRE")
+  const cash_mp_divers = mpDiversExpenses.reduce((sum, e) => sum + e.amount, 0)
+  const mp_divers_items = Object.entries(
+    mpDiversExpenses.reduce<Record<string, number>>((acc, e) => {
+      acc[e.label] = (acc[e.label] || 0) + e.amount
+      return acc
+    }, {})
+  )
+    .map(([label, amount]) => ({ label, amount }))
+    .filter((item) => item.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
   const cash_charges = expenses
     .filter((e) => e.category === "CHARGES" && e.label !== VIREMENT_BANQUE_LABEL)
     .reduce((sum, e) => sum + e.amount, 0)
@@ -273,6 +281,7 @@ function buildCashMonthSummary(db: PilotDb, month: string) {
     cash_sales,
     cash_movements,
     cash_mp_divers,
+    mp_divers_items,
     cash_charges,
     cash_rh,
     cash_depot,
