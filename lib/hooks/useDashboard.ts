@@ -42,6 +42,8 @@ interface DashboardState {
     ca_global: number
     anomaly_days: number
     days_count: number
+    prime_cost_pct: number
+    resultat_net: number
   }
   weeklyMonth: {
     label: string
@@ -72,6 +74,8 @@ const emptyCashMonth = (month: string) => ({
   ca_global: 0,
   anomaly_days: 0,
   days_count: 0,
+  prime_cost_pct: 0,
+  resultat_net: 0,
 })
 
 const emptyKpis: MonthlyKPIs = {
@@ -164,6 +168,8 @@ export function useDashboard(month: string, enabled = true) {
           ca_global: 0,
           anomaly_days: 0,
           days_count: 0,
+          prime_cost_pct: 0,
+          resultat_net: 0,
         },
         weeklyMonth: [],
         kpis_secondary: { avg_ticket: 0, coverage_pct: 0, mix_cash_pct: 0 },
@@ -230,6 +236,8 @@ export function useDashboard(month: string, enabled = true) {
             ca_global: 0,
             anomaly_days: 0,
             days_count: 0,
+            prime_cost_pct: 0,
+            resultat_net: 0,
           },
           weeklyMonth: [],
           kpis_secondary: { avg_ticket: 0, coverage_pct: 0, mix_cash_pct: 0 },
