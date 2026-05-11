@@ -1,6 +1,6 @@
 import "server-only"
 
-import { eachDayOfInterval, eachWeekOfInterval, endOfMonth, endOfWeek, format, getISOWeek, startOfMonth, startOfWeek, subWeeks } from "date-fns"
+import { eachDayOfInterval, eachWeekOfInterval, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns"
 import { getBankTransactionsByPeriod, listBankImports } from "@/lib/server/bank-store"
 import { isBankExpenseClassification } from "@/lib/bank-classification"
 import { fr } from "date-fns/locale"
