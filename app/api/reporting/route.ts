@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { buildBankConsolidation, buildFinancialConsolidation, buildLastSixMonths, monthReporting } from "@/lib/server/analytics"
+import { buildBankConsolidation, buildCashMonthSummary, buildFinancialConsolidation, buildLast4WeeksComparison, buildLastSixMonths, monthReporting } from "@/lib/server/analytics"
 import { createClient, isAdmin } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { readSnapshot } from "@/lib/server/supabase-store"
@@ -49,11 +49,17 @@ export async function GET(request: Request) {
       by_classification: [] as Array<{ classification: string; debit: number; credit: number; count: number }>,
     }))
 
+    const cashSummary = buildCashMonthSummary(db, month)
+    const weekComparison = buildLast4WeeksComparison(db)
+
     return NextResponse.json({
       ...monthReporting(db, month),
       last6: buildLastSixMonths(db, month),
       bankConsolidation,
       financialConsolidation,
+      weekComparison,
+      primeCost: cashSummary.prime_cost_pct,
+      resultatNet: cashSummary.resultat_net,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue"
