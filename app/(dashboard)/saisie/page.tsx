@@ -95,7 +95,8 @@ export default function SaisiePage() {
   const statusIcon = cashSalesReference > 0 && totalExpenses > 0 ? "✅"
     : cashSalesReference > 0 || totalExpenses > 0 ? "🟡" : "⬜"
 
-  const totalDepensesCash = cashMonth.cash_mp_divers - cashMonth.virement_mp_divers + cashMonth.cash_rh + cashMonth.cash_charges
+  const mpNetCash = cashMonth.cash_mp_divers - cashMonth.virement_mp_divers
+  const totalDepensesCash = mpNetCash + cashMonth.cash_rh + cashMonth.cash_charges
   const hasCashDepenses = totalDepensesCash > 0
   const hasCashDepot = cashMonth.cash_depot > 0
 
@@ -417,14 +418,14 @@ export default function SaisiePage() {
                       ))}
                       <div className="flex justify-between">
                         <span className="text-sm text-alaska-dark font-medium">Total achats MP cash</span>
-                        <span className="font-playfair font-bold text-green-700">{formatMAD(cashMonth.cash_mp_divers - cashMonth.virement_mp_divers)}</span>
+                        <span className="font-playfair font-bold text-green-700">{formatMAD(mpNetCash)}</span>
                       </div>
                     </>
                   ) : (
-                    cashMonth.cash_mp_divers - cashMonth.virement_mp_divers > 0 && (
+                    mpNetCash > 0 && (
                       <div className="flex justify-between">
                         <span className="text-sm text-alaska-muted">Achats MP & divers cash</span>
-                        <span className="font-playfair font-bold text-green-700">{formatMAD(cashMonth.cash_mp_divers - cashMonth.virement_mp_divers)}</span>
+                        <span className="font-playfair font-bold text-green-700">{formatMAD(mpNetCash)}</span>
                       </div>
                     )
                   )}
