@@ -571,7 +571,7 @@ import { WeekGrid } from "@/components/saisie/WeekGrid"
 const TABS = ["Saisie", "Semaine", "Mois"] as const
 type Tab = typeof TABS[number]
 
-const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien & courses"]
+const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien"]
 const AUTRES_POSTES = ["Loyer","Électricité","Gaz","Internet","Autre"]
 
 export default function SaisiePage() {

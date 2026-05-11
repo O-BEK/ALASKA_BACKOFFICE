@@ -48,7 +48,7 @@ const MP_POSTES = ["Poissonnier","Boucher","Poulet","Courses / Marché","Eau","T
 
 Par :
 ```typescript
-const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien & courses"]
+const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien"]
 ```
 
 - [ ] **Vérifier dans le navigateur**
@@ -222,7 +222,7 @@ import { DailyEntry } from "@/lib/types"
 import { FIXED_CHARGES } from "@/lib/mock-data"
 import { formatMAD } from "@/lib/utils"
 
-const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien & courses"]
+const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien"]
 const today = startOfDay(new Date())
 
 interface WeekGridProps {

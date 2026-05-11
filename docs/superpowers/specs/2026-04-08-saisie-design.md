@@ -25,7 +25,7 @@ Refonte basée sur `Alaska_Suivi_Semaines_2026.xlsx`. Le projet est dans `claude
 ## Postes MP (alignés Excel)
 
 ```
-Poissonnier | Boucher | Poulet | Eau | Technicien & courses
+Poissonnier | Boucher | Poulet | Eau | Technicien
 ```
 
 ## Solde caisse

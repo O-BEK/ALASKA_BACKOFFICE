@@ -87,7 +87,7 @@ SELECT sec.id, label, sort_order FROM sec, (VALUES
   ('Boucher',              2),
   ('Poulet',               3),
   ('Eau',                  4),
-  ('Technicien & courses', 5)
+  ('Technicien', 5)
 ) AS t(label, sort_order);
 
 -- Items Autres Charges
@@ -494,7 +494,7 @@ import { useExpenseTemplates } from "@/lib/hooks/useExpenseTemplates"
 Supprimer les constantes hardcodées en haut du fichier :
 ```typescript
 // SUPPRIMER ces deux lignes :
-const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien & courses"]
+const MP_POSTES = ["Poissonnier","Boucher","Poulet","Eau","Technicien"]
 const AUTRES_POSTES = ["Loyer","Électricité","Gaz","Internet","Autre"]
 ```
 
