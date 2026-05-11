@@ -95,6 +95,10 @@ export default function SaisiePage() {
   const statusIcon = cashSalesReference > 0 && totalExpenses > 0 ? "✅"
     : cashSalesReference > 0 || totalExpenses > 0 ? "🟡" : "⬜"
 
+  const totalDepensesCash = cashMonth.cash_mp_divers - cashMonth.virement_mp_divers + cashMonth.cash_rh + cashMonth.cash_charges
+  const hasCashDepenses = totalDepensesCash > 0
+  const hasCashDepot = cashMonth.cash_depot > 0
+
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       {cameFromWeek && (
@@ -397,36 +401,69 @@ export default function SaisiePage() {
                 <span className="text-sm text-alaska-muted">Mouvements POS</span>
                 <span className="font-playfair font-bold text-alaska-dark">{formatMAD(cashMonth.cash_movements)}</span>
               </div>
-              {cashMonth.mp_divers_items.length > 0 ? (
+
+              {hasCashDepenses && (
                 <>
-                  {cashMonth.mp_divers_items.map((item) => (
-                    <div key={item.label} className="flex justify-between pl-2">
-                      <span className="text-sm text-alaska-muted">{item.label}</span>
-                      <span className="font-playfair font-bold text-orange-600">{formatMAD(item.amount)}</span>
+                  <div className="border-t border-alaska-sage-lt pt-2">
+                    <p className="text-xs font-semibold text-alaska-muted uppercase tracking-wide mb-2">Dépenses cash</p>
+                  </div>
+                  {cashMonth.mp_divers_items.length > 0 ? (
+                    <>
+                      {cashMonth.mp_divers_items.map((item) => (
+                        <div key={item.label} className="flex justify-between pl-2">
+                          <span className="text-sm text-alaska-muted">{item.label}</span>
+                          <span className="font-playfair font-bold text-orange-600">{formatMAD(item.amount)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between">
+                        <span className="text-sm text-alaska-dark font-medium">Total achats MP cash</span>
+                        <span className="font-playfair font-bold text-green-700">{formatMAD(cashMonth.cash_mp_divers - cashMonth.virement_mp_divers)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    cashMonth.cash_mp_divers - cashMonth.virement_mp_divers > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-alaska-muted">Achats MP & divers cash</span>
+                        <span className="font-playfair font-bold text-green-700">{formatMAD(cashMonth.cash_mp_divers - cashMonth.virement_mp_divers)}</span>
+                      </div>
+                    )
+                  )}
+                  {cashMonth.cash_rh > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-alaska-muted">Salaires cash</span>
+                      <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_rh)}</span>
                     </div>
-                  ))}
-                  <div className="flex justify-between border-t border-alaska-sage-lt pt-1">
-                    <span className="text-sm text-alaska-dark font-medium">Total achats MP cash</span>
-                    <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_mp_divers - cashMonth.virement_mp_divers)}</span>
+                  )}
+                  {cashMonth.cash_charges > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-alaska-muted">Autres charges cash</span>
+                      <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_charges)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between bg-gray-50 rounded px-2 py-1">
+                    <span className="text-sm text-alaska-dark font-semibold">Total dépenses</span>
+                    <span className="font-playfair font-bold text-alaska-dark">{formatMAD(totalDepensesCash)}</span>
                   </div>
                 </>
-              ) : (
-                <div className="flex justify-between">
-                  <span className="text-sm text-alaska-muted">Achats MP & divers cash</span>
-                  <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_mp_divers - cashMonth.virement_mp_divers)}</span>
-                </div>
               )}
-              <div className="flex justify-between">
-                <span className="text-sm text-alaska-muted">Salaires cash</span>
-                <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_rh)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-alaska-muted">Dépôt cash banque</span>
-                <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_depot)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-alaska-muted">Cash théorique enveloppe</span>
-                <span className="font-playfair font-bold text-alaska-dark">{formatMAD(cashMonth.cash_envelope)}</span>
+
+              {hasCashDepot && (
+                <>
+                  <div className="border-t border-alaska-sage-lt pt-2">
+                    <p className="text-xs font-semibold text-alaska-muted uppercase tracking-wide mb-2">Versé en banque</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-alaska-muted">Virements banque</span>
+                    <span className="font-playfair font-bold text-alaska-muted">{formatMAD(cashMonth.cash_depot)}</span>
+                  </div>
+                </>
+              )}
+
+              <div className="border-t border-alaska-sage-lt pt-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-alaska-muted">Cash théorique enveloppe</span>
+                  <span className="font-playfair font-bold text-alaska-dark">{formatMAD(cashMonth.cash_envelope)}</span>
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-alaska-muted">CA global indicatif</span>
