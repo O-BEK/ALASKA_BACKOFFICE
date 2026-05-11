@@ -9,6 +9,7 @@ import { useCaisseBalance } from "@/lib/hooks/useCaisseBalance"
 import { useCharges } from "@/lib/hooks/useCharges"
 import { useExpenseTemplates } from "@/lib/hooks/useExpenseTemplates"
 import { useUserRole } from "@/lib/hooks/useUserRole"
+import { useMonthlySuppliers, MONTHLY_SUPPLIERS } from "@/lib/hooks/useMonthlySuppliers"
 import { getCashEnvelope, getCashMovementsReference, getCashSalesReference, getGlobalIndicativeCA, hasCashJournal } from "@/lib/cash"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -60,6 +61,9 @@ export default function SaisiePage() {
   const balanceSince = format(weekStart, "yyyy-MM-dd")
   const { balance, toDeposit, since, error: balanceError, refetch: refetchBalance } = useCaisseBalance(balanceSince)
   const safeExpenses = Array.isArray(entry.expenses) ? entry.expenses : []
+
+  const { amounts: supplierAmounts, setAmounts: setSupplierAmounts, saving: supplierSaving, error: supplierError, save: saveSuppliers } = useMonthlySuppliers(viewMonth)
+  const [supplierSaved, setSupplierSaved] = useState(false)
 
   const { charges } = useCharges("staff")
   const { sections } = useExpenseTemplates()
@@ -321,6 +325,43 @@ export default function SaisiePage() {
             </button>
           </div>
           <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-base text-alaska-dark">🏭 Fournisseurs mois (virement)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {supplierError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  {supplierError}
+                </div>
+              )}
+              {MONTHLY_SUPPLIERS.map((supplier) => (
+                <ExpenseRow
+                  key={supplier.label}
+                  label={supplier.label}
+                  value={supplierAmounts[supplier.label as keyof typeof supplierAmounts]}
+                  onChange={(value) =>
+                    setSupplierAmounts((prev) => ({ ...prev, [supplier.label]: value }))
+                  }
+                />
+              ))}
+              <Button
+                onClick={async () => {
+                  try {
+                    await saveSuppliers(supplierAmounts)
+                    setSupplierSaved(true)
+                    setTimeout(() => setSupplierSaved(false), 2000)
+                  } catch {
+                    // error already set in hook
+                  }
+                }}
+                disabled={supplierSaving}
+                className="w-full bg-alaska-sage text-white hover:bg-alaska-sage/90 font-semibold"
+              >
+                {supplierSaved ? <><CheckCircle2 size={16} className="mr-2" />Enregistré</> : <><Save size={16} className="mr-2" />Enregistrer fournisseurs</>}
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border border-alaska-sage-lt rounded-xl">
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-alaska-muted">Cash POS mensuel</span>
@@ -368,6 +409,48 @@ export default function SaisiePage() {
               <p className="text-xs text-alaska-muted text-center pt-2">
                 {cashMonth.anomaly_days > 0 ? `${cashMonth.anomaly_days} journée(s) en alerte contrôle sur le mois` : "Vue mensuelle cash consolidée"}
               </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border border-alaska-sage-lt rounded-xl">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-base text-alaska-dark">📊 Pilotage du mois</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-alaska-muted">Prime cost (MP + RH / CA)</span>
+                  <span className={cn(
+                    "text-sm font-bold",
+                    cashMonth.prime_cost_pct < 60 ? "text-green-600" :
+                    cashMonth.prime_cost_pct <= 65 ? "text-orange-500" : "text-red-600"
+                  )}>
+                    {cashMonth.prime_cost_pct > 0 ? `${cashMonth.prime_cost_pct.toFixed(1)} %` : "—"}
+                  </span>
+                </div>
+                {cashMonth.prime_cost_pct > 0 && (
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div
+                      className={cn(
+                        "h-2 rounded-full transition-all",
+                        cashMonth.prime_cost_pct < 60 ? "bg-green-500" :
+                        cashMonth.prime_cost_pct <= 65 ? "bg-orange-400" : "bg-red-500"
+                      )}
+                      style={{ width: `${Math.min(cashMonth.prime_cost_pct, 100)}%` }}
+                    />
+                  </div>
+                )}
+                <p className="text-[11px] text-alaska-muted">Norme restauration : &lt; 65 %</p>
+              </div>
+              <div className="flex justify-between items-center border-t border-alaska-sage-lt pt-3">
+                <span className="text-sm text-alaska-muted">Résultat net estimé</span>
+                <span className={cn(
+                  "font-playfair font-bold text-lg",
+                  cashMonth.ca_global === 0 ? "text-alaska-muted" :
+                  cashMonth.resultat_net >= 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  {cashMonth.ca_global === 0 ? "—" : formatMAD(cashMonth.resultat_net)}
+                </span>
+              </div>
             </CardContent>
           </Card>
         </div>
