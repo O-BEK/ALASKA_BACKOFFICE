@@ -102,6 +102,7 @@ const cashMonthSchema = z.object({
   cash_rh: z.coerce.number().catch(0),
   cash_depot: z.coerce.number().catch(0),
   cash_purchases: z.coerce.number().catch(0),
+  virement_mp_divers: z.coerce.number().catch(0),
   cash_envelope: z.coerce.number().catch(0),
   ca_global: z.coerce.number().catch(0),
   anomaly_days: z.coerce.number().catch(0),
@@ -164,6 +165,7 @@ const dashboardStateSchema = z.object({
     cash_rh: 0,
     cash_depot: 0,
     cash_purchases: 0,
+    virement_mp_divers: 0,
     cash_envelope: 0,
     ca_global: 0,
     anomaly_days: 0,
@@ -589,6 +591,7 @@ export function parseDashboardState(input: unknown, month: string): {
     cash_rh: number
     cash_depot: number
     cash_purchases: number
+    virement_mp_divers: number
     cash_envelope: number
     ca_global: number
     anomaly_days: number

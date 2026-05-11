@@ -38,6 +38,7 @@ interface DashboardState {
     cash_rh: number
     cash_depot: number
     cash_purchases: number
+    virement_mp_divers: number
     cash_envelope: number
     ca_global: number
     anomaly_days: number
@@ -70,6 +71,7 @@ const emptyCashMonth = (month: string) => ({
   cash_rh: 0,
   cash_depot: 0,
   cash_purchases: 0,
+  virement_mp_divers: 0,
   cash_envelope: 0,
   ca_global: 0,
   anomaly_days: 0,
@@ -164,6 +166,7 @@ export function useDashboard(month: string, enabled = true) {
           cash_rh: 0,
           cash_depot: 0,
           cash_purchases: 0,
+          virement_mp_divers: 0,
           cash_envelope: 0,
           ca_global: 0,
           anomaly_days: 0,
@@ -232,6 +235,7 @@ export function useDashboard(month: string, enabled = true) {
             cash_rh: 0,
             cash_depot: 0,
             cash_purchases: 0,
+            virement_mp_divers: 0,
             cash_envelope: 0,
             ca_global: 0,
             anomaly_days: 0,

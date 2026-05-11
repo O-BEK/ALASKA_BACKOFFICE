@@ -380,14 +380,14 @@ export default function SaisiePage() {
                     </div>
                   ))}
                   <div className="flex justify-between border-t border-alaska-sage-lt pt-1">
-                    <span className="text-sm text-alaska-dark font-medium">Total achats MP</span>
-                    <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_mp_divers)}</span>
+                    <span className="text-sm text-alaska-dark font-medium">Total achats MP cash</span>
+                    <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_mp_divers - cashMonth.virement_mp_divers)}</span>
                   </div>
                 </>
               ) : (
                 <div className="flex justify-between">
-                  <span className="text-sm text-alaska-muted">Achats MP & divers</span>
-                  <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_mp_divers)}</span>
+                  <span className="text-sm text-alaska-muted">Achats MP & divers cash</span>
+                  <span className="font-playfair font-bold text-orange-600">{formatMAD(cashMonth.cash_mp_divers - cashMonth.virement_mp_divers)}</span>
                 </div>
               )}
               <div className="flex justify-between">

@@ -255,10 +255,12 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
   const mpDiversExpenses = expenses.filter((e) => e.category === "MP" || e.category === "AUTRE")
   const cash_mp_divers = mpDiversExpenses.reduce((sum, e) => sum + e.amount, 0)
   const mp_divers_items = Object.entries(
-    mpDiversExpenses.reduce<Record<string, number>>((acc, e) => {
-      acc[e.label] = (acc[e.label] || 0) + e.amount
-      return acc
-    }, {})
+    mpDiversExpenses
+      .filter((e) => e.date !== `${month}-01`)
+      .reduce<Record<string, number>>((acc, e) => {
+        acc[e.label] = (acc[e.label] || 0) + e.amount
+        return acc
+      }, {})
   )
     .map(([label, amount]) => ({ label, amount }))
     .filter((item) => item.amount > 0)
@@ -306,6 +308,7 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
     cash_rh,
     cash_depot,
     cash_purchases,
+    virement_mp_divers,
     cash_envelope: cash_sales + cash_movements - (cash_purchases - virement_mp_divers),
     ca_global,
     anomaly_days,
