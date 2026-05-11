@@ -1,6 +1,6 @@
 import "server-only"
 
-import { eachDayOfInterval, eachWeekOfInterval, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns"
+import { eachDayOfInterval, eachWeekOfInterval, endOfMonth, endOfWeek, format, getISOWeek, startOfMonth, startOfWeek, subWeeks } from "date-fns"
 import { getBankTransactionsByPeriod, listBankImports } from "@/lib/server/bank-store"
 import { isBankExpenseClassification } from "@/lib/bank-classification"
 import { fr } from "date-fns/locale"
@@ -876,4 +876,28 @@ export async function buildFinancialConsolidation(
       ...totals,
     })),
   }
+}
+
+export function buildLast4WeeksComparison(
+  db: PilotDb,
+  referenceDate: Date = new Date()
+): { label: string; current: number; previous: number }[] {
+  const result: { label: string; current: number; previous: number }[] = []
+  for (let i = 3; i >= 0; i--) {
+    const weekAnchor = subWeeks(referenceDate, i)
+    const weekStart = format(startOfWeek(weekAnchor, { weekStartsOn: 1 }), "yyyy-MM-dd")
+    const weekEnd = format(endOfWeek(weekAnchor, { weekStartsOn: 1 }), "yyyy-MM-dd")
+    const prevAnchor = subWeeks(referenceDate, i + 52)
+    const prevStart = format(startOfWeek(prevAnchor, { weekStartsOn: 1 }), "yyyy-MM-dd")
+    const prevEnd = format(endOfWeek(prevAnchor, { weekStartsOn: 1 }), "yyyy-MM-dd")
+    const isoWeek = getISOWeek(startOfWeek(weekAnchor, { weekStartsOn: 1 }))
+    const current = db.daily_sales
+      .filter((s) => s.date >= weekStart && s.date <= weekEnd)
+      .reduce((sum, s) => sum + s.ca_caisse + s.ca_b2b, 0)
+    const previous = db.daily_sales
+      .filter((s) => s.date >= prevStart && s.date <= prevEnd)
+      .reduce((sum, s) => sum + s.ca_caisse + s.ca_b2b, 0)
+    result.push({ label: `S${isoWeek}`, current, previous })
+  }
+  return result
 }

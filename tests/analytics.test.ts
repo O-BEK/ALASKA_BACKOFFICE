@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-import { buildCaisseBalance, buildCashMonthSummary, buildDashboardData, buildFinancialConsolidation, buildWeekData, monthReporting } from "../lib/server/analytics"
+import { buildCaisseBalance, buildCashMonthSummary, buildDashboardData, buildFinancialConsolidation, buildLast4WeeksComparison, buildWeekData, monthReporting } from "../lib/server/analytics"
 import type { PilotDb, ExpenseRecord } from "../lib/server/db-types"
 import type { FixedCharge } from "../lib/types"
 
@@ -395,5 +395,50 @@ describe("buildFinancialConsolidation", () => {
     expect(result.real_result).toBe(-2500)
     expect(result.owner_injections).toBe(3000)
     expect(result.status).toBe("loss")
+  })
+})
+
+describe("buildLast4WeeksComparison", () => {
+  it("returns exactly 4 items", () => {
+    const db = makeDb({})
+    const result = buildLast4WeeksComparison(db, new Date("2026-05-11"))
+    expect(result).toHaveLength(4)
+  })
+
+  it("each item has label, current, and previous fields", () => {
+    const db = makeDb({})
+    const result = buildLast4WeeksComparison(db, new Date("2026-05-11"))
+    result.forEach((item) => {
+      expect(item).toHaveProperty("label")
+      expect(item).toHaveProperty("current")
+      expect(item).toHaveProperty("previous")
+      expect(item.label).toMatch(/^S\d+$/)
+    })
+  })
+
+  it("aggregates ca_total for days within the week range", () => {
+    // Week of 2026-05-11 is ISO week 20 (Mon 2026-05-11 to Sun 2026-05-17)
+    // 52 weeks back from 2026-05-11 = 2025-05-12, week of 2025-05-12 is Mon 2025-05-12 to Sun 2025-05-18
+    const db = makeDb({
+      daily_sales: [
+        makeSale({ date: "2026-05-11", ca_caisse: 5000, ca_b2b: 1000 }), // current week
+        makeSale({ id: "prev", date: "2025-05-12", ca_caisse: 3000, ca_b2b: 500 }),  // previous year equivalent
+      ],
+    })
+    const result = buildLast4WeeksComparison(db, new Date("2026-05-11"))
+    // The last item (most recent week) should be week 20
+    const lastItem = result[result.length - 1]
+    expect(lastItem.label).toBe("S20")
+    expect(lastItem.current).toBe(6000) // 5000 + 1000
+    expect(lastItem.previous).toBe(3500) // 3000 + 500
+  })
+
+  it("returns 0 for weeks with no data", () => {
+    const db = makeDb({ daily_sales: [] })
+    const result = buildLast4WeeksComparison(db, new Date("2026-05-11"))
+    result.forEach((item) => {
+      expect(item.current).toBe(0)
+      expect(item.previous).toBe(0)
+    })
   })
 })
