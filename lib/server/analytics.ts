@@ -294,10 +294,12 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
     .filter((e) => e.category === "RH" && !staffNamesInCharges.has(e.label))
     .reduce((sum, e) => sum + e.amount, 0)
   const total_rh = rh_in_fixed + rh_not_in_fixed
-  const food_cost_pct = ca_global > 0 ? (cash_mp_divers / ca_global) * 100 : 0
+  // MP seulement pour les ratios restaurant (hors AUTRE = Solidernet, nettoyage, etc.)
+  const cash_mp_only = expenses.filter((e) => e.category === "MP").reduce((sum, e) => sum + e.amount, 0)
+  const food_cost_pct = ca_global > 0 ? (cash_mp_only / ca_global) * 100 : 0
   const staff_cost_pct = ca_global > 0 ? (total_rh / ca_global) * 100 : 0
   const fixed_charges_pct = ca_global > 0 ? (fixed_charges_total / ca_global) * 100 : 0
-  const prime_cost_pct = ca_global > 0 ? (cash_mp_divers + total_rh) / ca_global * 100 : 0
+  const prime_cost_pct = ca_global > 0 ? (cash_mp_only + total_rh) / ca_global * 100 : 0
   const resultat_net = ca_global - cash_mp_divers - rh_not_in_fixed - fixed_charges_total
 
   return {
