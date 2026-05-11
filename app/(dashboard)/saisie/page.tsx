@@ -62,7 +62,7 @@ export default function SaisiePage() {
   const { balance, toDeposit, since, error: balanceError, refetch: refetchBalance } = useCaisseBalance(balanceSince)
   const safeExpenses = Array.isArray(entry.expenses) ? entry.expenses : []
 
-  const { amounts: supplierAmounts, setAmounts: setSupplierAmounts, saving: supplierSaving, error: supplierError, save: saveSuppliers } = useMonthlySuppliers(viewMonth)
+  const { amounts: supplierAmounts, setAmounts: setSupplierAmounts, solidernetMpPct, setSolidernetMpPct, saving: supplierSaving, error: supplierError, save: saveSuppliers } = useMonthlySuppliers(viewMonth)
   const [supplierSaved, setSupplierSaved] = useState(false)
 
   const { charges } = useCharges("staff")
@@ -336,7 +336,7 @@ export default function SaisiePage() {
                   {supplierError}
                 </div>
               )}
-              {MONTHLY_SUPPLIERS.map((supplier) => (
+              {MONTHLY_SUPPLIERS.filter((s) => s.label !== "Solidernet").map((supplier) => (
                 <ExpenseRow
                   key={supplier.label}
                   label={supplier.label}
@@ -346,6 +346,30 @@ export default function SaisiePage() {
                   }
                 />
               ))}
+              <div className="space-y-1.5">
+                <ExpenseRow
+                  label="Solidernet"
+                  value={supplierAmounts["Solidernet"]}
+                  onChange={(value) => setSupplierAmounts((prev) => ({ ...prev, Solidernet: value }))}
+                />
+                <div className="flex items-center justify-end gap-2 pl-2">
+                  <span className="text-xs text-alaska-muted">dont alim.</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={solidernetMpPct}
+                    onChange={(e) => setSolidernetMpPct(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                    className="w-14 h-7 text-right text-xs border border-alaska-sage-lt rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-alaska-sage"
+                  />
+                  <span className="text-xs text-alaska-muted">%</span>
+                  {supplierAmounts["Solidernet"] > 0 && (
+                    <span className="text-xs text-alaska-muted">
+                      = {Math.round(supplierAmounts["Solidernet"] * solidernetMpPct / 100).toLocaleString()} MAD
+                    </span>
+                  )}
+                </div>
+              </div>
               <Button
                 onClick={async () => {
                   try {

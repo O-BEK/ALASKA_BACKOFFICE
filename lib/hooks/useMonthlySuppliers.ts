@@ -16,9 +16,12 @@ interface SupplierAmounts {
   Solidernet: number
 }
 
+const SOLIDERNET_DEFAULT_MP_PCT = 15
+
 export function useMonthlySuppliers(month: string) {
   const date = `${month}-01`
   const [amounts, setAmounts] = useState<SupplierAmounts>({ Poulet: 0, "Nor Saga": 0, Solidernet: 0 })
+  const [solidernetMpPct, setSolidernetMpPct] = useState(SOLIDERNET_DEFAULT_MP_PCT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,10 +35,22 @@ export function useMonthlySuppliers(month: string) {
         if (!res.ok) throw new Error(json.error || `Erreur ${res.status}`)
         const expenses: { label: string; amount: number; category: string }[] = json.expenses ?? []
         const newAmounts: SupplierAmounts = { Poulet: 0, "Nor Saga": 0, Solidernet: 0 }
-        for (const supplier of MONTHLY_SUPPLIERS) {
+
+        // Poulet + Nor Saga : une seule ligne MP
+        for (const supplier of MONTHLY_SUPPLIERS.filter((s) => s.label !== "Solidernet")) {
           const found = expenses.find((e) => e.label === supplier.label)
           if (found) newAmounts[supplier.label as keyof SupplierAmounts] = found.amount
         }
+
+        // Solidernet : peut être splitté en MP (part alimentaire) + AUTRE
+        const solidernetRows = expenses.filter((e) => e.label === "Solidernet")
+        const solidernetTotal = solidernetRows.reduce((sum, e) => sum + e.amount, 0)
+        const solidernetMpAmount = solidernetRows.find((e) => e.category === "MP")?.amount ?? 0
+        newAmounts["Solidernet"] = solidernetTotal
+        if (solidernetTotal > 0) {
+          setSolidernetMpPct(Math.round((solidernetMpAmount / solidernetTotal) * 100))
+        }
+
         setAmounts(newAmounts)
       })
       .catch((err: unknown) => {
@@ -50,31 +65,35 @@ export function useMonthlySuppliers(month: string) {
       setSaving(true)
       setError(null)
       try {
-        // 1. Load current entry to preserve other expenses and sales data
         const getRes = await fetch(`/api/daily-entry?date=${date}`)
         const current = await getRes.json()
         if (!getRes.ok) throw new Error(current.error || `Erreur ${getRes.status}`)
 
-        // 2. Merge supplier expenses into existing expenses array
         const existingExpenses: { label: string; amount: number; category: string }[] = current.expenses ?? []
         const supplierLabels: string[] = MONTHLY_SUPPLIERS.map((s) => s.label)
         const otherExpenses = existingExpenses.filter((e) => !supplierLabels.includes(e.label))
-        const supplierExpenses = MONTHLY_SUPPLIERS.map((s) => ({
-          label: s.label,
-          amount: newAmounts[s.label as keyof SupplierAmounts],
-          category: s.category,
-        })).filter((e) => e.amount > 0)
 
-        // 3. PUT the full merged entry
-        const body = {
-          ...current,
-          date,
-          expenses: [...otherExpenses, ...supplierExpenses],
+        const supplierExpenses: { label: string; amount: number; category: string }[] = []
+
+        // Poulet + Nor Saga : ligne MP unique
+        for (const supplier of MONTHLY_SUPPLIERS.filter((s) => s.label !== "Solidernet")) {
+          const amount = newAmounts[supplier.label as keyof SupplierAmounts]
+          if (amount > 0) supplierExpenses.push({ label: supplier.label, amount, category: supplier.category })
         }
+
+        // Solidernet : split MP (part alimentaire) + AUTRE (produits non alimentaires)
+        const solidernetTotal = newAmounts["Solidernet"]
+        if (solidernetTotal > 0) {
+          const mpAmount = Math.round((solidernetTotal * solidernetMpPct) / 100)
+          const autreAmount = solidernetTotal - mpAmount
+          if (mpAmount > 0) supplierExpenses.push({ label: "Solidernet", amount: mpAmount, category: "MP" })
+          if (autreAmount > 0) supplierExpenses.push({ label: "Solidernet", amount: autreAmount, category: "AUTRE" })
+        }
+
         const putRes = await fetch("/api/daily-entry", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ ...current, date, expenses: [...otherExpenses, ...supplierExpenses] }),
         })
         const putJson = await putRes.json()
         if (!putRes.ok) throw new Error(putJson.error || `Erreur ${putRes.status}`)
@@ -87,8 +106,8 @@ export function useMonthlySuppliers(month: string) {
         setSaving(false)
       }
     },
-    [date]
+    [date, solidernetMpPct]
   )
 
-  return { amounts, setAmounts, loading, saving, error, save }
+  return { amounts, setAmounts, solidernetMpPct, setSolidernetMpPct, loading, saving, error, save }
 }
