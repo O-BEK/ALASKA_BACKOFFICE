@@ -375,6 +375,25 @@ describe("buildCashMonthSummary — prime cost & résultat net", () => {
     const result = buildCashMonthSummary(db, "2026-05")
     expect(result.resultat_net).toBe(3500) // 10000 - 3000 - 2000 - 1500
   })
+
+  it("expose le détail matière, RH et charges fixes pour les vues de pilotage", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-05-10", ca_caisse: 8000, ca_b2b: 2000 })],
+      expenses: [
+        makeExpenseRecord("2026-05-10", { category: "MP", amount: 2500 }),
+        makeExpenseRecord("2026-05-10", { category: "RH", amount: 500, label: "Extra" }),
+      ],
+      fixed_charges: [
+        makeFixedCharge({ name: "Sara", amount: 2000, is_staff: true, is_active: true, start_date: "2026-01-01", end_date: null }),
+        makeFixedCharge({ name: "Loyer", amount: 1500, is_active: true, start_date: "2026-01-01", end_date: null }),
+      ],
+    })
+    const result = buildCashMonthSummary(db, "2026-05")
+    expect(result.food_cost_pct).toBeCloseTo(25)
+    expect(result.staff_cost_pct).toBeCloseTo(25)
+    expect(result.fixed_charges_total).toBe(3500)
+    expect(result.fixed_charges_pct).toBeCloseTo(35)
+  })
 })
 
 describe("buildCashMonthSummary — RH sans double comptage", () => {

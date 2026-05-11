@@ -107,6 +107,10 @@ const cashMonthSchema = z.object({
   ca_global: z.coerce.number().catch(0),
   anomaly_days: z.coerce.number().catch(0),
   days_count: z.coerce.number().catch(0),
+  food_cost_pct: z.coerce.number().catch(0),
+  staff_cost_pct: z.coerce.number().catch(0),
+  fixed_charges_total: z.coerce.number().catch(0),
+  fixed_charges_pct: z.coerce.number().catch(0),
   prime_cost_pct: z.coerce.number().catch(0),
   resultat_net: z.coerce.number().catch(0),
 })
@@ -170,6 +174,10 @@ const dashboardStateSchema = z.object({
     ca_global: 0,
     anomaly_days: 0,
     days_count: 0,
+    food_cost_pct: 0,
+    staff_cost_pct: 0,
+    fixed_charges_total: 0,
+    fixed_charges_pct: 0,
     prime_cost_pct: 0,
     resultat_net: 0,
   }),
@@ -596,6 +604,10 @@ export function parseDashboardState(input: unknown, month: string): {
     ca_global: number
     anomaly_days: number
     days_count: number
+    food_cost_pct: number
+    staff_cost_pct: number
+    fixed_charges_total: number
+    fixed_charges_pct: number
     prime_cost_pct: number
     resultat_net: number
   }

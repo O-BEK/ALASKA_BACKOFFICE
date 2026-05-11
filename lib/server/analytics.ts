@@ -294,6 +294,9 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
     .filter((e) => e.category === "RH" && !staffNamesInCharges.has(e.label))
     .reduce((sum, e) => sum + e.amount, 0)
   const total_rh = rh_in_fixed + rh_not_in_fixed
+  const food_cost_pct = ca_global > 0 ? (cash_mp_divers / ca_global) * 100 : 0
+  const staff_cost_pct = ca_global > 0 ? (total_rh / ca_global) * 100 : 0
+  const fixed_charges_pct = ca_global > 0 ? (fixed_charges_total / ca_global) * 100 : 0
   const prime_cost_pct = ca_global > 0 ? (cash_mp_divers + total_rh) / ca_global * 100 : 0
   const resultat_net = ca_global - cash_mp_divers - rh_not_in_fixed - fixed_charges_total
 
@@ -312,6 +315,10 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
     ca_global,
     anomaly_days,
     days_count: sales.length,
+    food_cost_pct,
+    staff_cost_pct,
+    fixed_charges_total,
+    fixed_charges_pct,
     prime_cost_pct,
     resultat_net,
   }
