@@ -106,6 +106,8 @@ const cashMonthSchema = z.object({
   ca_global: z.coerce.number().catch(0),
   anomaly_days: z.coerce.number().catch(0),
   days_count: z.coerce.number().catch(0),
+  prime_cost_pct: z.coerce.number().catch(0),
+  resultat_net: z.coerce.number().catch(0),
 })
 
 const dashboardKpisSecondarySchema = z.object({
@@ -166,6 +168,8 @@ const dashboardStateSchema = z.object({
     ca_global: 0,
     anomaly_days: 0,
     days_count: 0,
+    prime_cost_pct: 0,
+    resultat_net: 0,
   }),
   weeklyMonth: z.array(dashboardWeeklySchema).catch([]),
   kpis_secondary: dashboardKpisSecondarySchema.catch({
@@ -333,6 +337,12 @@ export const financialConsolidationSchema = z.object({
 })
 
 export type FinancialConsolidation = z.infer<typeof financialConsolidationSchema>
+
+const weekComparisonItemSchema = z.object({
+  label: z.string().catch(""),
+  current: z.coerce.number().catch(0),
+  previous: z.coerce.number().catch(0),
+})
 
 const reportingPayloadSchema = z.object({
   summary: z.object({
@@ -540,6 +550,9 @@ const reportingPayloadSchema = z.object({
     alert: "",
     by_classification: [],
   }),
+  weekComparison: z.array(weekComparisonItemSchema).catch([]),
+  primeCost: z.coerce.number().catch(0),
+  resultatNet: z.coerce.number().catch(0),
 })
 
 export function parseDashboardState(input: unknown, month: string): {
@@ -580,6 +593,8 @@ export function parseDashboardState(input: unknown, month: string): {
     ca_global: number
     anomaly_days: number
     days_count: number
+    prime_cost_pct: number
+    resultat_net: number
   }
   weeklyMonth: {
     label: string
