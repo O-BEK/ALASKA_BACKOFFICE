@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-import { buildCaisseBalance, buildDashboardData, buildFinancialConsolidation, buildWeekData, monthReporting } from "../lib/server/analytics"
-import type { PilotDb } from "../lib/server/db-types"
+import { buildCaisseBalance, buildCashMonthSummary, buildDashboardData, buildFinancialConsolidation, buildWeekData, monthReporting } from "../lib/server/analytics"
+import type { PilotDb, ExpenseRecord } from "../lib/server/db-types"
+import type { FixedCharge } from "../lib/types"
 
 function makeDb(overrides: Partial<PilotDb> = {}): PilotDb {
   return {
@@ -300,6 +301,72 @@ describe("buildDashboardData cashMonth split", () => {
     expect(result.cashMonth.cash_depot).toBe(2000)      // CHARGES label "Virement banque"
     expect(result.cashMonth.cash_purchases).toBe(5500)  // somme totale (backward compat)
     expect(result.cashMonth.cash_envelope).toBe(-500)   // 5000 - 5500
+  })
+})
+
+function makeExpenseRecord(date: string, overrides: { category: "MP" | "RH" | "CHARGES" | "AUTRE"; amount: number; label?: string }): ExpenseRecord {
+  return {
+    id: Math.random().toString(),
+    date,
+    category: overrides.category,
+    amount: overrides.amount,
+    label: overrides.label ?? "test",
+    notes: "",
+    created_by: "test",
+    updated_at: "",
+  }
+}
+
+function makeFixedCharge(overrides: { amount: number; is_active: boolean; start_date: string; end_date: string | null }): FixedCharge {
+  return {
+    id: Math.random().toString(),
+    name: "test charge",
+    category: "DIVERS",
+    amount: overrides.amount,
+    type: "fixed",
+    payment_day: null,
+    is_staff: false,
+    is_active: overrides.is_active,
+    start_date: overrides.start_date,
+    end_date: overrides.end_date,
+  }
+}
+
+describe("buildCashMonthSummary — prime cost & résultat net", () => {
+  it("calculates prime_cost_pct as (mp + rh) / ca * 100", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-05-10", ca_caisse: 8000, ca_b2b: 2000 })],
+      expenses: [
+        makeExpenseRecord("2026-05-10", { category: "MP", amount: 3000 }),
+        makeExpenseRecord("2026-05-10", { category: "RH", amount: 2000 }),
+      ],
+      fixed_charges: [],
+    })
+    const result = buildCashMonthSummary(db, "2026-05")
+    expect(result.prime_cost_pct).toBeCloseTo(50) // (3000+2000)/10000*100
+  })
+
+  it("returns prime_cost_pct = 0 when ca_global is 0", () => {
+    const db = makeDb({
+      daily_sales: [],
+      expenses: [makeExpenseRecord("2026-05-10", { category: "MP", amount: 1000 })],
+      fixed_charges: [],
+    })
+    const result = buildCashMonthSummary(db, "2026-05")
+    expect(result.prime_cost_pct).toBe(0)
+  })
+
+  it("calculates resultat_net as ca - mp - rh - fixed_charges", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-05-10", ca_caisse: 10000, ca_b2b: 0 })],
+      expenses: [
+        makeExpenseRecord("2026-05-10", { category: "MP", amount: 3000 }),
+        makeExpenseRecord("2026-05-10", { category: "RH", amount: 2000 }),
+      ],
+      fixed_charges: [makeFixedCharge({ amount: 1500, is_active: true, start_date: "2026-01-01", end_date: null })],
+    })
+    const result = buildCashMonthSummary(db, "2026-05")
+    expect(result.resultat_net).toBe(3500) // 10000 - 3000 - 2000 - 1500
   })
 })
 

@@ -1,6 +1,6 @@
 import "server-only"
 
-import { eachDayOfInterval, eachWeekOfInterval, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns"
+import { eachDayOfInterval, eachWeekOfInterval, endOfMonth, endOfWeek, format, getISOWeek, startOfMonth, startOfWeek, subWeeks } from "date-fns"
 import { getBankTransactionsByPeriod, listBankImports } from "@/lib/server/bank-store"
 import { isBankExpenseClassification } from "@/lib/bank-classification"
 import { fr } from "date-fns/locale"
@@ -247,7 +247,7 @@ function totalExpensesForDay(expenses: ExpenseRecord[]) {
   return expenses.reduce((sum, item) => sum + item.amount, 0)
 }
 
-function buildCashMonthSummary(db: PilotDb, month: string) {
+export function buildCashMonthSummary(db: PilotDb, month: string) {
   const sales = monthEntries(db, month)
   const expenses = monthExpenses(db, month)
   const cash_sales = sales.reduce((sum, item) => sum + getCashSalesReference(item), 0)
@@ -275,6 +275,11 @@ function buildCashMonthSummary(db: PilotDb, month: string) {
   const cash_purchases = cash_mp_divers + cash_charges + cash_rh + cash_depot
   const ca_global = sales.reduce((sum, item) => sum + item.ca_caisse + item.ca_b2b, 0)
   const anomaly_days = sales.filter((item) => item.cash_journal_anomaly).length
+  const fixed_charges_total = db.fixed_charges
+    .filter((c) => isChargeActiveForMonth(c, month))
+    .reduce((sum, c) => sum + c.amount, 0)
+  const prime_cost_pct = ca_global > 0 ? (cash_mp_divers + cash_rh) / ca_global * 100 : 0
+  const resultat_net = ca_global - cash_mp_divers - cash_rh - fixed_charges_total
 
   return {
     month,
@@ -290,6 +295,8 @@ function buildCashMonthSummary(db: PilotDb, month: string) {
     ca_global,
     anomaly_days,
     days_count: sales.length,
+    prime_cost_pct,
+    resultat_net,
   }
 }
 
