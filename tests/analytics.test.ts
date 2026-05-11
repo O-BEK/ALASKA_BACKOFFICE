@@ -304,6 +304,29 @@ describe("buildDashboardData cashMonth split", () => {
   })
 })
 
+describe("buildDashboardData — dépôt banque exclu des charges", () => {
+  it("cash_depot n'est pas inclus dans cash_charges ni food_cost_pct", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-04-15", ca_caisse: 100000, ca_b2b: 52000 })],
+      expenses: [
+        { id: "e1", date: "2026-04-15", category: "MP",      label: "Poissonnier",    amount: 18000, notes: "", created_by: null, updated_at: "" },
+        { id: "e2", date: "2026-04-15", category: "RH",      label: "Ramzi",           amount: 17000, notes: "", created_by: null, updated_at: "" },
+        { id: "e3", date: "2026-04-15", category: "CHARGES", label: "Virement banque", amount: 27000, notes: "", created_by: null, updated_at: "" },
+      ],
+    })
+    const result = buildDashboardData(db, "2026-04")
+    // Le dépôt banque est bien séparé dans cash_depot
+    expect(result.cashMonth.cash_depot).toBe(27000)
+    // cash_charges n'inclut PAS le dépôt banque (catégorie CHARGES hors "Virement banque")
+    expect(result.cashMonth.cash_charges).toBe(0)
+    // food_cost_pct n'est pas affecté par le dépôt banque
+    // 18000 MP / 152000 ca_global ≈ 11.84%
+    expect(result.cashMonth.food_cost_pct).toBeCloseTo(11.84, 1)
+    // cash_envelope = ca_caisse - toutes dépenses y compris depot = 100000 - 18000 - 17000 - 27000 = 38000
+    expect(result.cashMonth.cash_envelope).toBe(38000)
+  })
+})
+
 function makeExpenseRecord(date: string, overrides: { category: "MP" | "RH" | "CHARGES" | "AUTRE"; amount: number; label?: string }): ExpenseRecord {
   return {
     id: Math.random().toString(),
