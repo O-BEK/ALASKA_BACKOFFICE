@@ -221,11 +221,15 @@ function isChargeActiveForMonth(charge: PilotDb["fixed_charges"][number], month:
   return hasOverlap && (charge.is_active || !!charge.end_date)
 }
 
-function monthExpenseTotalsByLabel(db: PilotDb, month: string) {
-  return monthExpenses(db, month).reduce<Record<string, number>>((acc, item) => {
-    acc[item.label] = (acc[item.label] || 0) + item.amount
+function groupExpensesByLabel(expenses: ExpenseRecord[]): Record<string, number> {
+  return expenses.reduce<Record<string, number>>((acc, e) => {
+    acc[e.label] = (acc[e.label] || 0) + e.amount
     return acc
   }, {})
+}
+
+function monthExpenseTotalsByLabel(db: PilotDb, month: string) {
+  return groupExpensesByLabel(monthExpenses(db, month))
 }
 
 function saleByDate(sales: DailySaleRecord[]) {
@@ -255,12 +259,7 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
   const mpDiversExpenses = expenses.filter((e) => e.category === "MP" || e.category === "AUTRE")
   const cash_mp_divers = mpDiversExpenses.reduce((sum, e) => sum + e.amount, 0)
   const mp_divers_items = Object.entries(
-    mpDiversExpenses
-      .filter((e) => e.date !== `${month}-01`)
-      .reduce<Record<string, number>>((acc, e) => {
-        acc[e.label] = (acc[e.label] || 0) + e.amount
-        return acc
-      }, {})
+    groupExpensesByLabel(mpDiversExpenses.filter((e) => e.date !== `${month}-01`))
   )
     .map(([label, amount]) => ({ label, amount }))
     .filter((item) => item.amount > 0)
