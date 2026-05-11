@@ -317,15 +317,22 @@ function makeExpenseRecord(date: string, overrides: { category: "MP" | "RH" | "C
   }
 }
 
-function makeFixedCharge(overrides: { amount: number; is_active: boolean; start_date: string; end_date: string | null }): FixedCharge {
+function makeFixedCharge(overrides: {
+  name?: string
+  amount: number
+  is_staff?: boolean
+  is_active: boolean
+  start_date: string
+  end_date: string | null
+}): FixedCharge {
   return {
     id: Math.random().toString(),
-    name: "test charge",
+    name: overrides.name ?? "test charge",
     category: "DIVERS",
     amount: overrides.amount,
     type: "fixed",
     payment_day: null,
-    is_staff: false,
+    is_staff: overrides.is_staff ?? false,
     is_active: overrides.is_active,
     start_date: overrides.start_date,
     end_date: overrides.end_date,
@@ -367,6 +374,49 @@ describe("buildCashMonthSummary — prime cost & résultat net", () => {
     })
     const result = buildCashMonthSummary(db, "2026-05")
     expect(result.resultat_net).toBe(3500) // 10000 - 3000 - 2000 - 1500
+  })
+})
+
+describe("buildCashMonthSummary — RH sans double comptage", () => {
+  it("n'inclut pas le cash RH dans resultat_net si l'employé est dans fixed_charges", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-05-10", ca_caisse: 10000, ca_b2b: 0 })],
+      expenses: [
+        makeExpenseRecord("2026-05-10", { category: "RH", amount: 2000, label: "Ahmed" }),
+      ],
+      fixed_charges: [
+        makeFixedCharge({ name: "Ahmed", amount: 5000, is_staff: true, is_active: true, start_date: "2026-01-01", end_date: null }),
+      ],
+    })
+    const result = buildCashMonthSummary(db, "2026-05")
+    expect(result.resultat_net).toBe(5000)
+    expect(result.prime_cost_pct).toBeCloseTo(50)
+  })
+
+  it("compte les paiements RH cash sans fiche /charges (intérimaires)", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-05-10", ca_caisse: 10000, ca_b2b: 0 })],
+      expenses: [
+        makeExpenseRecord("2026-05-10", { category: "RH", amount: 800, label: "Intérimaire" }),
+      ],
+      fixed_charges: [],
+    })
+    const result = buildCashMonthSummary(db, "2026-05")
+    expect(result.resultat_net).toBe(9200)
+    expect(result.prime_cost_pct).toBeCloseTo(8)
+  })
+
+  it("inclut les salaires 100% virement via fixed_charges dans prime_cost", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-05-10", ca_caisse: 10000, ca_b2b: 0 })],
+      expenses: [],
+      fixed_charges: [
+        makeFixedCharge({ name: "Sara", amount: 4000, is_staff: true, is_active: true, start_date: "2026-01-01", end_date: null }),
+      ],
+    })
+    const result = buildCashMonthSummary(db, "2026-05")
+    expect(result.resultat_net).toBe(6000)
+    expect(result.prime_cost_pct).toBeCloseTo(40)
   })
 })
 

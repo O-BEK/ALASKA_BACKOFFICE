@@ -278,8 +278,19 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
   const fixed_charges_total = db.fixed_charges
     .filter((c) => isChargeActiveForMonth(c, month))
     .reduce((sum, c) => sum + c.amount, 0)
-  const prime_cost_pct = ca_global > 0 ? (cash_mp_divers + cash_rh) / ca_global * 100 : 0
-  const resultat_net = ca_global - cash_mp_divers - cash_rh - fixed_charges_total
+  // Évite le double-comptage : les charges personnel couvrent déjà le salaire total.
+  // Seules les dépenses RH cash sans fiche /charges (intérimaires) s'ajoutent en plus.
+  const activeStaffCharges = db.fixed_charges.filter(
+    (c) => isChargeActiveForMonth(c, month) && c.is_staff
+  )
+  const staffNamesInCharges = new Set(activeStaffCharges.map((c) => c.name))
+  const rh_in_fixed = activeStaffCharges.reduce((sum, c) => sum + c.amount, 0)
+  const rh_not_in_fixed = expenses
+    .filter((e) => e.category === "RH" && !staffNamesInCharges.has(e.label))
+    .reduce((sum, e) => sum + e.amount, 0)
+  const total_rh = rh_in_fixed + rh_not_in_fixed
+  const prime_cost_pct = ca_global > 0 ? (cash_mp_divers + total_rh) / ca_global * 100 : 0
+  const resultat_net = ca_global - cash_mp_divers - rh_not_in_fixed - fixed_charges_total
 
   return {
     month,
