@@ -273,6 +273,10 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
     .filter((e) => e.category === "CHARGES" && e.label === VIREMENT_BANQUE_LABEL)
     .reduce((sum, e) => sum + e.amount, 0)
   const cash_purchases = cash_mp_divers + cash_charges + cash_rh + cash_depot
+  // Fournisseurs virement stockés le 1er du mois — ne passent pas par le tiroir-caisse
+  const virement_mp_divers = mpDiversExpenses
+    .filter((e) => e.date === `${month}-01`)
+    .reduce((sum, e) => sum + e.amount, 0)
   const ca_global = sales.reduce((sum, item) => sum + item.ca_caisse + item.ca_b2b, 0)
   const anomaly_days = sales.filter((item) => item.cash_journal_anomaly).length
   const fixed_charges_total = db.fixed_charges
@@ -302,7 +306,7 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
     cash_rh,
     cash_depot,
     cash_purchases,
-    cash_envelope: cash_sales + cash_movements - cash_purchases,
+    cash_envelope: cash_sales + cash_movements - (cash_purchases - virement_mp_divers),
     ca_global,
     anomaly_days,
     days_count: sales.length,
