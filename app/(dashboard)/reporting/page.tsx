@@ -6,7 +6,7 @@ import { cn, formatMAD, formatPct } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Banknote, ChevronLeft, ChevronRight, Database, Download, FileText, Scale, TrendingUp, Users } from "lucide-react"
-import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { Area, AreaChart, Bar, BarChart, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 const MONTHS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 const PIE_COLORS = ["#4a6741", "#c9a96e", "#e6a830", "#7a7a6a"]
@@ -72,7 +72,6 @@ export default function ReportingPage() {
   const projection = payload.projection
   const dataQuality = payload.dataQuality
   const cashFlow = payload.cashFlow
-  const financial = payload.financialConsolidation
   const performanceDays = payload.performanceDays
   const bestDays = performanceDays.slice(0, 5)
   const slowDays = [...performanceDays].filter((item) => item.ca_total > 0).sort((a, b) => a.ca_total - b.ca_total).slice(0, 3)
@@ -357,67 +356,73 @@ export default function ReportingPage() {
 
               <Card className="rounded-xl border border-alaska-sage-lt bg-white">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base text-alaska-dark">Banque + Cash — résultat réel</CardTitle>
-                  <CardDescription className="text-xs text-alaska-muted">Vue encaissée, hors transferts internes</CardDescription>
+                  <CardTitle className="text-base text-alaska-dark">Pilotage restauration</CardTitle>
+                  <CardDescription className="text-xs text-alaska-muted">Prime cost et résultat net estimé</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {!financial.has_data ? (
-                    <div className="space-y-2">
-                      <p className="text-sm text-alaska-muted">
-                        Aucune donnée cash/banque consolidée pour ce mois.
-                      </p>
-                      <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/30 px-3 py-2 text-xs text-alaska-muted">
-                        Importer un relevé PDF dans l&apos;onglet{" "}
-                        <a href="/import" className="text-alaska-sage underline hover:no-underline">
-                          Imports → Relevés
-                        </a>
-                        .
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className={cn(
-                        "rounded-lg border px-3 py-3",
-                        financial.real_result >= 0 ? "border-alaska-sage/30 bg-alaska-sage-lt/40" : "border-orange-200 bg-orange-50"
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs uppercase tracking-wide text-alaska-muted">Prime cost</span>
+                      <span className={cn(
+                        "text-sm font-bold",
+                        payload.primeCost === 0 ? "text-alaska-muted" :
+                        payload.primeCost < 60 ? "text-green-600" :
+                        payload.primeCost <= 65 ? "text-orange-500" : "text-red-600"
                       )}>
-                        <p className="text-[11px] uppercase tracking-wide text-alaska-muted">
-                          {financial.real_result >= 0 ? "Bénéfice réel estimé" : "Perte réelle estimée"}
-                        </p>
-                        <p className={cn("mt-1 font-playfair text-2xl font-bold", financial.real_result >= 0 ? "text-alaska-sage" : "text-orange-700")}>
-                          {signedMAD(financial.real_result)}
-                        </p>
-                      </div>
-                      <MetricBox label="CA POS" value={formatMAD(financial.ca_pos)} />
-                      <MetricBox label="Dépenses cash" value={`-${formatMAD(financial.cash_expenses)}`} tone="text-orange-600" />
-                      <MetricBox label="Paiements banque fournisseurs/charges" value={`-${formatMAD(financial.bank_expenses)}`} tone="text-orange-600" />
-                      {financial.external_income > 0 && (
-                        <MetricBox label="Revenus hors POS confirmés" value={`+${formatMAD(financial.external_income)}`} tone="text-alaska-sage" />
-                      )}
-                      <MetricBox label="Flux net banque" value={signedMAD(financial.bank_net)} tone={financial.bank_net >= 0 ? "text-alaska-sage" : "text-orange-600"} />
-                      <MetricBox label="Dépôts cash neutres" value={`${formatMAD(financial.cash_deposits)} cash · ${formatMAD(financial.bank_cash_deposits)} banque`} />
-                      {financial.owner_injections > 0 && (
-                        <MetricBox label="Apports à vérifier" value={formatMAD(financial.owner_injections)} tone="text-amber-700" />
-                      )}
-                      {financial.alert && (
-                        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                          <AlertTriangle size={14} />
-                          {financial.alert}
-                        </div>
-                      )}
-                      {financial.pending_review_count > 0 && (
-                        <p className="text-xs text-amber-700">
-                          {financial.pending_review_count} transaction(s) bancaire(s) à confirmer avant lecture définitive.
-                        </p>
-                      )}
-                      <p className="text-xs text-alaska-muted pt-1">
-                        {financial.confirmed_count} transaction(s) confirmée(s) · {payload.bankConsolidation.import_count} relevé(s)
-                      </p>
+                        {payload.primeCost > 0 ? `${payload.primeCost.toFixed(1)} %` : "—"}
+                      </span>
                     </div>
-                  )}
+                    {payload.primeCost > 0 && (
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div
+                          className={cn(
+                            "h-2 rounded-full transition-all",
+                            payload.primeCost < 60 ? "bg-green-500" :
+                            payload.primeCost <= 65 ? "bg-orange-400" : "bg-red-500"
+                          )}
+                          style={{ width: `${Math.min(payload.primeCost, 100)}%` }}
+                        />
+                      </div>
+                    )}
+                    <p className="text-[11px] text-alaska-muted">Norme restauration : &lt; 65 %</p>
+                  </div>
+                  <div className="border-t border-alaska-sage-lt pt-3 flex justify-between items-center">
+                    <span className="text-xs uppercase tracking-wide text-alaska-muted">Résultat net estimé</span>
+                    <span className={cn(
+                      "font-playfair font-bold text-lg",
+                      payload.primeCost === 0 ? "text-alaska-muted" :
+                      payload.resultatNet >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      {payload.primeCost === 0 ? "—" : formatMAD(payload.resultatNet)}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
             </div>
           </div>
+
+          <Card className="rounded-xl border border-alaska-sage-lt bg-white">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-alaska-dark">CA semaine — {year} vs {year - 1}</CardTitle>
+              <CardDescription className="text-xs text-alaska-muted">4 dernières semaines comparées à la même période N-1</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {payload.weekComparison.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={payload.weekComparison} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7a7a6a" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "#7a7a6a" }} tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} axisLine={false} tickLine={false} />
+                    <Tooltip formatter={(value: number) => formatMAD(value)} contentStyle={{ borderRadius: "8px", border: "1px solid #e8ede7", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                    <Bar dataKey="current" name={String(year)} fill="#4A7C6F" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="previous" name={String(year - 1)} fill="#D1D5DB" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="py-8 text-center text-sm text-alaska-muted">Aucune donnée hebdomadaire disponible.</p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="rounded-xl border border-alaska-sage-lt bg-white">
             <CardHeader className="pb-2">
