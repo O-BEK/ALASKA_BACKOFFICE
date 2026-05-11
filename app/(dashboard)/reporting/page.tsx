@@ -72,6 +72,7 @@ export default function ReportingPage() {
   const projection = payload.projection
   const dataQuality = payload.dataQuality
   const cashFlow = payload.cashFlow
+  const financial = payload.financialConsolidation
   const performanceDays = payload.performanceDays
   const bestDays = performanceDays.slice(0, 5)
   const slowDays = [...performanceDays].filter((item) => item.ca_total > 0).sort((a, b) => a.ca_total - b.ca_total).slice(0, 3)
@@ -83,16 +84,16 @@ export default function ReportingPage() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Reporting</h1>
+          <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Pilotage</h1>
           <p className="mt-1 text-sm text-alaska-muted">Vue mensuelle de pilotage et exports rapides</p>
         </div>
         <div className="flex items-center gap-2 self-center rounded-lg border border-alaska-sage-lt bg-white p-1 lg:self-auto">
-          <button onClick={() => setMonth(moveMonth(month, -1))} className="rounded-md p-1.5 transition hover:bg-alaska-sage-lt">
-            <ChevronLeft size={16} />
+          <button onClick={() => setMonth(moveMonth(month, -1))} className="rounded-md p-1.5 transition hover:bg-alaska-sage-lt" aria-label="Mois précédent">
+            <ChevronLeft size={16} aria-hidden="true" />
           </button>
           <span className="min-w-[160px] px-2 text-center text-sm font-semibold text-alaska-dark">{heading}</span>
-          <button onClick={() => setMonth(moveMonth(month, 1))} className="rounded-md p-1.5 transition hover:bg-alaska-sage-lt">
-            <ChevronRight size={16} />
+          <button onClick={() => setMonth(moveMonth(month, 1))} className="rounded-md p-1.5 transition hover:bg-alaska-sage-lt" aria-label="Mois suivant">
+            <ChevronRight size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -109,12 +110,19 @@ export default function ReportingPage() {
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <ReportingKpiCard
           title="CA total"
           value={formatMAD(summary.ca_total)}
           sub={`${formatPct(summary.prev_pct)} vs mois précédent`}
           subColor={summary.prev_pct >= 0 ? "text-alaska-sage" : "text-red-500"}
+        />
+        <ReportingKpiCard
+          title="Résultat réel"
+          value={financial.has_data ? formatMAD(financial.real_result) : "—"}
+          valueClass={!financial.has_data ? "text-alaska-muted" : financial.real_result >= 0 ? "text-alaska-sage" : "text-red-600"}
+          sub={financial.has_data ? `${financial.confirmed_count} tx banque confirmée(s)` : "Banque à consolider"}
+          subColor={financial.pending_review_count > 0 ? "text-amber-700" : undefined}
         />
         <ReportingKpiCard
           title="Projection"
@@ -336,6 +344,44 @@ export default function ReportingPage() {
                     <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                       <AlertTriangle size={14} />
                       {cashFlow.anomaly_days} jour(s) avec anomalie journal de caisse.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-xl border border-alaska-sage-lt bg-white">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base text-alaska-dark">Banque + Cash - résultat réel</CardTitle>
+                  <CardDescription className="text-xs text-alaska-muted">Vue encaissée: POS + revenus confirmés - dépenses cash et banque</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <MetricBox
+                    label="Résultat réel du mois"
+                    value={financial.has_data ? formatMAD(financial.real_result) : "Banque non consolidée"}
+                    tone={!financial.has_data ? "text-alaska-muted" : financial.real_result >= 0 ? "text-alaska-sage" : "text-red-600"}
+                    icon={<Scale size={16} className={financial.real_result >= 0 ? "text-alaska-sage" : "text-red-500"} />}
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <MetricBox label="CA POS" value={formatMAD(financial.ca_pos)} />
+                    <MetricBox label="Revenus hors POS" value={formatMAD(financial.external_income)} tone="text-alaska-sage" />
+                    <MetricBox label="Dépenses cash" value={formatMAD(financial.cash_expenses)} tone="text-orange-600" />
+                    <MetricBox label="Dépenses banque" value={formatMAD(financial.bank_expenses)} tone="text-orange-600" />
+                    <MetricBox label="Flux net banque" value={signedMAD(financial.bank_net)} tone={financial.bank_net >= 0 ? "text-alaska-sage" : "text-red-600"} />
+                    <MetricBox label="Apports à vérifier" value={formatMAD(financial.owner_injections)} tone={financial.owner_injections > 0 ? "text-amber-700" : "text-alaska-muted"} />
+                  </div>
+                  <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/30 px-3 py-2 text-xs text-alaska-muted">
+                    Dépôts cash neutres: {formatMAD(financial.cash_deposits)} sortis de caisse et {formatMAD(financial.bank_cash_deposits)} crédités en banque.
+                  </div>
+                  {financial.pending_review_count > 0 && (
+                    <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      <AlertTriangle size={14} aria-hidden="true" />
+                      {financial.pending_review_count} transaction(s) bancaire(s) restent à revoir avant décision finale.
+                    </div>
+                  )}
+                  {financial.alert && (
+                    <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                      <AlertTriangle size={14} aria-hidden="true" />
+                      {financial.alert}
                     </div>
                   )}
                 </CardContent>

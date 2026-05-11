@@ -65,7 +65,7 @@ function WeeklyTooltip({
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
-  const { kpis, kpis_secondary, delta_ca, delta_expenses, delta_marge, last12, hasMonthData, monthObjective, weeklyMonth, loading, error } = useDashboard(month)
+  const { kpis, kpis_secondary, delta_ca, delta_expenses, delta_marge, last12, hasMonthData, monthObjective, cashMonth, weeklyMonth, loading, error } = useDashboard(month)
   const [actions, setActions] = useState<ActionItem[]>([])
   const [imports, setImports] = useState<ImportRecord[]>([])
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
@@ -138,7 +138,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Dashboard admin</h1>
+            <h1 className="font-playfair text-2xl font-bold text-alaska-dark">Accueil admin</h1>
             {kpis.pct_breakeven >= 100 && <span className="rounded-full bg-alaska-sage px-2.5 py-1 text-[11px] font-semibold text-white">Seuil atteint</span>}
           </div>
           <p className="mt-1 text-sm text-alaska-muted">
@@ -149,12 +149,12 @@ export default function DashboardPage() {
           <button onClick={() => {
             const [year, rawMonth] = month.split("-").map(Number)
             setMonth(rawMonth === 1 ? `${year - 1}-12` : `${year}-${String(rawMonth - 1).padStart(2, "0")}`)
-          }} className="rounded-md p-1.5 transition hover:bg-alaska-sage-lt"><ChevronLeft size={16} /></button>
+          }} className="rounded-md p-1.5 transition hover:bg-alaska-sage-lt" aria-label="Mois précédent"><ChevronLeft size={16} aria-hidden="true" /></button>
           <span className="min-w-[120px] px-2 text-center text-sm font-semibold text-alaska-dark">{monthLabel(month)} {month.split("-")[0]}</span>
           <button onClick={() => {
             const [year, rawMonth] = month.split("-").map(Number)
             setMonth(rawMonth === 12 ? `${year + 1}-01` : `${year}-${String(rawMonth + 1).padStart(2, "0")}`)
-          }} className="rounded-md p-1.5 transition hover:bg-alaska-sage-lt"><ChevronRight size={16} /></button>
+          }} className="rounded-md p-1.5 transition hover:bg-alaska-sage-lt" aria-label="Mois suivant"><ChevronRight size={16} aria-hidden="true" /></button>
         </div>
       </div>
 
@@ -303,7 +303,7 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
-                  { href: "/import", icon: UploadCloud, label: "Importer CSV", tone: "text-alaska-sage" },
+                  { href: "/import", icon: UploadCloud, label: "Importer POS", tone: "text-alaska-sage" },
                   { href: "/saisie", icon: Edit3, label: "Saisir les dépenses", tone: "text-alaska-gold" },
                   { href: "/reporting", icon: FileBarChart, label: "Voir le rapport", tone: "text-alaska-sage" },
                 ].map(({ href, icon: Icon, label, tone }) => (
@@ -318,6 +318,40 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-6">
+              <Card className="rounded-xl border border-alaska-sage-lt bg-white">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base text-alaska-dark">Pilotage restaurant</CardTitle>
+                  <CardDescription className="text-xs text-alaska-muted">Même lecture que le pilotage mensuel</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <MetricBox
+                      label="Prime cost"
+                      value={cashMonth.prime_cost_pct > 0 ? `${cashMonth.prime_cost_pct.toFixed(1)}%` : "—"}
+                      tone={cashMonth.prime_cost_pct === 0 ? "text-alaska-muted" : cashMonth.prime_cost_pct < 60 ? "text-alaska-sage" : cashMonth.prime_cost_pct <= 65 ? "text-amber-600" : "text-red-600"}
+                    />
+                    <MetricBox
+                      label="Résultat estimé"
+                      value={cashMonth.ca_global > 0 ? formatMAD(cashMonth.resultat_net) : "—"}
+                      tone={cashMonth.ca_global === 0 ? "text-alaska-muted" : cashMonth.resultat_net >= 0 ? "text-alaska-sage" : "text-red-600"}
+                    />
+                    <MetricBox
+                      label="Coût matière"
+                      value={cashMonth.food_cost_pct > 0 ? `${cashMonth.food_cost_pct.toFixed(1)}%` : "—"}
+                      tone="text-alaska-dark"
+                    />
+                    <MetricBox
+                      label="Masse salariale"
+                      value={cashMonth.staff_cost_pct > 0 ? `${cashMonth.staff_cost_pct.toFixed(1)}%` : "—"}
+                      tone="text-alaska-dark"
+                    />
+                  </div>
+                  <Link href="/reporting">
+                    <Button variant="outline" className="w-full border-alaska-sage-lt hover:bg-alaska-sage-lt">Ouvrir le pilotage complet</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+
               <Card className="rounded-xl border border-alaska-sage-lt bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base text-alaska-dark">CA Total — 12 derniers mois</CardTitle>

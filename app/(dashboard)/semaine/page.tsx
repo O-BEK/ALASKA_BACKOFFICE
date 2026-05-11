@@ -2,7 +2,7 @@
 import { useState } from "react"
 import { startOfWeek, addDays, addWeeks, subWeeks, format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react"
 import { useWeekView } from "@/lib/hooks/useWeekView"
 import { useWeekEntries } from "@/lib/hooks/useWeekEntries"
 import { getWeeklyBreakeven } from "@/lib/calculations"
@@ -45,6 +45,7 @@ export default function SemainePage() {
 
   const weeklyBreakeven = getWeeklyBreakeven()
   const pctSeuil = weeklyBreakeven > 0 ? (weekTotals.caGlobal / weeklyBreakeven) * 100 : 0
+  const missingToBreakeven = Math.max(weeklyBreakeven - weekTotals.caGlobal, 0)
   const weekLabel = `${format(weekStart, "d MMM", { locale: fr })} – ${format(addDays(weekStart, 6), "d MMM yyyy", { locale: fr })}`
 
   return (
@@ -57,13 +58,15 @@ export default function SemainePage() {
         </div>
         <div className="flex items-center gap-2 bg-white border border-alaska-sage-lt rounded-lg p-1 self-center sm:self-auto">
           <button onClick={() => setWeekStart(w => subWeeks(w, 1))}
-            className="p-1.5 hover:bg-alaska-sage-lt rounded-md transition">
-            <ChevronLeft size={16} className="text-alaska-muted"/>
+            className="p-1.5 hover:bg-alaska-sage-lt rounded-md transition"
+            aria-label="Semaine précédente">
+            <ChevronLeft size={16} className="text-alaska-muted" aria-hidden="true"/>
           </button>
           <span className="text-sm font-semibold px-3 min-w-[160px] text-center text-alaska-dark">{weekLabel}</span>
           <button onClick={() => setWeekStart(w => addWeeks(w, 1))}
-            className="p-1.5 hover:bg-alaska-sage-lt rounded-md transition">
-            <ChevronRight size={16} className="text-alaska-muted"/>
+            className="p-1.5 hover:bg-alaska-sage-lt rounded-md transition"
+            aria-label="Semaine suivante">
+            <ChevronRight size={16} className="text-alaska-muted" aria-hidden="true"/>
           </button>
         </div>
       </div>
@@ -102,6 +105,16 @@ export default function SemainePage() {
           </CardContent>
         </Card>
       </div>
+
+      {weekTotals.caGlobal > 0 && pctSeuil < 100 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" aria-hidden="true" />
+          <div>
+            <p className="font-medium">Seuil hebdomadaire non atteint</p>
+            <p className="mt-0.5 text-xs">Il manque {formatMAD(missingToBreakeven)} de CA global pour couvrir le seuil de la semaine.</p>
+          </div>
+        </div>
+      )}
 
       {/* Desktop : WeekGrid éditable */}
       <div className="hidden md:block">

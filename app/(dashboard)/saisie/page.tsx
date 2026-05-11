@@ -148,15 +148,15 @@ export default function SaisiePage() {
           <Card className="bg-white border border-alaska-sage-lt rounded-xl">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => setActiveDate(subDays(date, 1))} className="p-2 hover:bg-alaska-sage-lt rounded-lg transition">
-                  <ChevronLeft size={20} className="text-alaska-muted" />
+                <button onClick={() => setActiveDate(subDays(date, 1))} className="p-2 hover:bg-alaska-sage-lt rounded-lg transition" aria-label="Jour précédent">
+                  <ChevronLeft size={20} className="text-alaska-muted" aria-hidden="true" />
                 </button>
                 <div className="text-center">
                   <p className="font-semibold text-alaska-dark capitalize">{format(date, "EEEE d MMMM yyyy", { locale: fr })}</p>
                   <p className="text-lg mt-0.5">{statusIcon}</p>
                 </div>
-                <button onClick={() => setActiveDate(addDays(date, 1))} className="p-2 hover:bg-alaska-sage-lt rounded-lg transition">
-                  <ChevronRight size={20} className="text-alaska-muted" />
+                <button onClick={() => setActiveDate(addDays(date, 1))} className="p-2 hover:bg-alaska-sage-lt rounded-lg transition" aria-label="Jour suivant">
+                  <ChevronRight size={20} className="text-alaska-muted" aria-hidden="true" />
                 </button>
               </div>
               <input
@@ -308,8 +308,9 @@ export default function SaisiePage() {
                 setViewMonth(month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, "0")}`)
               }}
               className="p-1 hover:bg-alaska-sage-lt rounded"
+              aria-label="Mois précédent"
             >
-              <ChevronLeft size={18} className="text-alaska-muted" />
+              <ChevronLeft size={18} className="text-alaska-muted" aria-hidden="true" />
             </button>
             <p className="text-sm font-semibold text-alaska-dark">
               {`${MONTHS_FR[parseInt(viewMonth.split("-")[1]) - 1]} ${viewMonth.split("-")[0]}`}
@@ -320,8 +321,9 @@ export default function SaisiePage() {
                 setViewMonth(month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`)
               }}
               className="p-1 hover:bg-alaska-sage-lt rounded"
+              aria-label="Mois suivant"
             >
-              <ChevronRight size={18} className="text-alaska-muted" />
+              <ChevronRight size={18} className="text-alaska-muted" aria-hidden="true" />
             </button>
           </div>
           <Card className="bg-white border border-alaska-sage-lt rounded-xl">
@@ -441,6 +443,12 @@ export default function SaisiePage() {
                 )}
                 <p className="text-[11px] text-alaska-muted">Norme restauration : &lt; 65 %</p>
               </div>
+              <div className="grid grid-cols-2 gap-2 border-t border-alaska-sage-lt pt-3">
+                <MiniPilotageMetric label="Coût matière" value={cashMonth.food_cost_pct > 0 ? `${cashMonth.food_cost_pct.toFixed(1)} %` : "—"} />
+                <MiniPilotageMetric label="Masse salariale" value={cashMonth.staff_cost_pct > 0 ? `${cashMonth.staff_cost_pct.toFixed(1)} %` : "—"} />
+                <MiniPilotageMetric label="Charges fixes" value={formatMAD(cashMonth.fixed_charges_total)} />
+                <MiniPilotageMetric label="Poids charges" value={cashMonth.fixed_charges_pct > 0 ? `${cashMonth.fixed_charges_pct.toFixed(1)} %` : "—"} />
+              </div>
               <div className="flex justify-between items-center border-t border-alaska-sage-lt pt-3">
                 <span className="text-sm text-alaska-muted">Résultat net estimé</span>
                 <span className={cn(
@@ -491,6 +499,15 @@ function ExpenseRow({ label, value, onChange }: { label: string; value: number; 
           <Plus size={12} className="text-alaska-muted" />
         </button>
       </div>
+    </div>
+  )
+}
+
+function MiniPilotageMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/20 px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wide text-alaska-muted">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-alaska-dark">{value}</p>
     </div>
   )
 }
