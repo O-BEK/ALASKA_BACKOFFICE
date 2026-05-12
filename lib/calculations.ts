@@ -36,3 +36,20 @@ export function getBreakevenColor(pct: number): "red" | "orange" | "green" {
 export function getWeeklyBreakeven(): number {
   return BREAKEVEN / 4.33
 }
+
+export const FOOD_COST_SUSPECT_THRESHOLD = 20
+export const FOOD_COST_ALERT_THRESHOLD = 30
+export const FOOD_COST_FLOOR_RATE = 0.28
+
+export type FoodCostStatus = "suspect" | "ok" | "alert"
+
+export function getFoodCostStatus(pct: number): FoodCostStatus {
+  if (pct < FOOD_COST_SUSPECT_THRESHOLD) return "suspect"
+  if (pct > FOOD_COST_ALERT_THRESHOLD) return "alert"
+  return "ok"
+}
+
+export function effectiveVariableCostRate(foodCostPct: number): number {
+  if (foodCostPct < FOOD_COST_SUSPECT_THRESHOLD) return 0.30
+  return Math.max(foodCostPct / 100, FOOD_COST_FLOOR_RATE)
+}
