@@ -590,4 +590,15 @@ describe("buildCashMonthSummary — food cost status & dynamic breakeven", () =>
     // Vérifie que ce n'est PAS le calcul avec 0.28 fixe
     expect(result.kpis.breakeven).not.toBeCloseTo(72000 / (1 - 0.28), 0)
   })
+
+  it("buildMonthlyKpis utilise VARIABLE_COST_RATE par défaut quand il n'y a pas de CA", () => {
+    const db = makeDb({
+      daily_sales: [],
+      fixed_charges: [makeFixedCharge({ amount: 72000, is_active: true, start_date: "2026-01-01", end_date: null })],
+    })
+    // ca_total = 0 → pas de food_cost → utilise le taux standard 0.28
+    const result = buildDashboardData(db, "2026-04")
+    // breakeven = 72000 / (1 - 0.28) = 100000
+    expect(result.kpis.breakeven).toBeCloseTo(72000 / (1 - 0.28), 0)
+  })
 })

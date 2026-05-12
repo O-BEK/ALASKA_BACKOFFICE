@@ -339,9 +339,9 @@ export function buildMonthlyKpis(db: PilotDb, month: string): MonthlyKPIs {
   const ca_soir = sales.reduce((sum, item) => sum + item.ca_soir, 0)
   const total_expenses = expenses.reduce((sum, item) => sum + item.amount, 0)
   const ca_total = ca_caisse + ca_b2b
-  const cash_mp_only_kpis = expenses.filter((e) => e.category === "MP").reduce((sum, e) => sum + e.amount, 0)
-  const food_cost_pct_kpis = ca_total > 0 ? (cash_mp_only_kpis / ca_total) * 100 : 0
-  const effectiveRate = effectiveVariableCostRate(food_cost_pct_kpis)
+  const cash_mp_only = expenses.filter((e) => e.category === "MP").reduce((sum, e) => sum + e.amount, 0)
+  const food_cost_pct = ca_total > 0 ? (cash_mp_only / ca_total) * 100 : 0
+  const effectiveRate = ca_total > 0 ? effectiveVariableCostRate(food_cost_pct) : VARIABLE_COST_RATE
   const days_count = sales.length
   const marge_nette = calcNetMargin(ca_total, total_expenses)
   const taux_marge = calcMarginRate(marge_nette, ca_total)
