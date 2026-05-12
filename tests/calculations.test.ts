@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { BREAKEVEN, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin, getWeeklyBreakeven, getFoodCostStatus, effectiveVariableCostRate, FOOD_COST_SUSPECT_THRESHOLD, FOOD_COST_ALERT_THRESHOLD, FOOD_COST_FLOOR_RATE } from "../lib/calculations"
+import { BREAKEVEN, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin, getWeeklyBreakeven, getFoodCostStatus, effectiveVariableCostRate, FOOD_COST_SUSPECT_THRESHOLD, FOOD_COST_ALERT_THRESHOLD, FOOD_COST_FLOOR_RATE, FOOD_COST_SUSPECT_FALLBACK_RATE } from "../lib/calculations"
 
 describe("financial calculations", () => {
   it("calculates breakeven from fixed charges", () => {
@@ -48,10 +48,16 @@ describe("getFoodCostStatus", () => {
 })
 
 describe("effectiveVariableCostRate", () => {
-  it("returns 0.30 when food_cost < 20% (données suspectes)", () => {
-    expect(effectiveVariableCostRate(0)).toBe(0.30)
-    expect(effectiveVariableCostRate(8.6)).toBe(0.30)
-    expect(effectiveVariableCostRate(19.9)).toBe(0.30)
+  it("returns FOOD_COST_SUSPECT_FALLBACK_RATE when food_cost < 20% (données suspectes)", () => {
+    expect(effectiveVariableCostRate(0)).toBe(FOOD_COST_SUSPECT_FALLBACK_RATE)
+    expect(effectiveVariableCostRate(8.6)).toBe(FOOD_COST_SUSPECT_FALLBACK_RATE)
+    expect(effectiveVariableCostRate(19.9)).toBe(FOOD_COST_SUSPECT_FALLBACK_RATE)
+  })
+
+  it("returns fallback rate for NaN/non-finite input", () => {
+    expect(getFoodCostStatus(NaN)).toBe("suspect")
+    expect(effectiveVariableCostRate(NaN)).toBe(FOOD_COST_SUSPECT_FALLBACK_RATE)
+    expect(effectiveVariableCostRate(Infinity)).toBe(FOOD_COST_SUSPECT_FALLBACK_RATE)
   })
 
   it("returns floor 0.28 when food_cost is between 20% and 28%", () => {
