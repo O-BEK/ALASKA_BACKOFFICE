@@ -4,18 +4,19 @@ import { eachDayOfInterval, eachWeekOfInterval, endOfMonth, endOfWeek, format, g
 import { getBankTransactionsByPeriod, listBankImports } from "@/lib/server/bank-store"
 import { isBankExpenseClassification } from "@/lib/bank-classification"
 import { fr } from "date-fns/locale"
-import { BREAKEVEN, CAISSE_RESERVE, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin, getWeeklyBreakeven } from "@/lib/calculations"
+import { CAISSE_RESERVE, FIXED_CHARGES_TOTAL, VARIABLE_COST_RATE, calcBreakeven, calcBreakevenPct, calcMarginRate, calcNetMargin, effectiveVariableCostRate, getFoodCostStatus, getWeeklyBreakeven } from "@/lib/calculations"
+import type { FoodCostStatus } from "@/lib/calculations"
 import { getCashEnvelope, getCashMovementsReference, getCashSalesReference, hasCashJournal } from "@/lib/cash"
 import type { DailyEntry, MonthlyKPIs } from "@/lib/types"
 import type { DailySaleRecord, ExpenseRecord, PilotDb } from "@/lib/server/db-types"
 
 const VIREMENT_BANQUE_LABEL = "Virement banque"
 
-function liveBreakeven(db: PilotDb): number {
+function liveBreakeven(db: PilotDb, variableCostRate = VARIABLE_COST_RATE): number {
   const total = db.fixed_charges
     .filter((c) => c.is_active)
     .reduce((sum, c) => sum + c.amount, 0)
-  return total > 0 ? calcBreakeven(total) : BREAKEVEN
+  return total > 0 ? calcBreakeven(total, variableCostRate) : calcBreakeven(FIXED_CHARGES_TOTAL, variableCostRate)
 }
 
 function monthEntries(db: PilotDb, month: string) {
@@ -297,6 +298,8 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
   // MP seulement pour les ratios restaurant (hors AUTRE = Solidernet, nettoyage, etc.)
   const cash_mp_only = expenses.filter((e) => e.category === "MP").reduce((sum, e) => sum + e.amount, 0)
   const food_cost_pct = ca_global > 0 ? (cash_mp_only / ca_global) * 100 : 0
+  const food_cost_status: FoodCostStatus = getFoodCostStatus(food_cost_pct)
+  const effective_variable_rate = effectiveVariableCostRate(food_cost_pct)
   const staff_cost_pct = ca_global > 0 ? (total_rh / ca_global) * 100 : 0
   const fixed_charges_pct = ca_global > 0 ? (fixed_charges_total / ca_global) * 100 : 0
   const prime_cost_pct = ca_global > 0 ? (cash_mp_only + total_rh) / ca_global * 100 : 0
@@ -318,6 +321,8 @@ export function buildCashMonthSummary(db: PilotDb, month: string) {
     anomaly_days,
     days_count: sales.length,
     food_cost_pct,
+    food_cost_status,
+    effective_variable_rate,
     staff_cost_pct,
     fixed_charges_total,
     fixed_charges_pct,
@@ -334,11 +339,14 @@ export function buildMonthlyKpis(db: PilotDb, month: string): MonthlyKPIs {
   const ca_soir = sales.reduce((sum, item) => sum + item.ca_soir, 0)
   const total_expenses = expenses.reduce((sum, item) => sum + item.amount, 0)
   const ca_total = ca_caisse + ca_b2b
+  const cash_mp_only_kpis = expenses.filter((e) => e.category === "MP").reduce((sum, e) => sum + e.amount, 0)
+  const food_cost_pct_kpis = ca_total > 0 ? (cash_mp_only_kpis / ca_total) * 100 : 0
+  const effectiveRate = effectiveVariableCostRate(food_cost_pct_kpis)
   const days_count = sales.length
   const marge_nette = calcNetMargin(ca_total, total_expenses)
   const taux_marge = calcMarginRate(marge_nette, ca_total)
   const pct_soir = ca_total > 0 ? (ca_soir / ca_total) * 100 : 0
-  const breakeven = liveBreakeven(db)
+  const breakeven = liveBreakeven(db, effectiveRate)
   const pct_breakeven = calcBreakevenPct(ca_total, breakeven)
 
   return {

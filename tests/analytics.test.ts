@@ -534,3 +534,60 @@ describe("buildLast4WeeksComparison", () => {
     })
   })
 })
+
+describe("buildCashMonthSummary — food cost status & dynamic breakeven", () => {
+  it("retourne food_cost_status 'suspect' et effectiveVariableCostRate 0.30 quand food_cost < 20%", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-02-15", ca_caisse: 100000, ca_b2b: 23000 })],
+      expenses: [
+        { id: "e1", date: "2026-02-15", category: "MP", label: "Légumes", amount: 10000, notes: "", created_by: null, updated_at: "" },
+      ],
+    })
+    const result = buildCashMonthSummary(db, "2026-02")
+    // food_cost_pct = 10000 / 123000 ≈ 8.1% → suspect
+    expect(result.food_cost_pct).toBeCloseTo(8.13, 1)
+    expect(result.food_cost_status).toBe("suspect")
+    expect(result.effective_variable_rate).toBe(0.30)
+  })
+
+  it("retourne food_cost_status 'ok' et plancher 0.28 quand food_cost est entre 20% et 28%", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-04-15", ca_caisse: 100000, ca_b2b: 0 })],
+      expenses: [
+        { id: "e1", date: "2026-04-15", category: "MP", label: "Légumes", amount: 25000, notes: "", created_by: null, updated_at: "" },
+      ],
+    })
+    const result = buildCashMonthSummary(db, "2026-04")
+    // food_cost_pct = 25% → ok, plancher 28%
+    expect(result.food_cost_status).toBe("ok")
+    expect(result.effective_variable_rate).toBe(0.28)
+  })
+
+  it("retourne food_cost_status 'alert' et taux réel quand food_cost > 30%", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-04-15", ca_caisse: 100000, ca_b2b: 0 })],
+      expenses: [
+        { id: "e1", date: "2026-04-15", category: "MP", label: "Légumes", amount: 32000, notes: "", created_by: null, updated_at: "" },
+      ],
+    })
+    const result = buildCashMonthSummary(db, "2026-04")
+    // food_cost_pct = 32% → alert, taux réel 0.32
+    expect(result.food_cost_status).toBe("alert")
+    expect(result.effective_variable_rate).toBeCloseTo(0.32)
+  })
+
+  it("buildMonthlyKpis utilise le taux dynamique pour le breakeven", () => {
+    const db = makeDb({
+      daily_sales: [makeSale({ id: "s1", date: "2026-04-15", ca_caisse: 100000, ca_b2b: 0 })],
+      expenses: [
+        { id: "e1", date: "2026-04-15", category: "MP", label: "Légumes", amount: 32000, notes: "", created_by: null, updated_at: "" },
+      ],
+      fixed_charges: [makeFixedCharge({ amount: 72000, is_active: true, start_date: "2026-01-01", end_date: null })],
+    })
+    // food_cost = 32% → effectiveRate = 0.32 → breakeven = 72000 / (1 - 0.32) = 105882
+    const result = buildDashboardData(db, "2026-04")
+    expect(result.kpis.breakeven).toBeCloseTo(72000 / (1 - 0.32), 0)
+    // Vérifie que ce n'est PAS le calcul avec 0.28 fixe
+    expect(result.kpis.breakeven).not.toBeCloseTo(72000 / (1 - 0.28), 0)
+  })
+})
