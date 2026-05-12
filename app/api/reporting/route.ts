@@ -60,6 +60,8 @@ export async function GET(request: Request) {
       weekComparison,
       primeCost: cashSummary.prime_cost_pct,
       resultatNet: cashSummary.resultat_net,
+      foodCostPct: cashSummary.food_cost_pct,
+      foodCostStatus: cashSummary.food_cost_status,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue"

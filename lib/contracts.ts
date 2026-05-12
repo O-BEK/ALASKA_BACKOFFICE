@@ -567,6 +567,8 @@ const reportingPayloadSchema = z.object({
   weekComparison: z.array(weekComparisonItemSchema).catch([]),
   primeCost: z.coerce.number().catch(0),
   resultatNet: z.coerce.number().catch(0),
+  foodCostPct: z.coerce.number().catch(0),
+  foodCostStatus: z.enum(["suspect", "ok", "alert"]).catch("ok"),
 })
 
 export function parseDashboardState(input: unknown, month: string): {
