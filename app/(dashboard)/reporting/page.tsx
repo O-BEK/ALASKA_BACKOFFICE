@@ -6,6 +6,7 @@ import { cn, formatMAD, formatPct } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Banknote, ChevronLeft, ChevronRight, Database, Download, FileText, Scale, TrendingUp, Users } from "lucide-react"
+import { FoodCostAlert } from "@/components/ui/FoodCostAlert"
 import { Area, AreaChart, Bar, BarChart, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 const MONTHS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
@@ -431,6 +432,10 @@ export default function ReportingPage() {
                       </div>
                     )}
                     <p className="text-[11px] text-alaska-muted">Norme restauration : &lt; 65 %</p>
+                  </div>
+                  <div className="flex justify-between items-start pt-1">
+                    <span className="text-xs uppercase tracking-wide text-alaska-muted">Coût matière</span>
+                    <FoodCostAlert pct={payload.foodCostPct} className="items-end" />
                   </div>
                   <div className="border-t border-alaska-sage-lt pt-3 flex justify-between items-center">
                     <span className="text-xs uppercase tracking-wide text-alaska-muted">Résultat net estimé</span>

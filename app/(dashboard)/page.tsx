@@ -7,6 +7,7 @@ import { useDashboard } from "@/lib/hooks/useDashboard"
 import type { ActionItem, ImportRecord } from "@/lib/types"
 import { cn, formatMAD, formatPct } from "@/lib/utils"
 import { getBreakevenColor } from "@/lib/calculations"
+import { FoodCostAlert } from "@/components/ui/FoodCostAlert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Activity, AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, DollarSign, Edit3, FileBarChart, ShoppingCart, UploadCloud } from "lucide-react"
@@ -335,11 +336,10 @@ export default function DashboardPage() {
                       value={cashMonth.ca_global > 0 ? formatMAD(cashMonth.resultat_net) : "—"}
                       tone={cashMonth.ca_global === 0 ? "text-alaska-muted" : cashMonth.resultat_net >= 0 ? "text-alaska-sage" : "text-red-600"}
                     />
-                    <MetricBox
-                      label="Coût matière"
-                      value={cashMonth.food_cost_pct > 0 ? `${cashMonth.food_cost_pct.toFixed(1)}%` : "—"}
-                      tone="text-alaska-dark"
-                    />
+                    <div className="flex flex-col gap-0.5 rounded-lg border border-alaska-sage-lt bg-white px-3 py-3">
+                      <span className="text-[11px] uppercase tracking-wide text-alaska-muted">Coût matière</span>
+                      <FoodCostAlert pct={cashMonth.food_cost_pct} />
+                    </div>
                     <MetricBox
                       label="Masse salariale"
                       value={cashMonth.staff_cost_pct > 0 ? `${cashMonth.staff_cost_pct.toFixed(1)}%` : "—"}

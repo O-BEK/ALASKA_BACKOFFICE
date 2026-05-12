@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, ChevronRight, CheckCircle2, Minus, Plus, ChevronDown, ChevronUp, Save, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { FoodCostAlert } from "@/components/ui/FoodCostAlert"
 
 const TABS = ["Caisse", "Mois"] as const
 type Tab = typeof TABS[number]
@@ -506,7 +507,10 @@ export default function SaisiePage() {
                 <p className="text-[11px] text-alaska-muted">Norme restauration : &lt; 65 %</p>
               </div>
               <div className="grid grid-cols-2 gap-2 border-t border-alaska-sage-lt pt-3">
-                <MiniPilotageMetric label="Coût matière" value={cashMonth.food_cost_pct > 0 ? `${cashMonth.food_cost_pct.toFixed(1)} %` : "—"} />
+                <div className="rounded-lg border border-alaska-sage-lt bg-alaska-sage-lt/20 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-alaska-muted">Coût matière</p>
+                  <FoodCostAlert pct={cashMonth.food_cost_pct} className="mt-0.5" />
+                </div>
                 <MiniPilotageMetric label="Masse salariale" value={cashMonth.staff_cost_pct > 0 ? `${cashMonth.staff_cost_pct.toFixed(1)} %` : "—"} />
                 <MiniPilotageMetric label="Charges fixes" value={formatMAD(cashMonth.fixed_charges_total)} />
                 <MiniPilotageMetric label="Poids charges" value={cashMonth.fixed_charges_pct > 0 ? `${cashMonth.fixed_charges_pct.toFixed(1)} %` : "—"} />
