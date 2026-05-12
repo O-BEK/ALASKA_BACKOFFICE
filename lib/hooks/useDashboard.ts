@@ -49,6 +49,8 @@ interface DashboardState {
     fixed_charges_pct: number
     prime_cost_pct: number
     resultat_net: number
+    food_cost_status: "suspect" | "ok" | "alert"
+    effective_variable_rate: number
   }
   weeklyMonth: {
     label: string
@@ -86,6 +88,8 @@ const emptyCashMonth = (month: string) => ({
   fixed_charges_pct: 0,
   prime_cost_pct: 0,
   resultat_net: 0,
+  food_cost_status: "ok" as const,
+  effective_variable_rate: 0.28,
 })
 
 const emptyKpis: MonthlyKPIs = {

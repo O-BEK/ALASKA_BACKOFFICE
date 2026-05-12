@@ -113,6 +113,8 @@ const cashMonthSchema = z.object({
   fixed_charges_pct: z.coerce.number().catch(0),
   prime_cost_pct: z.coerce.number().catch(0),
   resultat_net: z.coerce.number().catch(0),
+  food_cost_status: z.enum(["suspect", "ok", "alert"]).catch("ok"),
+  effective_variable_rate: z.coerce.number().catch(0.28),
 })
 
 const dashboardKpisSecondarySchema = z.object({
@@ -180,6 +182,8 @@ const dashboardStateSchema = z.object({
     fixed_charges_pct: 0,
     prime_cost_pct: 0,
     resultat_net: 0,
+    food_cost_status: "ok" as const,
+    effective_variable_rate: 0.28,
   }),
   weeklyMonth: z.array(dashboardWeeklySchema).catch([]),
   kpis_secondary: dashboardKpisSecondarySchema.catch({
@@ -610,6 +614,8 @@ export function parseDashboardState(input: unknown, month: string): {
     fixed_charges_pct: number
     prime_cost_pct: number
     resultat_net: number
+    food_cost_status: "suspect" | "ok" | "alert"
+    effective_variable_rate: number
   }
   weeklyMonth: {
     label: string
