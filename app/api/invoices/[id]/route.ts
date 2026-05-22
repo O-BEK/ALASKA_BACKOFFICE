@@ -86,3 +86,46 @@ export async function PATCH(
     return NextResponse.json({ error: "Impossible de mettre à jour la facture." }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: { id: string } }
+) {
+  const supabase = createClient()
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user || !(await isAdmin(supabase, user.id))) {
+      return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+    }
+
+    const { data: inv, error: fetchErr } = await supabase
+      .from("invoices")
+      .select("status")
+      .eq("id", params.id)
+      .single()
+
+    if (fetchErr || !inv) {
+      return NextResponse.json({ error: "Facture introuvable." }, { status: 404 })
+    }
+    if (inv.status !== "draft") {
+      return NextResponse.json(
+        { error: "Seules les factures en brouillon peuvent être supprimées." },
+        { status: 409 }
+      )
+    }
+
+    const { error } = await supabase.from("invoices").delete().eq("id", params.id)
+    if (error) {
+      console.error("[api/invoices/[id] DELETE]", error.message)
+      return NextResponse.json({ error: "Impossible de supprimer la facture." }, { status: 500 })
+    }
+
+    return new Response(null, { status: 204 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue"
+    console.error("[api/invoices/[id] DELETE]", message)
+    return NextResponse.json({ error: "Impossible de supprimer la facture." }, { status: 500 })
+  }
+}
