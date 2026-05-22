@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient, isAdmin } from "@/lib/supabase/server"
 import { renderToBuffer } from "@react-pdf/renderer"
+import type { DocumentProps } from "@react-pdf/renderer"
 import { InvoicePdf } from "@/lib/pdf/InvoicePdf"
 import { calcInvoiceTotals } from "@/lib/invoice-calculations"
 import fs from "fs"
@@ -26,7 +27,14 @@ export async function GET(
       .eq("id", params.id)
       .single()
 
-    if (error || !data) {
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ error: "Facture introuvable." }, { status: 404 })
+      }
+      console.error("[api/invoices/[id]/pdf]", error.message)
+      return NextResponse.json({ error: "Impossible de charger la facture." }, { status: 500 })
+    }
+    if (!data) {
       return NextResponse.json({ error: "Facture introuvable." }, { status: 404 })
     }
 
@@ -47,17 +55,16 @@ export async function GET(
       ice: process.env.NEXT_PUBLIC_COMPANY_ICE ?? "",
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfBuffer = await renderToBuffer(
       React.createElement(InvoicePdf, {
         invoice: { ...data, lines },
         totals,
         logoBase64,
         company,
-      }) as any
+      }) as React.ReactElement<DocumentProps>
     )
 
-    return new Response(pdfBuffer.buffer as ArrayBuffer, {
+    return new Response(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${data.invoice_number}.pdf"`,

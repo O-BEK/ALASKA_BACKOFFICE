@@ -20,7 +20,14 @@ export async function GET(
       .eq("id", params.id)
       .single()
 
-    if (error || !data) {
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ error: "Facture introuvable." }, { status: 404 })
+      }
+      console.error("[api/invoices/[id] GET]", error.message)
+      return NextResponse.json({ error: "Impossible de charger la facture." }, { status: 500 })
+    }
+    if (!data) {
       return NextResponse.json({ error: "Facture introuvable." }, { status: 404 })
     }
 
@@ -61,7 +68,14 @@ export async function PATCH(
       .select()
       .single()
 
-    if (error || !data) {
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ error: "Facture introuvable." }, { status: 404 })
+      }
+      console.error("[api/invoices/[id] PATCH]", error.message)
+      return NextResponse.json({ error: "Impossible de mettre à jour la facture." }, { status: 500 })
+    }
+    if (!data) {
       return NextResponse.json({ error: "Facture introuvable." }, { status: 404 })
     }
 
