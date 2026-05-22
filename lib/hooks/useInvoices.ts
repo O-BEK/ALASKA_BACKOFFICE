@@ -76,5 +76,14 @@ export function useInvoices() {
     URL.revokeObjectURL(url)
   }
 
-  return { invoices, loading, error, createInvoice, updateStatus, downloadPdf, reload: load }
+  const deleteInvoice = async (id: string) => {
+    const response = await fetch(`/api/invoices/${id}`, { method: "DELETE" })
+    if (!response.ok) {
+      const json = await response.json().catch(() => ({}))
+      throw new Error(json.error || `Erreur ${response.status}`)
+    }
+    setInvoices((prev) => prev.filter((inv) => inv.id !== id))
+  }
+
+  return { invoices, loading, error, createInvoice, updateStatus, downloadPdf, deleteInvoice, reload: load }
 }
