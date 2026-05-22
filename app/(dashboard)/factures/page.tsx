@@ -17,12 +17,14 @@ const STATUS_CONFIG: Record<InvoiceStatus, { label: string; className: string }>
 }
 
 interface FormLine {
+  id: number
   description: string
   quantity: string
   unit_price_ht: string
 }
 
-const emptyLine = (): FormLine => ({ description: "", quantity: "1", unit_price_ht: "" })
+let lineCounter = 0
+const emptyLine = (): FormLine => ({ id: lineCounter++, description: "", quantity: "1", unit_price_ht: "" })
 
 export default function FacturesPage() {
   const { invoices, loading, error, createInvoice, updateStatus, downloadPdf } = useInvoices()
@@ -31,6 +33,7 @@ export default function FacturesPage() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
 
   const [clientName, setClientName] = useState("")
   const [clientRc, setClientRc] = useState("")
@@ -60,7 +63,7 @@ export default function FacturesPage() {
 
   const totals = calcInvoiceTotals(parsedLines)
 
-  const handleLineChange = (i: number, field: keyof FormLine, value: string) => {
+  const handleLineChange = (i: number, field: "description" | "quantity" | "unit_price_ht", value: string) => {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)))
   }
 
@@ -95,10 +98,11 @@ export default function FacturesPage() {
 
   const handleDownload = async (id: string, invoiceNumber: string) => {
     setDownloading(id)
+    setDownloadError(null)
     try {
       await downloadPdf(id, invoiceNumber)
-    } catch {
-      // erreur silencieuse — le bouton reprend son état normal
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : "Erreur lors du téléchargement PDF")
     } finally {
       setDownloading(null)
     }
@@ -131,34 +135,38 @@ export default function FacturesPage() {
             {/* Infos client */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-medium text-alaska-muted">
+                <label htmlFor="client-name" className="text-xs font-medium text-alaska-muted">
                   Entreprise cliente *
                 </label>
                 <Input
+                  id="client-name"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   placeholder="Nom de l'entreprise"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-alaska-muted">RC</label>
+                <label htmlFor="client-rc" className="text-xs font-medium text-alaska-muted">RC</label>
                 <Input
+                  id="client-rc"
                   value={clientRc}
                   onChange={(e) => setClientRc(e.target.value)}
                   placeholder="Registre de commerce"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-alaska-muted">Adresse</label>
+                <label htmlFor="client-address" className="text-xs font-medium text-alaska-muted">Adresse</label>
                 <Input
+                  id="client-address"
                   value={clientAddress}
                   onChange={(e) => setClientAddress(e.target.value)}
                   placeholder="Adresse (optionnel)"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-alaska-muted">Date de facture</label>
+                <label htmlFor="invoice-date" className="text-xs font-medium text-alaska-muted">Date de facture</label>
                 <Input
+                  id="invoice-date"
                   type="date"
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
@@ -173,10 +181,11 @@ export default function FacturesPage() {
                 <span className="col-span-5">Désignation</span>
                 <span className="col-span-2 text-right">Quantité</span>
                 <span className="col-span-3 text-right">PU HT (MAD)</span>
-                <span className="col-span-2 text-right">Total HT</span>
+                <span className="col-span-1 text-right">Total HT</span>
+                <span className="col-span-1" />
               </div>
               {lines.map((line, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <div key={line.id} className="grid grid-cols-12 gap-2 items-center">
                   <Input
                     className="col-span-5"
                     value={line.description}
@@ -246,8 +255,9 @@ export default function FacturesPage() {
 
             {/* Notes */}
             <div className="space-y-1">
-              <label className="text-xs font-medium text-alaska-muted">Notes (optionnel)</label>
+              <label htmlFor="invoice-notes" className="text-xs font-medium text-alaska-muted">Notes (optionnel)</label>
               <Input
+                id="invoice-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Observations, conditions particulières..."
@@ -280,6 +290,7 @@ export default function FacturesPage() {
         <CardContent>
           {loading && <p className="text-alaska-muted text-sm py-4">Chargement...</p>}
           {error && <p className="text-red-500 text-sm">{error}</p>}
+          {downloadError && <p className="text-red-500 text-sm mb-2">{downloadError}</p>}
           {!loading && !error && invoices.length === 0 && (
             <p className="text-alaska-muted text-sm text-center py-10">
               Aucune facture. Cliquez sur &quot;Nouvelle facture&quot; pour commencer.
@@ -328,9 +339,9 @@ export default function FacturesPage() {
                             }
                             className={`text-xs px-2 py-1 rounded-full border-0 cursor-pointer font-medium ${s.className}`}
                           >
-                            <option value="draft">Brouillon</option>
-                            <option value="sent">Envoyée</option>
-                            <option value="paid">Payée</option>
+                            {(Object.keys(STATUS_CONFIG) as InvoiceStatus[]).map((st) => (
+                              <option key={st} value={st}>{STATUS_CONFIG[st].label}</option>
+                            ))}
                           </select>
                         </td>
                         <td className="py-3 text-right">
