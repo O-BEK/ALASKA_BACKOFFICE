@@ -7,6 +7,8 @@ import type {
   FixedCharge,
   ImportType,
   ImportRecord,
+  InvoiceWithLines,
+  InvoiceWithTotals,
   MonthlyKPIs,
   MonthlyObjective,
   Objective,
@@ -833,19 +835,19 @@ const invoiceWithTotalsSchema = invoiceSchema.extend({
   total_ttc: z.coerce.number().catch(0),
 })
 
-export function parseInvoicesPayload(raw: unknown): { invoices: import("@/lib/types").InvoiceWithTotals[]; total: number } {
+export function parseInvoicesPayload(raw: unknown): { invoices: InvoiceWithTotals[]; total: number } {
   const s = z.object({
     invoices: z.array(invoiceWithTotalsSchema).catch([]),
     total: z.coerce.number().catch(0),
   })
-  return s.parse(raw) as { invoices: import("@/lib/types").InvoiceWithTotals[]; total: number }
+  return s.parse(raw) as { invoices: InvoiceWithTotals[]; total: number }
 }
 
-export function parseInvoiceDetail(raw: unknown): import("@/lib/types").InvoiceWithLines {
+export function parseInvoiceDetail(raw: unknown): InvoiceWithLines {
   const s = invoiceSchema.extend({
     lines: z.array(invoiceLineSchema).catch([]),
   })
-  return s.parse(raw) as import("@/lib/types").InvoiceWithLines
+  return s.parse(raw) as InvoiceWithLines
 }
 
 export const createInvoiceBodySchema = z.object({
