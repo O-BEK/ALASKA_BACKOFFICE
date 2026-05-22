@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type {
   ActionItem,
+  Client,
   DailyEntry,
   ExpenseItem,
   ExpenseSection,
@@ -870,3 +871,25 @@ export const createInvoiceBodySchema = z.object({
 })
 
 export type CreateInvoiceBody = z.infer<typeof createInvoiceBodySchema>
+
+// --- Clients ---
+
+const clientSchema = z.object({
+  id: z.string().catch(""),
+  name: z.string().catch(""),
+  address: z.string().nullable().catch(null),
+  ice: z.string().nullable().catch(null),
+  created_at: z.string().catch(""),
+})
+
+export function parseClientsPayload(raw: unknown): { clients: Client[] } {
+  return z.object({ clients: z.array(clientSchema).catch([]) }).parse(raw) as { clients: Client[] }
+}
+
+export const createClientBodySchema = z.object({
+  name: z.string().min(1),
+  address: z.string().optional(),
+  ice: z.string().optional(),
+})
+
+export type CreateClientBody = z.infer<typeof createClientBodySchema>

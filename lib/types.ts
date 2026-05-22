@@ -152,3 +152,11 @@ export interface InvoiceWithTotals extends Invoice {
   tva_amount: number
   total_ttc: number
 }
+
+export interface Client {
+  id: string
+  name: string
+  address: string | null
+  ice: string | null
+  created_at: string
+}
