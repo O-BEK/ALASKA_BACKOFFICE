@@ -192,6 +192,7 @@ describe("API route authorization", () => {
 })
 
 describe("DELETE /api/invoices/[id] — auth", () => {
+  beforeEach(() => { vi.resetModules() })
   it("retourne 403 pour manager", async () => {
     vi.mocked(createServerClient).mockReturnValue(
       makeSupabaseMock({ id: "manager-1" }, "manager") as any
@@ -205,6 +206,7 @@ describe("DELETE /api/invoices/[id] — auth", () => {
 })
 
 describe("DELETE /api/clients/[id] — auth", () => {
+  beforeEach(() => { vi.resetModules() })
   it("retourne 403 pour manager", async () => {
     vi.mocked(createServerClient).mockReturnValue(
       makeSupabaseMock({ id: "manager-1" }, "manager") as any

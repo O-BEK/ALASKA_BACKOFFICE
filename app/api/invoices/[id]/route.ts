@@ -106,7 +106,14 @@ export async function DELETE(
       .eq("id", params.id)
       .single()
 
-    if (fetchErr || !inv) {
+    if (fetchErr) {
+      if (fetchErr.code === 'PGRST116') {
+        return NextResponse.json({ error: "Facture introuvable." }, { status: 404 })
+      }
+      console.error("[api/invoices/[id] DELETE]", fetchErr.message)
+      return NextResponse.json({ error: "Impossible de supprimer la facture." }, { status: 500 })
+    }
+    if (!inv) {
       return NextResponse.json({ error: "Facture introuvable." }, { status: 404 })
     }
     if (inv.status !== "draft") {

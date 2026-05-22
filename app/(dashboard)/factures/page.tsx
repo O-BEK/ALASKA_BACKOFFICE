@@ -62,6 +62,7 @@ export default function FacturesPage() {
   const [clientFormError, setClientFormError] = useState<string | null>(null)
   const [savingClient, setSavingClient] = useState(false)
   const [deletingClientId, setDeletingClientId] = useState<string | null>(null)
+  const [clientDeleteError, setClientDeleteError] = useState<string | null>(null)
 
   // --- Autocomplete helpers ---
   const handleClientNameChange = (value: string) => {
@@ -207,8 +208,11 @@ export default function FacturesPage() {
 
   const handleDeleteClient = async (id: string) => {
     setDeletingClientId(id)
+    setClientDeleteError(null)
     try {
       await deleteClient(id)
+    } catch (err) {
+      setClientDeleteError(err instanceof Error ? err.message : "Erreur lors de la suppression")
     } finally {
       setDeletingClientId(null)
     }
@@ -567,6 +571,7 @@ export default function FacturesPage() {
               />
             </div>
             {clientFormError && <p className="text-red-500 text-xs">{clientFormError}</p>}
+            {clientDeleteError && <p className="text-red-500 text-xs">{clientDeleteError}</p>}
             <Button size="sm" variant="outline" onClick={handleAddClient} disabled={savingClient} className="gap-1">
               <Plus size={14} /> {savingClient ? "Enregistrement..." : "Ajouter"}
             </Button>

@@ -14,7 +14,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("clients")
-      .select("*")
+      .select("id, name, address, ice, created_at")
       .order("name", { ascending: true })
 
     if (error) throw new Error(error.message)
