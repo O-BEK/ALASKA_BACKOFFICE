@@ -1,12 +1,15 @@
 import { z } from "zod"
 import type {
   ActionItem,
+  Client,
   DailyEntry,
   ExpenseItem,
   ExpenseSection,
   FixedCharge,
   ImportType,
   ImportRecord,
+  InvoiceWithLines,
+  InvoiceWithTotals,
   MonthlyKPIs,
   MonthlyObjective,
   Objective,
@@ -801,3 +804,92 @@ export function parseExpenseTemplatesPayload(raw: unknown): { sections: ExpenseS
     })),
   }
 }
+
+// --- Invoices ---
+
+const invoiceLineSchema = z.object({
+  id: z.string().catch(""),
+  invoice_id: z.string().catch(""),
+  description: z.string().catch(""),
+  quantity: z.coerce.number().catch(1),
+  unit_price_ht: z.coerce.number().catch(0),
+  tva_rate: z.coerce.number().catch(10),
+  line_order: z.coerce.number().catch(0),
+})
+
+const invoiceSchema = z.object({
+  id: z.string().catch(""),
+  invoice_number: z.string().catch(""),
+  client_name: z.string().catch(""),
+  client_rc: z.string().nullable().catch(null),
+  client_address: z.string().nullable().catch(null),
+  invoice_date: z.string().catch(""),
+  status: z.enum(["draft", "sent", "paid"]).catch("draft"),
+  notes: z.string().nullable().catch(null),
+  created_by: z.string().nullable().catch(null),
+  created_at: z.string().catch(""),
+})
+
+const invoiceWithTotalsSchema = invoiceSchema.extend({
+  total_ht: z.coerce.number().catch(0),
+  tva_amount: z.coerce.number().catch(0),
+  total_ttc: z.coerce.number().catch(0),
+})
+
+export function parseInvoicesPayload(raw: unknown): { invoices: InvoiceWithTotals[]; total: number } {
+  const s = z.object({
+    invoices: z.array(invoiceWithTotalsSchema).catch([]),
+    total: z.coerce.number().catch(0),
+  })
+  return s.parse(raw) as { invoices: InvoiceWithTotals[]; total: number }
+}
+
+export function parseInvoiceDetail(raw: unknown): InvoiceWithLines {
+  const s = invoiceSchema.extend({
+    lines: z.array(invoiceLineSchema).catch([]),
+  })
+  return s.parse(raw) as InvoiceWithLines
+}
+
+export const createInvoiceBodySchema = z.object({
+  client_name: z.string().min(1),
+  client_rc: z.string().optional(),
+  client_address: z.string().optional(),
+  invoice_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  notes: z.string().optional(),
+  lines: z
+    .array(
+      z.object({
+        description: z.string().min(1),
+        quantity: z.number().positive(),
+        unit_price_ht: z.number().min(0),
+        tva_rate: z.number().min(0).max(100),
+        line_order: z.number().int().min(0),
+      })
+    )
+    .min(1),
+})
+
+export type CreateInvoiceBody = z.infer<typeof createInvoiceBodySchema>
+
+// --- Clients ---
+
+const clientSchema = z.object({
+  id: z.string().catch(""),
+  name: z.string().catch(""),
+  address: z.string().nullable().catch(null),
+  ice: z.string().nullable().catch(null),
+  created_at: z.string().catch(""),
+})
+
+export function parseClientsPayload(raw: unknown): { clients: Client[] } {
+  return z.object({ clients: z.array(clientSchema).catch([]) }).parse(raw) as { clients: Client[] }
+}
+
+export const createClientBodySchema = z.object({
+  name: z.string().min(1),
+  address: z.string().optional(),
+  ice: z.string().optional(),
+})
+
+export type CreateClientBody = z.infer<typeof createClientBodySchema>

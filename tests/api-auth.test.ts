@@ -190,3 +190,31 @@ describe("API route authorization", () => {
     expect(response.status).toBe(403)
   })
 })
+
+describe("DELETE /api/invoices/[id] — auth", () => {
+  beforeEach(() => { vi.resetModules() })
+  it("retourne 403 pour manager", async () => {
+    vi.mocked(createServerClient).mockReturnValue(
+      makeSupabaseMock({ id: "manager-1" }, "manager") as any
+    )
+    const { DELETE } = await import("@/app/api/invoices/[id]/route")
+    const res = await DELETE(new Request("http://localhost"), {
+      params: { id: "some-uuid" },
+    })
+    expect(res.status).toBe(403)
+  })
+})
+
+describe("DELETE /api/clients/[id] — auth", () => {
+  beforeEach(() => { vi.resetModules() })
+  it("retourne 403 pour manager", async () => {
+    vi.mocked(createServerClient).mockReturnValue(
+      makeSupabaseMock({ id: "manager-1" }, "manager") as any
+    )
+    const { DELETE } = await import("@/app/api/clients/[id]/route")
+    const res = await DELETE(new Request("http://localhost"), {
+      params: { id: "some-uuid" },
+    })
+    expect(res.status).toBe(403)
+  })
+})

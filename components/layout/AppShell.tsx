@@ -4,7 +4,7 @@ import { useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { CalendarDays, Edit3, FileBarChart, Home, LogOut, Menu, Settings, Target, UploadCloud, X } from "lucide-react"
+import { CalendarDays, Edit3, FileBarChart, FileText, Home, LogOut, Menu, Settings, Target, UploadCloud, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/lib/types"
 import { createClient } from "@/lib/supabase/client"
@@ -17,6 +17,7 @@ const navByRole: Record<UserRole, { href: string; label: string; icon: any }[]> 
     { href: "/reporting", icon: FileBarChart, label: "Pilotage" },
     { href: "/objectifs", icon: Target, label: "Objectifs" },
     { href: "/import", icon: UploadCloud, label: "Imports" },
+    { href: "/factures", icon: FileText, label: "Factures" },
     { href: "/charges", icon: Settings, label: "Réglages" },
   ],
   manager: [

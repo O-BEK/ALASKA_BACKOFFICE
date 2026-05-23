@@ -117,3 +117,46 @@ export interface ImportRecord {
   ca_total: number
   status: "success" | "error" | "partial"
 }
+
+export type InvoiceStatus = "draft" | "sent" | "paid"
+
+export interface InvoiceLine {
+  id: string
+  invoice_id: string
+  description: string
+  quantity: number
+  unit_price_ht: number
+  tva_rate: number
+  line_order: number
+}
+
+export interface Invoice {
+  id: string
+  invoice_number: string
+  client_name: string
+  client_rc: string | null
+  client_address: string | null
+  invoice_date: string
+  status: InvoiceStatus
+  notes: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export interface InvoiceWithLines extends Invoice {
+  lines: InvoiceLine[]
+}
+
+export interface InvoiceWithTotals extends Invoice {
+  total_ht: number
+  tva_amount: number
+  total_ttc: number
+}
+
+export interface Client {
+  id: string
+  name: string
+  address: string | null
+  ice: string | null
+  created_at: string
+}
