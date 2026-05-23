@@ -49,9 +49,8 @@ export async function GET(
       : undefined
 
     const company = {
-      name: process.env.NEXT_PUBLIC_COMPANY_NAME ?? "Alaska Neo Bistrot",
+      name: process.env.NEXT_PUBLIC_COMPANY_NAME ?? "KAYZARAN",
       address: process.env.NEXT_PUBLIC_COMPANY_ADDRESS ?? "",
-      rc: process.env.NEXT_PUBLIC_COMPANY_RC ?? "",
       ice: process.env.NEXT_PUBLIC_COMPANY_ICE ?? "",
     }
 

@@ -4,40 +4,55 @@ import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/render
 import type { Invoice, InvoiceLine } from "@/lib/types"
 import type { InvoiceTotals } from "@/lib/invoice-calculations"
 
+const ACCENT = "#5C6B3A"
+const ACCENT_LIGHT = "#F1F4EB"
+
 const styles = StyleSheet.create({
   page: {
     fontFamily: "Helvetica",
     fontSize: 10,
     padding: 40,
+    paddingBottom: 80,
     color: "#1a1a1a",
   },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 24 },
-  logo: { width: 64, height: 64 },
+  logo: { width: 100, objectFit: "contain" },
   companyBlock: { textAlign: "right" },
   companyName: { fontSize: 14, fontFamily: "Helvetica-Bold", marginBottom: 2 },
-  invoiceTitle: { fontSize: 22, fontFamily: "Helvetica-Bold", marginBottom: 6 },
+  invoiceTitle: { fontSize: 22, fontFamily: "Helvetica-Bold", marginBottom: 6, color: ACCENT },
   metaRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 2 },
   sectionTitle: {
     fontSize: 11,
     fontFamily: "Helvetica-Bold",
     marginBottom: 6,
     marginTop: 18,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#cccccc",
+    borderBottomWidth: 1,
+    borderBottomColor: ACCENT,
     paddingBottom: 3,
+    color: ACCENT,
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: ACCENT,
     padding: "6 8",
-    fontFamily: "Helvetica-Bold",
     marginTop: 12,
+  },
+  tableHeaderText: {
+    color: "#ffffff",
+    fontFamily: "Helvetica-Bold",
   },
   tableRow: {
     flexDirection: "row",
     padding: "5 8",
     borderBottomWidth: 0.5,
     borderBottomColor: "#ebebeb",
+  },
+  tableRowAlt: {
+    flexDirection: "row",
+    padding: "5 8",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#ebebeb",
+    backgroundColor: ACCENT_LIGHT,
   },
   col1: { flex: 5 },
   col2: { flex: 1, textAlign: "right" },
@@ -57,24 +72,56 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     marginTop: 6,
     paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: "#1a1a1a",
+    borderTopWidth: 1.5,
+    borderTopColor: ACCENT,
     gap: 24,
   },
-  grandTotalLabel: { width: 72, textAlign: "right", fontFamily: "Helvetica-Bold", fontSize: 12 },
-  grandTotalValue: { width: 88, textAlign: "right", fontFamily: "Helvetica-Bold", fontSize: 12 },
+  grandTotalLabel: { width: 72, textAlign: "right", fontFamily: "Helvetica-Bold", fontSize: 12, color: ACCENT },
+  grandTotalValue: { width: 88, textAlign: "right", fontFamily: "Helvetica-Bold", fontSize: 12, color: ACCENT },
   notes: { marginTop: 20, fontSize: 9, color: "#555555" },
+  bankingSection: {
+    marginTop: 24,
+    borderWidth: 0.75,
+    borderColor: ACCENT,
+    borderRadius: 2,
+    padding: "8 10",
+  },
+  bankingTitle: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: ACCENT,
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  bankingRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 3,
+  },
+  bankingItem: { flex: 1 },
+  bankingItemWide: { flex: 2 },
+  bankingLabel: { fontSize: 7, color: "#888888", marginBottom: 1 },
+  bankingValue: { fontSize: 8, fontFamily: "Helvetica-Bold" },
   footer: {
     position: "absolute",
-    bottom: 28,
+    bottom: 24,
     left: 40,
     right: 40,
-    fontSize: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: ACCENT,
+    paddingTop: 5,
+  },
+  footerLegal: {
+    fontSize: 7.5,
+    color: ACCENT,
+    fontFamily: "Helvetica-Bold",
+    textAlign: "center",
+    marginBottom: 3,
+  },
+  footerNote: {
+    fontSize: 7,
     color: "#888888",
     textAlign: "center",
-    borderTopWidth: 0.5,
-    borderTopColor: "#cccccc",
-    paddingTop: 6,
   },
   muted: { color: "#666666" },
 })
@@ -91,7 +138,6 @@ function fmtMad(n: number): string {
 interface CompanyInfo {
   name: string
   address: string
-  rc: string
   ice: string
 }
 
@@ -118,7 +164,6 @@ export function InvoicePdf({ invoice, totals, logoBase64, company }: InvoicePdfP
           <View style={styles.companyBlock}>
             <Text style={styles.companyName}>{company.name}</Text>
             {company.address ? <Text style={styles.muted}>{company.address}</Text> : null}
-            {company.rc ? <Text style={styles.muted}>RC : {company.rc}</Text> : null}
             {company.ice ? <Text style={styles.muted}>ICE : {company.ice}</Text> : null}
           </View>
         </View>
@@ -133,18 +178,18 @@ export function InvoicePdf({ invoice, totals, logoBase64, company }: InvoicePdfP
         {/* Bloc client */}
         <Text style={styles.sectionTitle}>Facturé à</Text>
         <Text style={{ fontFamily: "Helvetica-Bold" }}>{invoice.client_name}</Text>
-        {invoice.client_rc ? <Text style={styles.muted}>RC : {invoice.client_rc}</Text> : null}
+        {invoice.client_rc ? <Text style={styles.muted}>ICE : {invoice.client_rc}</Text> : null}
         {invoice.client_address ? <Text style={styles.muted}>{invoice.client_address}</Text> : null}
 
         {/* Tableau des prestations */}
         <View style={styles.tableHeader}>
-          <Text style={styles.col1}>Désignation</Text>
-          <Text style={styles.col2}>Qté</Text>
-          <Text style={styles.col3}>PU HT (MAD)</Text>
-          <Text style={styles.col4}>Total HT (MAD)</Text>
+          <Text style={[styles.col1, styles.tableHeaderText]}>Désignation</Text>
+          <Text style={[styles.col2, styles.tableHeaderText]}>Qté</Text>
+          <Text style={[styles.col3, styles.tableHeaderText]}>PU HT (MAD)</Text>
+          <Text style={[styles.col4, styles.tableHeaderText]}>Total HT (MAD)</Text>
         </View>
         {sortedLines.map((line, i) => (
-          <View key={line.id || String(i)} style={styles.tableRow}>
+          <View key={line.id || String(i)} style={i % 2 === 0 ? styles.tableRow : styles.tableRowAlt}>
             <Text style={styles.col1}>{line.description}</Text>
             <Text style={styles.col2}>{line.quantity}</Text>
             <Text style={styles.col3}>{fmtMad(line.unit_price_ht)}</Text>
@@ -176,10 +221,44 @@ export function InvoicePdf({ invoice, totals, logoBase64, company }: InvoicePdfP
           </View>
         ) : null}
 
-        {/* Pied de page légal */}
-        <Text style={styles.footer}>
-          Facture soumise à la TVA au taux de 10% — Paiement à réception de la facture sauf accord préalable écrit
-        </Text>
+        {/* Coordonnées Bancaires */}
+        <View style={styles.bankingSection}>
+          <Text style={styles.bankingTitle}>Coordonnées Bancaires</Text>
+          <View style={styles.bankingRow}>
+            <View style={styles.bankingItem}>
+              <Text style={styles.bankingLabel}>Banque</Text>
+              <Text style={styles.bankingValue}>050</Text>
+            </View>
+            <View style={styles.bankingItem}>
+              <Text style={styles.bankingLabel}>Ville</Text>
+              <Text style={styles.bankingValue}>810</Text>
+            </View>
+            <View style={styles.bankingItemWide}>
+              <Text style={styles.bankingLabel}>N° de compte</Text>
+              <Text style={styles.bankingValue}>0060110872772001</Text>
+            </View>
+            <View style={styles.bankingItem}>
+              <Text style={styles.bankingLabel}>Clé RIB</Text>
+              <Text style={styles.bankingValue}>56</Text>
+            </View>
+          </View>
+          <View style={styles.bankingRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bankingLabel}>IBAN</Text>
+              <Text style={styles.bankingValue}>050810006011087277200156</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Pied de page : identifiants légaux + mention TVA */}
+        <View style={styles.footer}>
+          <Text style={styles.footerLegal}>
+            N° I.C.E : 003315860000064  |  ID FISCALE : 53879443  |  Patente : 2019 | 2023 | 54788
+          </Text>
+          <Text style={styles.footerNote}>
+            Facture soumise à la TVA au taux de 10% — Paiement à réception de la facture sauf accord préalable écrit
+          </Text>
+        </View>
       </Page>
     </Document>
   )
