@@ -157,9 +157,8 @@ export function InvoicePdf({ invoice, totals, logoBase64, company }: InvoicePdfP
         {/* Header : logo à gauche, infos émetteur à droite */}
         <View style={styles.header}>
           <View>
-            {logoBase64 ? (
-              <Image src={logoBase64} style={styles.logo} />
-            ) : null}
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt concept */}
+            {logoBase64 ? <Image src={logoBase64} style={styles.logo} /> : null}
           </View>
           <View style={styles.companyBlock}>
             <Text style={styles.companyName}>{company.name}</Text>
