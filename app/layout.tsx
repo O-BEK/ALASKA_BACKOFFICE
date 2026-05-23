@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Playfair_Display, DM_Sans } from "next/font/google"
 import "./globals.css"
 import { cn } from "@/lib/utils"
@@ -6,11 +6,14 @@ import { cn } from "@/lib/utils"
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" })
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans" })
 
+export const viewport: Viewport = {
+  themeColor: "#1A1A1A",
+}
+
 export const metadata: Metadata = {
   title: "Alaska Pilot",
   description: "Pilotage Alaska Neo Bistrot",
   manifest: "/manifest.webmanifest",
-  themeColor: "#1A1A1A",
   appleWebApp: {
     capable: true,
     title: "Alaska Pilot",
