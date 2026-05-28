@@ -12,6 +12,7 @@ import { useCalendarEvents } from "@/lib/hooks/useCalendarEvents"
 import { getAnnotationsForPeriod, isN1ComparisonValid } from "@/lib/calendar-context"
 import { CalendarAnnotationBadge } from "@/components/calendar/CalendarAnnotation"
 import { startOfMonth, endOfMonth, subMonths } from "date-fns"
+import { MonthlySummary } from "@/components/ai/MonthlySummary"
 
 const MONTHS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 const PIE_COLORS = ["#4a6741", "#c9a96e", "#e6a830", "#7a7a6a"]
@@ -573,6 +574,8 @@ export default function ReportingPage() {
               </CardContent>
             </Card>
           )}
+
+          <MonthlySummary month={month} />
         </div>
       )}
     </div>
