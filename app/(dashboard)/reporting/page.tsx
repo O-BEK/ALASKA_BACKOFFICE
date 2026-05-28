@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button"
 import { AlertTriangle, Banknote, ChevronLeft, ChevronRight, Database, Download, FileText, Scale, TrendingUp, Users } from "lucide-react"
 import { FoodCostAlert } from "@/components/ui/FoodCostAlert"
 import { Area, AreaChart, Bar, BarChart, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { useCalendarEvents } from "@/lib/hooks/useCalendarEvents"
+import { getAnnotationsForPeriod, isN1ComparisonValid } from "@/lib/calendar-context"
+import { CalendarAnnotationBadge } from "@/components/calendar/CalendarAnnotation"
+import { startOfMonth, endOfMonth, subMonths } from "date-fns"
 
 const MONTHS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 const PIE_COLORS = ["#4a6741", "#c9a96e", "#e6a830", "#7a7a6a"]
@@ -81,6 +85,23 @@ export default function ReportingPage() {
   const hasReportData = summary.ca_total > 0 || summary.total_expenses > 0 || dataQuality.sales_days > 0
   const projectionStatus = projection.projected_gap >= 0 ? "Rythme suffisant" : "Rythme à renforcer"
 
+  const { events: calendarEvents } = useCalendarEvents(month)
+
+  const calendarContext = useMemo(() => {
+    if (!month || !calendarEvents.length) return { annotations: [], n1Note: null }
+    const [y, m] = month.split("-").map(Number)
+    const start = startOfMonth(new Date(y, m - 1, 1))
+    const end = endOfMonth(start)
+    const n1Date = subMonths(start, 12)
+    const annotations = getAnnotationsForPeriod(start, end, calendarEvents, payload.summary?.ca_total ?? 0)
+    const n1Check = isN1ComparisonValid(
+      { start, end },
+      { start: startOfMonth(n1Date), end: endOfMonth(n1Date) },
+      calendarEvents
+    )
+    return { annotations, n1Note: n1Check.valid ? null : n1Check.note ?? null }
+  }, [month, calendarEvents, payload.summary?.ca_total])
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -109,6 +130,26 @@ export default function ReportingPage() {
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Aucune donnée consolidée pour {heading}. Les cartes restent à zéro tant que les ventes POS ou les achats cash ne sont pas importés.
         </div>
+      )}
+
+      {(calendarContext.annotations.length > 0 || calendarContext.n1Note) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <span>📅</span> Contexte calendaire
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {calendarContext.annotations.map((annotation, i) => (
+              <CalendarAnnotationBadge key={i} annotation={annotation} />
+            ))}
+            {calendarContext.n1Note && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-1">
+                ⚠️ {calendarContext.n1Note}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

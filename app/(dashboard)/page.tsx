@@ -12,6 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Activity, AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, DollarSign, Edit3, FileBarChart, ShoppingCart, UploadCloud } from "lucide-react"
 import { Area, AreaChart, Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { useCalendarEvents } from "@/lib/hooks/useCalendarEvents"
+import { getAnnotationsForPeriod } from "@/lib/calendar-context"
+import { CalendarAnnotationBadge } from "@/components/calendar/CalendarAnnotation"
+import { startOfMonth, endOfMonth } from "date-fns"
 
 const MONTHS_FR = ["Jan", "Fév", "Mars", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
 const PRIORITY_ORDER: Record<ActionItem["priority"], number> = { urgent: 0, medium: 1, low: 2 }
@@ -113,6 +117,16 @@ export default function DashboardPage() {
         ? "À accélérer"
         : "Rythme OK"
 
+  const { events: calendarEvents } = useCalendarEvents(month)
+
+  const caAnnotations = useMemo(() => {
+    if (!month || !calendarEvents.length) return []
+    const [y, m] = month.split("-").map(Number)
+    const start = startOfMonth(new Date(y, m - 1, 1))
+    const end = endOfMonth(start)
+    return getAnnotationsForPeriod(start, end, calendarEvents, kpis.ca_total ?? 0)
+  }, [month, calendarEvents, kpis.ca_total])
+
   async function updateActionStatus(status: ActionItem["status"]) {
     if (!selectedAction) return
     setActionLoading(true)
@@ -179,6 +193,13 @@ export default function DashboardPage() {
             <KPICard title="Marge nette" value={formatMAD(kpis.marge_nette)} sub={delta_marge !== 0 ? `${delta_marge >= 0 ? "+" : ""}${formatMAD(Math.abs(delta_marge))} ${delta_marge >= 0 ? "↑" : "↓"} vs mois préc.` : `${kpis.taux_marge.toFixed(1)}% du CA`} icon={<Activity size={16} className={kpis.marge_nette >= 0 ? "text-alaska-sage" : "text-red-500"} />} valueClass={kpis.marge_nette >= 0 ? "text-alaska-gold" : "text-red-600"} />
             <KPICard title="CA / Jour" value={formatMAD(kpis.ca_per_day)} sub={monthObjective.target ? `Obj. ${formatMAD(monthObjective.daily_target)}` : `${kpis.days_count} jours saisis`} icon={<CalendarDays size={16} className="text-alaska-sage" />} />
           </div>
+          {caAnnotations.length > 0 && (
+            <div className="space-y-1">
+              {caAnnotations.map((annotation, i) => (
+                <CalendarAnnotationBadge key={i} annotation={annotation} />
+              ))}
+            </div>
+          )}
 
           {kpis.ca_total > 0 && (
             <div className="grid grid-cols-3 gap-2">

@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { startOfWeek, addDays, addWeeks, subWeeks, format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react"
@@ -13,6 +13,9 @@ import { ExpenseBar } from "@/components/ExpenseBar"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { getCashEnvelope, getCashMovementsReference, getCashSalesReference, getGlobalIndicativeCA } from "@/lib/cash"
+import { useCalendarEvents } from "@/lib/hooks/useCalendarEvents"
+import { getAnnotationsForPeriod } from "@/lib/calendar-context"
+import { CalendarAnnotationBadge } from "@/components/calendar/CalendarAnnotation"
 
 export default function SemainePage() {
   const router = useRouter()
@@ -48,6 +51,15 @@ export default function SemainePage() {
   const missingToBreakeven = Math.max(weeklyBreakeven - weekTotals.caGlobal, 0)
   const weekLabel = `${format(weekStart, "d MMM", { locale: fr })} – ${format(addDays(weekStart, 6), "d MMM yyyy", { locale: fr })}`
 
+  const weekMonth = format(weekStart, "yyyy-MM")
+  const weekEnd = addDays(weekStart, 6)
+  const { events: calendarEvents } = useCalendarEvents(weekMonth)
+
+  const weekAnnotations = useMemo(() => {
+    if (!calendarEvents.length) return []
+    return getAnnotationsForPeriod(weekStart, weekEnd, calendarEvents, weekTotals.caGlobal)
+  }, [weekStart, weekEnd, calendarEvents, weekTotals.caGlobal])
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -70,6 +82,14 @@ export default function SemainePage() {
           </button>
         </div>
       </div>
+
+      {weekAnnotations.length > 0 && (
+        <div className="space-y-1">
+          {weekAnnotations.map((annotation, i) => (
+            <CalendarAnnotationBadge key={i} annotation={annotation} />
+          ))}
+        </div>
+      )}
 
       {/* KPIs semaine */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
