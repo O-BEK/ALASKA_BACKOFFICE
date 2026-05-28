@@ -8,6 +8,7 @@ import { CalendarDays, CalendarRange, Edit3, FileBarChart, FileText, Home, LogOu
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/lib/types"
 import { createClient } from "@/lib/supabase/client"
+import { ChatBubble } from "@/components/ai/ChatBubble"
 
 const navByRole: Record<UserRole, { href: string; label: string; icon: any }[]> = {
   admin: [
@@ -91,6 +92,7 @@ export function AppShell({
         </header>
         <div className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">{children}</div>
       </main>
+      <ChatBubble />
     </div>
   )
 }
