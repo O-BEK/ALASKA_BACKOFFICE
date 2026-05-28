@@ -141,7 +141,7 @@ export function isN1ComparisonValid(
   if (shifted.length > 0) {
     return {
       valid: false,
-      note: `Comparaison N-1 décalée — ${[...new Set(shifted)].join(', ')} tombait à une autre période en N-1`,
+      note: `Comparaison N-1 décalée — ${Array.from(new Set(shifted)).join(', ')} tombait à une autre période en N-1`,
     }
   }
 
