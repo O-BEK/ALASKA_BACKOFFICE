@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 // Routes accessibles à l'admin uniquement
-const ADMIN_ROUTES = ["/", "/charges", "/objectifs", "/import", "/reporting", "/factures"]
+const ADMIN_ROUTES = ["/", "/charges", "/objectifs", "/import", "/reporting", "/factures", "/calendrier"]
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
@@ -47,7 +47,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/objectifs") ||
     pathname.startsWith("/import") ||
     pathname.startsWith("/reporting") ||
-    pathname.startsWith("/factures")
+    pathname.startsWith("/factures") ||
+    pathname.startsWith("/calendrier")
 
   // Pas connecté → login
   if (!user && isProtectedRoute) {
