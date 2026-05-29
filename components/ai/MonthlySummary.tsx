@@ -75,7 +75,7 @@ export function MonthlySummary({ month }: { month: string }) {
               <tbody>
                 {rows.map((row, r) => (
                   <tr key={r} className={r % 2 === 1 ? "bg-gray-50" : ""}>
-                    {row.map((cell, j) => <td key={j} className="px-3 py-1.5 text-alaska-dark border-b border-gray-100 last:border-b-0">{cell}</td>)}
+                    {row.map((cell, j) => <td key={j} className="px-3 py-1.5 text-alaska-dark border-b border-gray-100 last:border-b-0">{renderBold(cell)}</td>)}
                   </tr>
                 ))}
               </tbody>
