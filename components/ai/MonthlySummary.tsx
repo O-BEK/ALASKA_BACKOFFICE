@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Loader2, RefreshCw, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,19 +43,106 @@ export function MonthlySummary({ month }: { month: string }) {
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("fr-MA", { day: "numeric", month: "long", year: "numeric" })
 
+  const renderBold = (text: string) => {
+    const parts = text.split(/\*\*(.+?)\*\*/)
+    return parts.map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part)
+  }
+
   const renderMarkdown = (text: string) => {
-    return text.split("\n").map((line, i) => {
+    const lines = text.split("\n")
+    const elements: React.ReactNode[] = []
+    let i = 0
+
+    while (i < lines.length) {
+      const line = lines[i]
+
+      // Table: collect consecutive | lines
+      if (line.trim().startsWith("|")) {
+        const tableLines: string[] = []
+        while (i < lines.length && lines[i].trim().startsWith("|")) {
+          tableLines.push(lines[i])
+          i++
+        }
+        const parseRow = (row: string) => row.split("|").map(c => c.trim()).filter(c => c !== "")
+        const headers = parseRow(tableLines[0])
+        const rows = tableLines.slice(2).map(parseRow)
+        elements.push(
+          <div key={`table-${i}`} className="overflow-x-auto my-2 rounded border border-gray-200">
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-gray-50">
+                <tr>{headers.map((h, j) => <th key={j} className="text-left px-3 py-1.5 font-medium text-alaska-dark border-b border-gray-200">{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {rows.map((row, r) => (
+                  <tr key={r} className={r % 2 === 1 ? "bg-gray-50" : ""}>
+                    {row.map((cell, j) => <td key={j} className="px-3 py-1.5 text-alaska-dark border-b border-gray-100 last:border-b-0">{cell}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+        continue
+      }
+
+      // Section heading
       if (line.startsWith("## ")) {
-        return <h3 key={i} className="font-semibold text-alaska-dark mt-3 mb-1">{line.slice(3)}</h3>
+        elements.push(<h3 key={i} className="font-semibold text-alaska-dark mt-5 mb-2 text-sm uppercase tracking-wide">{line.slice(3)}</h3>)
+        i++; continue
       }
+
+      // Horizontal rule
+      if (line.trim() === "---") {
+        elements.push(<hr key={i} className="border-gray-200 my-3" />)
+        i++; continue
+      }
+
+      // Blockquote
+      if (line.startsWith("> ")) {
+        elements.push(
+          <div key={i} className="border-l-2 border-amber-400 bg-amber-50 pl-3 py-1.5 rounded-r text-sm text-alaska-dark my-1">
+            {renderBold(line.slice(2))}
+          </div>
+        )
+        i++; continue
+      }
+
+      // Bullet list
       if (line.startsWith("- ") || line.startsWith("* ")) {
-        const content = line.slice(2).replace(/\*\*(.+?)\*\*/g, "$1")
-        return <li key={i} className="text-sm text-alaska-dark ml-3 list-disc">{content}</li>
+        elements.push(
+          <div key={i} className="flex gap-2 text-sm text-alaska-dark">
+            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-alaska-muted flex-shrink-0" />
+            <span>{renderBold(line.slice(2))}</span>
+          </div>
+        )
+        i++; continue
       }
-      if (line.trim() === "") return <div key={i} className="h-1" />
-      const rendered = line.replace(/\*\*(.+?)\*\*/g, "$1")
-      return <p key={i} className="text-sm text-alaska-dark">{rendered}</p>
-    })
+
+      // Numbered list
+      if (/^\d+\. /.test(line)) {
+        const num = line.match(/^(\d+)\./)?.[1]
+        const content = line.replace(/^\d+\. /, "")
+        elements.push(
+          <div key={i} className="flex gap-2 text-sm text-alaska-dark">
+            <span className="font-semibold min-w-[1.2em] text-alaska-gold">{num}.</span>
+            <span>{renderBold(content)}</span>
+          </div>
+        )
+        i++; continue
+      }
+
+      // Empty line
+      if (line.trim() === "") {
+        elements.push(<div key={i} className="h-1.5" />)
+        i++; continue
+      }
+
+      // Paragraph
+      elements.push(<p key={i} className="text-sm text-alaska-dark leading-relaxed">{renderBold(line)}</p>)
+      i++
+    }
+
+    return elements
   }
 
   return (
