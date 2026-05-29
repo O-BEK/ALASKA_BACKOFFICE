@@ -4,6 +4,7 @@ import { createClient, isAdmin } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
+import { getClosedDays, getCaAdjusted, type CalendarEvent } from "@/lib/calendar-context"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -52,9 +53,16 @@ async function buildRichContext(month: string): Promise<string> {
   const breakeven = charges_total > 0 ? Math.round(charges_total / 0.72) : 136667
   const breakeven_pct = ca_total > 0 ? (ca_total / breakeven * 100).toFixed(1) : "0"
 
-  const calEvents = calendarRes.data || []
+  const calEvents = (calendarRes.data || []) as CalendarEvent[]
   const monthLabel = format(new Date(year, rawMonth - 1, 1), "MMMM yyyy", { locale: fr })
   const n1Label = format(new Date(n1Year, n1Month - 1, 1), "MMMM yyyy", { locale: fr })
+
+  // Jours fermés calculés précisément depuis les événements
+  const monthStart = new Date(year, rawMonth - 1, 1)
+  const monthEnd = new Date(year, rawMonth - 1, lastDay)
+  const closedDays = getClosedDays(monthStart, monthEnd, calEvents)
+  const openDays = lastDay - closedDays
+  const caAdjusted = getCaAdjusted(ca_total, openDays, lastDay)
 
   return `RAPPORT MENSUEL COMPLET — ${monthLabel}
 
@@ -63,7 +71,9 @@ CA total : ${ca_total.toLocaleString("fr-MA")} MAD
   Caisse (espèces+CB) : ${ca_caisse.toLocaleString("fr-MA")} MAD
   B2B (facturé) : ${ca_b2b.toLocaleString("fr-MA")} MAD
 CA ${n1Label} (N-1) : ${ca_n1.toLocaleString("fr-MA")} MAD | Évolution : ${ca_n1 > 0 ? ((ca_total - ca_n1) / ca_n1 * 100).toFixed(1) + "%" : "N/A"}
-Jours avec données : ${days_with_data} | CA/jour moyen : ${ca_per_day.toLocaleString("fr-MA")} MAD
+Jours dans le mois : ${lastDay} | Jours fermés (calendrier) : ${closedDays} | Jours ouverts : ${openDays}
+Jours avec données saisies : ${days_with_data} | CA/jour moyen (jours saisis) : ${ca_per_day.toLocaleString("fr-MA")} MAD
+${closedDays > 0 ? `CA ajusté (extrapolé sur ${lastDay} jours ouvrables) : ${caAdjusted.toLocaleString("fr-MA")} MAD` : ""}
 Tickets : ${total_tickets} | Ticket moyen : ${avg_ticket.toLocaleString("fr-MA")} MAD
 
 === OBJECTIF ===
@@ -83,7 +93,7 @@ Total charges fixes actives : ${charges_total.toLocaleString("fr-MA")} MAD/mois
 
 === CONTEXTE CALENDAIRE ===
 ${calEvents.length > 0
-  ? calEvents.map(e => `- ${e.name} (${e.date_start} → ${e.date_end}) : ${e.impact}`).join("\n")
+  ? calEvents.map(e => `- ${e.name} (${e.date_start} → ${e.date_end}) : impact=${e.impact}`).join("\n")
   : "- Aucun événement particulier"}`
 }
 
