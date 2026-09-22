@@ -1,15 +1,16 @@
 "use client"
 
-import { useRef, useState } from "react"
-import { Building2, ChevronDown, ChevronUp, Download, FileText, Plus, Trash2, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { Building2, ChevronDown, ChevronUp, Download, FileText, Landmark, Plus, Trash2, X } from "lucide-react"
 import { useInvoices } from "@/lib/hooks/useInvoices"
 import { useClients } from "@/lib/hooks/useClients"
+import { useCompanyBankAccounts } from "@/lib/hooks/useCompanyBankAccounts"
 import { calcInvoiceTotals } from "@/lib/invoice-calculations"
 import { formatMAD } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { InvoiceStatus } from "@/lib/types"
+import type { InvoicePaymentMethod, InvoiceStatus } from "@/lib/types"
 
 const STATUS_CONFIG: Record<InvoiceStatus, { label: string; className: string }> = {
   draft: { label: "Brouillon", className: "bg-gray-100 text-gray-600" },
@@ -30,6 +31,13 @@ const emptyLine = (): FormLine => ({ id: lineCounter++, description: "", quantit
 export default function FacturesPage() {
   const { invoices, loading, error, createInvoice, updateStatus, downloadPdf, deleteInvoice } = useInvoices()
   const { clients, addClient, deleteClient } = useClients()
+  const {
+    bankAccounts,
+    loading: bankAccountsLoading,
+    error: bankAccountsError,
+    addBankAccount,
+    deleteBankAccount,
+  } = useCompanyBankAccounts()
 
   // --- Invoice form ---
   const [showForm, setShowForm] = useState(false)
@@ -42,6 +50,8 @@ export default function FacturesPage() {
   const [clientIce, setClientIce] = useState("")
   const [clientAddress, setClientAddress] = useState("")
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10))
+  const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>("bank_transfer")
+  const [bankAccountId, setBankAccountId] = useState("")
   const [notes, setNotes] = useState("")
   const [lines, setLines] = useState<FormLine[]>([emptyLine()])
   const [saveClient, setSaveClient] = useState(false)
@@ -63,6 +73,27 @@ export default function FacturesPage() {
   const [savingClient, setSavingClient] = useState(false)
   const [deletingClientId, setDeletingClientId] = useState<string | null>(null)
   const [clientDeleteError, setClientDeleteError] = useState<string | null>(null)
+
+  // Comptes bancaires de la société
+  const [showBankAccounts, setShowBankAccounts] = useState(false)
+  const [bankAccountForm, setBankAccountForm] = useState({
+    label: "",
+    bank_name: "",
+    bank_code: "",
+    city_code: "",
+    account_number: "",
+    rib_key: "",
+    iban: "",
+  })
+  const [bankAccountFormError, setBankAccountFormError] = useState<string | null>(null)
+  const [savingBankAccount, setSavingBankAccount] = useState(false)
+  const [deletingBankAccountId, setDeletingBankAccountId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!bankAccountId && bankAccounts.length > 0) {
+      setBankAccountId(bankAccounts[0].id)
+    }
+  }, [bankAccountId, bankAccounts])
 
   // --- Autocomplete helpers ---
   const handleClientNameChange = (value: string) => {
@@ -99,6 +130,8 @@ export default function FacturesPage() {
     setClientAddress("")
     setNotes("")
     setInvoiceDate(new Date().toISOString().slice(0, 10))
+    setPaymentMethod("bank_transfer")
+    setBankAccountId(bankAccounts[0]?.id ?? "")
     setLines([emptyLine()])
     setFormError(null)
     setSaveClient(false)
@@ -131,6 +164,10 @@ export default function FacturesPage() {
       setFormError("Ajoutez au moins une ligne avec une désignation et une quantité.")
       return
     }
+    if (paymentMethod === "bank_transfer" && !bankAccountId) {
+      setFormError("Sélectionnez ou ajoutez un compte bancaire pour le virement.")
+      return
+    }
     setSubmitting(true)
     try {
       await createInvoice({
@@ -138,6 +175,8 @@ export default function FacturesPage() {
         client_rc: clientIce.trim() || undefined,
         client_address: clientAddress.trim() || undefined,
         invoice_date: invoiceDate,
+        payment_method: paymentMethod,
+        bank_account_id: paymentMethod === "bank_transfer" ? bankAccountId : null,
         notes: notes.trim() || undefined,
         lines: validLines,
       })
@@ -215,6 +254,58 @@ export default function FacturesPage() {
       setClientDeleteError(err instanceof Error ? err.message : "Erreur lors de la suppression")
     } finally {
       setDeletingClientId(null)
+    }
+  }
+
+  const handleAddBankAccount = async () => {
+    setBankAccountFormError(null)
+    if (
+      !bankAccountForm.label.trim() ||
+      !bankAccountForm.bank_name.trim() ||
+      !bankAccountForm.account_number.trim() ||
+      !bankAccountForm.iban.trim()
+    ) {
+      setBankAccountFormError("Libellé, banque, numéro de compte et IBAN/RIB sont requis.")
+      return
+    }
+
+    setSavingBankAccount(true)
+    try {
+      await addBankAccount({
+        label: bankAccountForm.label.trim(),
+        bank_name: bankAccountForm.bank_name.trim(),
+        bank_code: bankAccountForm.bank_code.trim() || undefined,
+        city_code: bankAccountForm.city_code.trim() || undefined,
+        account_number: bankAccountForm.account_number.trim(),
+        rib_key: bankAccountForm.rib_key.trim() || undefined,
+        iban: bankAccountForm.iban.trim(),
+      })
+      setBankAccountForm({
+        label: "",
+        bank_name: "",
+        bank_code: "",
+        city_code: "",
+        account_number: "",
+        rib_key: "",
+        iban: "",
+      })
+    } catch (err) {
+      setBankAccountFormError(err instanceof Error ? err.message : "Erreur lors de l'ajout")
+    } finally {
+      setSavingBankAccount(false)
+    }
+  }
+
+  const handleDeleteBankAccount = async (id: string) => {
+    setDeletingBankAccountId(id)
+    setBankAccountFormError(null)
+    try {
+      await deleteBankAccount(id)
+      setBankAccountId((current) => (current === id ? "" : current))
+    } catch (err) {
+      setBankAccountFormError(err instanceof Error ? err.message : "Erreur lors de la suppression")
+    } finally {
+      setDeletingBankAccountId(null)
     }
   }
 
@@ -315,6 +406,66 @@ export default function FacturesPage() {
               </div>
             </div>
 
+            {/* Mode de paiement */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-alaska-muted">Mode de paiement</label>
+              <div className="inline-flex rounded-md border border-gray-200 bg-white p-1" role="group" aria-label="Mode de paiement">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("bank_transfer")}
+                  className={`px-3 py-1.5 text-sm rounded transition ${
+                    paymentMethod === "bank_transfer"
+                      ? "bg-alaska-dark text-white"
+                      : "text-alaska-muted hover:text-alaska-dark"
+                  }`}
+                >
+                  Virement bancaire
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("cheque")}
+                  className={`px-3 py-1.5 text-sm rounded transition ${
+                    paymentMethod === "cheque"
+                      ? "bg-alaska-dark text-white"
+                      : "text-alaska-muted hover:text-alaska-dark"
+                  }`}
+                >
+                  Chèque
+                </button>
+              </div>
+
+              {paymentMethod === "bank_transfer" && (
+                <div className="max-w-md space-y-1">
+                  <label htmlFor="invoice-bank-account" className="text-xs font-medium text-alaska-muted">
+                    Compte à afficher sur la facture
+                  </label>
+                  <select
+                    id="invoice-bank-account"
+                    value={bankAccountId}
+                    onChange={(event) => setBankAccountId(event.target.value)}
+                    disabled={bankAccountsLoading || bankAccounts.length === 0}
+                    className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-alaska-dark disabled:bg-gray-50 disabled:text-alaska-muted"
+                  >
+                    {bankAccounts.length === 0 ? (
+                      <option value="">Aucun compte enregistré</option>
+                    ) : (
+                      bankAccounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.label} — {account.bank_name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {bankAccountsError && <p className="text-xs text-red-500">{bankAccountsError}</p>}
+                  {!bankAccountsLoading && bankAccounts.length === 0 && (
+                    <p className="text-xs text-alaska-muted">
+                      Ajoutez d&apos;abord un compte dans la section Comptes bancaires ci-dessous.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Lignes de prestation */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-alaska-muted">Prestations</label>
@@ -408,7 +559,10 @@ export default function FacturesPage() {
             {formError && <p className="text-red-500 text-sm">{formError}</p>}
 
             <div className="flex gap-2">
-              <Button onClick={handleSubmit} disabled={submitting}>
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting || (paymentMethod === "bank_transfer" && !bankAccountId)}
+              >
                 {submitting ? "Enregistrement..." : "Enregistrer la facture"}
               </Button>
               <Button variant="outline" onClick={resetForm}>
@@ -465,6 +619,9 @@ export default function FacturesPage() {
                           {inv.client_rc && (
                             <div className="text-xs text-alaska-muted">ICE : {inv.client_rc}</div>
                           )}
+                          <div className="text-xs text-alaska-muted mt-0.5">
+                            {inv.payment_method === "cheque" ? "Chèque" : "Virement bancaire"}
+                          </div>
                         </td>
                         <td className="py-3 hidden md:table-cell text-alaska-muted">
                           {inv.invoice_date}
@@ -598,6 +755,139 @@ export default function FacturesPage() {
                       aria-label={`Supprimer ${c.name}`}
                     >
                       {deletingClientId === c.id ? <X size={14} /> : <Trash2 size={14} />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Section Comptes bancaires */}
+      <Card>
+        <CardHeader>
+          <button
+            className="w-full flex items-center justify-between text-left"
+            onClick={() => setShowBankAccounts((visible) => !visible)}
+          >
+            <CardTitle className="text-base flex items-center gap-2">
+              <Landmark size={16} />
+              Comptes bancaires
+              <span className="text-alaska-muted font-normal text-sm">({bankAccounts.length})</span>
+            </CardTitle>
+            {showBankAccounts ? (
+              <ChevronUp size={16} className="text-alaska-muted" />
+            ) : (
+              <ChevronDown size={16} className="text-alaska-muted" />
+            )}
+          </button>
+        </CardHeader>
+        {showBankAccounts && (
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <label htmlFor="bank-label" className="text-xs font-medium text-alaska-muted">Libellé *</label>
+                <Input
+                  id="bank-label"
+                  value={bankAccountForm.label}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, label: event.target.value }))}
+                  placeholder="Compte principal BP"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="bank-name" className="text-xs font-medium text-alaska-muted">Banque *</label>
+                <Input
+                  id="bank-name"
+                  value={bankAccountForm.bank_name}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, bank_name: event.target.value }))}
+                  placeholder="Banque Populaire"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="bank-code" className="text-xs font-medium text-alaska-muted">Code banque</label>
+                <Input
+                  id="bank-code"
+                  value={bankAccountForm.bank_code}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, bank_code: event.target.value }))}
+                  placeholder="3 chiffres"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="bank-city-code" className="text-xs font-medium text-alaska-muted">Code ville / agence</label>
+                <Input
+                  id="bank-city-code"
+                  value={bankAccountForm.city_code}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, city_code: event.target.value }))}
+                  placeholder="3 chiffres"
+                />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label htmlFor="bank-account-number" className="text-xs font-medium text-alaska-muted">N° de compte *</label>
+                <Input
+                  id="bank-account-number"
+                  value={bankAccountForm.account_number}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, account_number: event.target.value }))}
+                  placeholder="Numéro de compte"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="bank-rib-key" className="text-xs font-medium text-alaska-muted">Clé RIB</label>
+                <Input
+                  id="bank-rib-key"
+                  value={bankAccountForm.rib_key}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, rib_key: event.target.value }))}
+                  placeholder="2 chiffres"
+                />
+              </div>
+              <div className="space-y-1 md:col-span-2 lg:col-span-1">
+                <label htmlFor="bank-iban" className="text-xs font-medium text-alaska-muted">IBAN / RIB complet *</label>
+                <Input
+                  id="bank-iban"
+                  value={bankAccountForm.iban}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, iban: event.target.value }))}
+                  placeholder="IBAN ou RIB complet"
+                />
+              </div>
+            </div>
+
+            {(bankAccountFormError || bankAccountsError) && (
+              <p className="text-red-500 text-xs">{bankAccountFormError || bankAccountsError}</p>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleAddBankAccount}
+              disabled={savingBankAccount}
+              className="gap-1"
+            >
+              <Plus size={14} /> {savingBankAccount ? "Enregistrement..." : "Ajouter le compte"}
+            </Button>
+
+            {bankAccountsLoading && <p className="text-sm text-alaska-muted">Chargement...</p>}
+            {!bankAccountsLoading && bankAccounts.length === 0 && (
+              <p className="text-alaska-muted text-sm text-center py-4">Aucun compte bancaire enregistré.</p>
+            )}
+            {bankAccounts.length > 0 && (
+              <div className="divide-y border rounded-lg overflow-hidden">
+                {bankAccounts.map((account) => (
+                  <div key={account.id} className="flex items-center justify-between gap-4 px-3 py-3 hover:bg-alaska-cream/30">
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm">
+                        {account.label} <span className="font-normal text-alaska-muted">· {account.bank_name}</span>
+                      </div>
+                      <div className="text-xs text-alaska-muted break-all">
+                        {account.iban}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteBankAccount(account.id)}
+                      disabled={deletingBankAccountId === account.id}
+                      className="shrink-0 text-gray-400 hover:text-red-500 transition disabled:opacity-40"
+                      aria-label={`Supprimer ${account.label}`}
+                      title="Supprimer le compte"
+                    >
+                      {deletingBankAccountId === account.id ? <X size={14} /> : <Trash2 size={14} />}
                     </button>
                   </div>
                 ))}

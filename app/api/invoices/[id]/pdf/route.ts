@@ -23,7 +23,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from("invoices")
-      .select("*, invoice_lines (*)")
+      .select("*, invoice_lines (*), bank_account:company_bank_accounts (*)")
       .eq("id", params.id)
       .single()
 
@@ -60,6 +60,7 @@ export async function GET(
         totals,
         logoBase64,
         company,
+        bankAccount: data.bank_account ?? null,
       }) as React.ReactElement<DocumentProps>
     )
 

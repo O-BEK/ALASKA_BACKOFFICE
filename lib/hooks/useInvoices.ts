@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { parseInvoicesPayload } from "@/lib/contracts"
-import type { InvoiceStatus, InvoiceWithTotals } from "@/lib/types"
+import type { InvoicePaymentMethod, InvoiceStatus, InvoiceWithTotals } from "@/lib/types"
 
 export function useInvoices() {
   const [invoices, setInvoices] = useState<InvoiceWithTotals[]>([])
@@ -34,6 +34,8 @@ export function useInvoices() {
     client_rc?: string
     client_address?: string
     invoice_date: string
+    payment_method: InvoicePaymentMethod
+    bank_account_id?: string | null
     notes?: string
     lines: Array<{
       description: string

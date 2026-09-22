@@ -60,6 +60,8 @@ export async function POST(request: Request) {
         client_rc: body.client_rc ?? null,
         client_address: body.client_address ?? null,
         invoice_date: body.invoice_date,
+        payment_method: body.payment_method,
+        bank_account_id: body.payment_method === "bank_transfer" ? body.bank_account_id : null,
         notes: body.notes ?? null,
         created_by: user.id,
       })

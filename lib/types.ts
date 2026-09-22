@@ -119,6 +119,20 @@ export interface ImportRecord {
 }
 
 export type InvoiceStatus = "draft" | "sent" | "paid"
+export type InvoicePaymentMethod = "cheque" | "bank_transfer"
+
+export interface CompanyBankAccount {
+  id: string
+  label: string
+  bank_name: string
+  bank_code: string | null
+  city_code: string | null
+  account_number: string
+  rib_key: string | null
+  iban: string
+  is_active: boolean
+  created_at: string
+}
 
 export interface InvoiceLine {
   id: string
@@ -138,6 +152,8 @@ export interface Invoice {
   client_address: string | null
   invoice_date: string
   status: InvoiceStatus
+  payment_method: InvoicePaymentMethod
+  bank_account_id: string | null
   notes: string | null
   created_by: string | null
   created_at: string

@@ -1,7 +1,7 @@
 import "server-only"
 import React from "react"
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer"
-import type { Invoice, InvoiceLine } from "@/lib/types"
+import type { CompanyBankAccount, Invoice, InvoiceLine } from "@/lib/types"
 import type { InvoiceTotals } from "@/lib/invoice-calculations"
 
 const ACCENT = "#5C6B3A"
@@ -146,9 +146,10 @@ interface InvoicePdfProps {
   totals: InvoiceTotals
   logoBase64?: string
   company: CompanyInfo
+  bankAccount: CompanyBankAccount | null
 }
 
-export function InvoicePdf({ invoice, totals, logoBase64, company }: InvoicePdfProps) {
+export function InvoicePdf({ invoice, totals, logoBase64, company, bankAccount }: InvoicePdfProps) {
   const sortedLines = [...invoice.lines].sort((a, b) => a.line_order - b.line_order)
 
   return (
@@ -220,34 +221,45 @@ export function InvoicePdf({ invoice, totals, logoBase64, company }: InvoicePdfP
           </View>
         ) : null}
 
-        {/* Coordonnées Bancaires */}
-        <View style={styles.bankingSection}>
-          <Text style={styles.bankingTitle}>Coordonnées Bancaires</Text>
-          <View style={styles.bankingRow}>
-            <View style={styles.bankingItem}>
-              <Text style={styles.bankingLabel}>Banque</Text>
-              <Text style={styles.bankingValue}>050</Text>
+        {/* Mode de paiement */}
+        {invoice.payment_method === "cheque" ? (
+          <View style={styles.bankingSection}>
+            <Text style={styles.bankingTitle}>Paiement par chèque</Text>
+            <Text style={styles.bankingValue}>Chèque à l&apos;ordre de {company.name}</Text>
+          </View>
+        ) : bankAccount ? (
+          <View style={styles.bankingSection}>
+            <Text style={styles.bankingTitle}>Coordonnées bancaires — {bankAccount.label}</Text>
+            <View style={styles.bankingRow}>
+              <View style={styles.bankingItemWide}>
+                <Text style={styles.bankingLabel}>Banque</Text>
+                <Text style={styles.bankingValue}>{bankAccount.bank_name}</Text>
+              </View>
+              <View style={styles.bankingItem}>
+                <Text style={styles.bankingLabel}>Code banque</Text>
+                <Text style={styles.bankingValue}>{bankAccount.bank_code || "—"}</Text>
+              </View>
+              <View style={styles.bankingItem}>
+                <Text style={styles.bankingLabel}>Ville / agence</Text>
+                <Text style={styles.bankingValue}>{bankAccount.city_code || "—"}</Text>
+              </View>
+              <View style={styles.bankingItemWide}>
+                <Text style={styles.bankingLabel}>N° de compte</Text>
+                <Text style={styles.bankingValue}>{bankAccount.account_number}</Text>
+              </View>
+              <View style={styles.bankingItem}>
+                <Text style={styles.bankingLabel}>Clé RIB</Text>
+                <Text style={styles.bankingValue}>{bankAccount.rib_key || "—"}</Text>
+              </View>
             </View>
-            <View style={styles.bankingItem}>
-              <Text style={styles.bankingLabel}>Ville</Text>
-              <Text style={styles.bankingValue}>810</Text>
-            </View>
-            <View style={styles.bankingItemWide}>
-              <Text style={styles.bankingLabel}>N° de compte</Text>
-              <Text style={styles.bankingValue}>0060110872772001</Text>
-            </View>
-            <View style={styles.bankingItem}>
-              <Text style={styles.bankingLabel}>Clé RIB</Text>
-              <Text style={styles.bankingValue}>56</Text>
+            <View style={styles.bankingRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.bankingLabel}>IBAN / RIB complet</Text>
+                <Text style={styles.bankingValue}>{bankAccount.iban}</Text>
+              </View>
             </View>
           </View>
-          <View style={styles.bankingRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bankingLabel}>IBAN</Text>
-              <Text style={styles.bankingValue}>050810006011087277200156</Text>
-            </View>
-          </View>
-        </View>
+        ) : null}
 
         {/* Pied de page : identifiants légaux + mention TVA */}
         <View style={styles.footer}>
