@@ -50,6 +50,27 @@ export async function POST(request: Request) {
 
     const raw = await request.json()
     const body = createInvoiceBodySchema.parse(raw)
+    let bankAccountId = body.payment_method === "bank_transfer" ? body.bank_account_id : null
+
+    if (body.payment_method === "bank_transfer" && !bankAccountId) {
+      const { data: defaultAccount, error: accountError } = await supabase
+        .from("company_bank_accounts")
+        .select("id")
+        .eq("is_active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (accountError) throw new Error(accountError.message)
+      if (!defaultAccount) {
+        return NextResponse.json(
+          { error: "Ajoutez un compte bancaire avant de créer une facture par virement." },
+          { status: 400 }
+        )
+      }
+      bankAccountId = defaultAccount.id
+    }
+
     const invoice_number = await nextInvoiceNumber(supabase)
 
     const { data: invoice, error: invErr } = await supabase
@@ -61,7 +82,7 @@ export async function POST(request: Request) {
         client_address: body.client_address ?? null,
         invoice_date: body.invoice_date,
         payment_method: body.payment_method,
-        bank_account_id: body.payment_method === "bank_transfer" ? body.bank_account_id : null,
+        bank_account_id: bankAccountId,
         notes: body.notes ?? null,
         created_by: user.id,
       })

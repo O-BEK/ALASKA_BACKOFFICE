@@ -38,15 +38,15 @@ describe("invoice payment validation", () => {
     expect(result.payment_method).toBe("bank_transfer")
   })
 
-  it("rejects bank transfer without a selected account", () => {
-    const result = createInvoiceBodySchema.safeParse({
+  it("keeps old forms compatible by defaulting to bank transfer", () => {
+    const result = createInvoiceBodySchema.parse({
       client_name: "Client test",
       invoice_date: "2026-09-22",
-      payment_method: "bank_transfer",
       lines: [line],
     })
 
-    expect(result.success).toBe(false)
+    expect(result.payment_method).toBe("bank_transfer")
+    expect(result.bank_account_id).toBeUndefined()
   })
 
   it("keeps legacy invoice payloads compatible", () => {

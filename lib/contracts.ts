@@ -859,7 +859,7 @@ export const createInvoiceBodySchema = z.object({
   client_rc: z.string().optional(),
   client_address: z.string().optional(),
   invoice_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  payment_method: z.enum(["cheque", "bank_transfer"]),
+  payment_method: z.enum(["cheque", "bank_transfer"]).default("bank_transfer"),
   bank_account_id: z.string().uuid().nullable().optional(),
   notes: z.string().optional(),
   lines: z
@@ -873,14 +873,6 @@ export const createInvoiceBodySchema = z.object({
       })
     )
     .min(1),
-}).superRefine((value, ctx) => {
-  if (value.payment_method === "bank_transfer" && !value.bank_account_id) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["bank_account_id"],
-      message: "Un compte bancaire est requis pour un virement.",
-    })
-  }
 })
 
 export type CreateInvoiceBody = z.infer<typeof createInvoiceBodySchema>
