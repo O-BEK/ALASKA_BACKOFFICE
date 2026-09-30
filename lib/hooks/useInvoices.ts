@@ -8,6 +8,7 @@ export function useInvoices() {
   const [invoices, setInvoices] = useState<InvoiceWithTotals[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState("FAC202531")
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -16,8 +17,9 @@ export function useInvoices() {
       const response = await fetch("/api/invoices")
       const json = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(json.error || `Erreur ${response.status}`)
-      const { invoices } = parseInvoicesPayload(json)
+      const { invoices, next_invoice_number } = parseInvoicesPayload(json)
       setInvoices(invoices)
+      setNextInvoiceNumber(next_invoice_number)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue")
     } finally {
@@ -30,6 +32,7 @@ export function useInvoices() {
   }, [load])
 
   const createInvoice = async (data: {
+    invoice_number?: string
     client_name: string
     client_rc?: string
     client_address?: string
@@ -66,14 +69,19 @@ export function useInvoices() {
     setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status } : inv)))
   }
 
-  const downloadPdf = async (id: string, invoiceNumber: string) => {
+  const downloadPdf = async (id: string, clientName: string, invoiceNumber: string) => {
     const response = await fetch(`/api/invoices/${id}/pdf`)
     if (!response.ok) throw new Error("Impossible de générer le PDF")
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
+    const safeClientName = clientName
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/[. ]+$/g, "")
+      .trim() || "Client"
     a.href = url
-    a.download = `${invoiceNumber}.pdf`
+    a.download = `${safeClientName} - ${invoiceNumber}.pdf`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -84,8 +92,8 @@ export function useInvoices() {
       const json = await response.json().catch(() => ({}))
       throw new Error(json.error || `Erreur ${response.status}`)
     }
-    setInvoices((prev) => prev.filter((inv) => inv.id !== id))
+    await load()
   }
 
-  return { invoices, loading, error, createInvoice, updateStatus, downloadPdf, deleteInvoice, reload: load }
+  return { invoices, nextInvoiceNumber, loading, error, createInvoice, updateStatus, downloadPdf, deleteInvoice, reload: load }
 }

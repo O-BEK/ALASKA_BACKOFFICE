@@ -30,7 +30,8 @@ export async function GET() {
       return { ...rest, total_ht, tva_amount, total_ttc }
     })
 
-    return NextResponse.json({ invoices, total: invoices.length })
+    const next_invoice_number = await nextInvoiceNumber(supabase)
+    return NextResponse.json({ invoices, total: invoices.length, next_invoice_number })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inconnue"
     console.error("[api/invoices GET]", message)
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
       bankAccountId = defaultAccount.id
     }
 
-    const invoice_number = await nextInvoiceNumber(supabase)
+    const invoice_number = body.invoice_number ?? await nextInvoiceNumber(supabase)
 
     const { data: invoice, error: invErr } = await supabase
       .from("invoices")
@@ -89,6 +90,12 @@ export async function POST(request: Request) {
       .select()
       .single()
 
+    if (invErr?.code === "23505") {
+      return NextResponse.json(
+        { error: `Le numéro ${invoice_number} est déjà utilisé.` },
+        { status: 409 }
+      )
+    }
     if (invErr || !invoice) throw new Error(invErr?.message ?? "Échec création facture")
 
     const lineRows = body.lines.map((l, i) => ({

@@ -29,7 +29,7 @@ let lineCounter = 0
 const emptyLine = (): FormLine => ({ id: lineCounter++, description: "", quantity: "1", unit_price_ht: "" })
 
 export default function FacturesPage() {
-  const { invoices, loading, error, createInvoice, updateStatus, downloadPdf, deleteInvoice } = useInvoices()
+  const { invoices, nextInvoiceNumber, loading, error, createInvoice, updateStatus, downloadPdf, deleteInvoice } = useInvoices()
   const { clients, addClient, deleteClient } = useClients()
   const {
     bankAccounts,
@@ -50,6 +50,7 @@ export default function FacturesPage() {
   const [clientIce, setClientIce] = useState("")
   const [clientAddress, setClientAddress] = useState("")
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10))
+  const [invoiceNumber, setInvoiceNumber] = useState("FAC202531")
   const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>("bank_transfer")
   const [bankAccountId, setBankAccountId] = useState("")
   const [notes, setNotes] = useState("")
@@ -98,6 +99,10 @@ export default function FacturesPage() {
     }
   }, [bankAccountId, bankAccounts])
 
+  useEffect(() => {
+    if (!showForm) setInvoiceNumber(nextInvoiceNumber)
+  }, [nextInvoiceNumber, showForm])
+
   // --- Autocomplete helpers ---
   const handleClientNameChange = (value: string) => {
     setClientName(value)
@@ -133,6 +138,7 @@ export default function FacturesPage() {
     setClientAddress("")
     setNotes("")
     setInvoiceDate(new Date().toISOString().slice(0, 10))
+    setInvoiceNumber(nextInvoiceNumber)
     setPaymentMethod("bank_transfer")
     setBankAccountId(bankAccounts[0]?.id ?? "")
     setLines([emptyLine()])
@@ -162,6 +168,10 @@ export default function FacturesPage() {
       setFormError("Le nom du client est requis.")
       return
     }
+    if (!/^FAC\d{6,}$/.test(invoiceNumber.trim())) {
+      setFormError("Le numéro doit être au format FAC202531.")
+      return
+    }
     const validLines = parsedLines.filter((l) => l.description.trim() && l.quantity > 0)
     if (validLines.length === 0) {
       setFormError("Ajoutez au moins une ligne avec une désignation et une quantité.")
@@ -174,6 +184,7 @@ export default function FacturesPage() {
     setSubmitting(true)
     try {
       await createInvoice({
+        invoice_number: invoiceNumber.trim(),
         client_name: clientName.trim(),
         client_rc: clientIce.trim() || undefined,
         client_address: clientAddress.trim() || undefined,
@@ -199,11 +210,11 @@ export default function FacturesPage() {
   }
 
   // --- Download ---
-  const handleDownload = async (id: string, invoiceNumber: string) => {
+  const handleDownload = async (id: string, clientName: string, invoiceNumber: string) => {
     setDownloading(id)
     setDownloadError(null)
     try {
-      await downloadPdf(id, invoiceNumber)
+      await downloadPdf(id, clientName, invoiceNumber)
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : "Erreur lors du téléchargement PDF")
     } finally {
@@ -403,6 +414,19 @@ export default function FacturesPage() {
                   onChange={(e) => setClientAddress(e.target.value)}
                   placeholder="Adresse (optionnel)"
                 />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="invoice-number" className="text-xs font-medium text-alaska-muted">N° de facture</label>
+                <Input
+                  id="invoice-number"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value.toUpperCase().replace(/\s/g, ""))}
+                  placeholder="FAC202531"
+                  aria-describedby="invoice-number-help"
+                />
+                <p id="invoice-number-help" className="text-[11px] text-alaska-muted">
+                  Modifiable si vous devez reprendre une référence existante.
+                </p>
               </div>
               <div className="space-y-1">
                 <label htmlFor="invoice-date" className="text-xs font-medium text-alaska-muted">Date de facture</label>
@@ -654,7 +678,7 @@ export default function FacturesPage() {
                         <td className="py-3">
                           <div className="flex items-center justify-end gap-3">
                             <button
-                              onClick={() => handleDownload(inv.id, inv.invoice_number)}
+                              onClick={() => handleDownload(inv.id, inv.client_name, inv.invoice_number)}
                               disabled={downloading === inv.id}
                               className="inline-flex items-center gap-1 text-alaska-sage hover:text-alaska-dark text-xs transition disabled:opacity-50"
                               aria-label={`Télécharger PDF de la facture ${inv.invoice_number}`}

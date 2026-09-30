@@ -1,22 +1,24 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
-export function buildInvoiceNumber(year: number, lastInvoiceNumber: string | null): string {
-  const prefix = `FAC-${year}-`
-  if (!lastInvoiceNumber) return `${prefix}001`
-  const lastNum = parseInt(lastInvoiceNumber.slice(prefix.length), 10)
-  const next = isNaN(lastNum) ? 1 : lastNum + 1
-  return `${prefix}${String(next).padStart(3, "0")}`
+export const INVOICE_NUMBER_PREFIX = "FAC2025"
+export const LAST_LEGACY_INVOICE_SEQUENCE = 30
+
+export function buildInvoiceNumber(invoiceNumbers: string[]): string {
+  const highestSequence = invoiceNumbers.reduce((highest, invoiceNumber) => {
+    if (!invoiceNumber.startsWith(INVOICE_NUMBER_PREFIX)) return highest
+    const sequence = Number(invoiceNumber.slice(INVOICE_NUMBER_PREFIX.length))
+    return Number.isInteger(sequence) && sequence > highest ? sequence : highest
+  }, LAST_LEGACY_INVOICE_SEQUENCE)
+
+  return `${INVOICE_NUMBER_PREFIX}${highestSequence + 1}`
 }
 
-export async function nextInvoiceNumber(supabase: SupabaseClient, year?: number): Promise<string> {
-  const y = year ?? new Date().getFullYear()
-  const prefix = `FAC-${y}-`
-  const { data } = await supabase
+export async function nextInvoiceNumber(supabase: SupabaseClient): Promise<string> {
+  const { data, error } = await supabase
     .from("invoices")
     .select("invoice_number")
-    .like("invoice_number", `${prefix}%`)
-    .order("invoice_number", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  return buildInvoiceNumber(y, data?.invoice_number ?? null)
+    .like("invoice_number", `${INVOICE_NUMBER_PREFIX}%`)
+
+  if (error) throw new Error(error.message)
+  return buildInvoiceNumber((data ?? []).map((invoice) => invoice.invoice_number))
 }
