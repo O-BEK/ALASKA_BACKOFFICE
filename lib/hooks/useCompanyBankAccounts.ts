@@ -12,6 +12,9 @@ export interface NewCompanyBankAccount {
   account_number: string
   rib_key?: string
   iban: string
+  account_holder?: string
+  branch_name?: string
+  swift_code?: string
 }
 
 export function useCompanyBankAccounts() {

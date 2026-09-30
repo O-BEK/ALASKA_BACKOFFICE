@@ -84,6 +84,9 @@ export default function FacturesPage() {
     account_number: "",
     rib_key: "",
     iban: "",
+    account_holder: "",
+    branch_name: "",
+    swift_code: "",
   })
   const [bankAccountFormError, setBankAccountFormError] = useState<string | null>(null)
   const [savingBankAccount, setSavingBankAccount] = useState(false)
@@ -279,6 +282,9 @@ export default function FacturesPage() {
         account_number: bankAccountForm.account_number.trim(),
         rib_key: bankAccountForm.rib_key.trim() || undefined,
         iban: bankAccountForm.iban.trim(),
+        account_holder: bankAccountForm.account_holder.trim() || undefined,
+        branch_name: bankAccountForm.branch_name.trim() || undefined,
+        swift_code: bankAccountForm.swift_code.trim() || undefined,
       })
       setBankAccountForm({
         label: "",
@@ -288,6 +294,9 @@ export default function FacturesPage() {
         account_number: "",
         rib_key: "",
         iban: "",
+        account_holder: "",
+        branch_name: "",
+        swift_code: "",
       })
     } catch (err) {
       setBankAccountFormError(err instanceof Error ? err.message : "Erreur lors de l'ajout")
@@ -849,6 +858,33 @@ export default function FacturesPage() {
                   placeholder="IBAN ou RIB complet"
                 />
               </div>
+              <div className="space-y-1 md:col-span-2">
+                <label htmlFor="bank-account-holder" className="text-xs font-medium text-alaska-muted">Titulaire</label>
+                <Input
+                  id="bank-account-holder"
+                  value={bankAccountForm.account_holder}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, account_holder: event.target.value }))}
+                  placeholder="KAYZARAN SARL"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="bank-branch-name" className="text-xs font-medium text-alaska-muted">Agence</label>
+                <Input
+                  id="bank-branch-name"
+                  value={bankAccountForm.branch_name}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, branch_name: event.target.value }))}
+                  placeholder="TAKADDOUM"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="bank-swift-code" className="text-xs font-medium text-alaska-muted">Code SWIFT</label>
+                <Input
+                  id="bank-swift-code"
+                  value={bankAccountForm.swift_code}
+                  onChange={(event) => setBankAccountForm((form) => ({ ...form, swift_code: event.target.value }))}
+                  placeholder="BCPOMAMC"
+                />
+              </div>
             </div>
 
             {(bankAccountFormError || bankAccountsError) && (
@@ -879,6 +915,11 @@ export default function FacturesPage() {
                       <div className="text-xs text-alaska-muted break-all">
                         {account.iban}
                       </div>
+                      {(account.branch_name || account.swift_code) && (
+                        <div className="text-xs text-alaska-muted">
+                          {[account.branch_name, account.swift_code].filter(Boolean).join(" · ")}
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => handleDeleteBankAccount(account.id)}

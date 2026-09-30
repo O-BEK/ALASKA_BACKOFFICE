@@ -888,6 +888,9 @@ const companyBankAccountSchema = z.object({
   account_number: z.string().catch(""),
   rib_key: z.string().nullable().catch(null),
   iban: z.string().catch(""),
+  account_holder: z.string().nullable().catch(null),
+  branch_name: z.string().nullable().catch(null),
+  swift_code: z.string().nullable().catch(null),
   is_active: z.coerce.boolean().catch(true),
   created_at: z.string().catch(""),
 })
@@ -908,6 +911,9 @@ export const createCompanyBankAccountBodySchema = z.object({
   account_number: z.string().trim().min(1).max(40),
   rib_key: optionalBankField,
   iban: z.string().trim().min(1).max(40),
+  account_holder: z.string().trim().max(120).optional(),
+  branch_name: z.string().trim().max(100).optional(),
+  swift_code: z.string().trim().max(20).optional(),
 })
 
 export type CreateCompanyBankAccountBody = z.infer<typeof createCompanyBankAccountBodySchema>

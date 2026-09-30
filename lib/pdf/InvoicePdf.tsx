@@ -258,6 +258,22 @@ export function InvoicePdf({ invoice, totals, logoBase64, company, bankAccount }
                 <Text style={styles.bankingValue}>{bankAccount.iban}</Text>
               </View>
             </View>
+            {(bankAccount.account_holder || bankAccount.branch_name || bankAccount.swift_code) ? (
+              <View style={styles.bankingRow}>
+                <View style={styles.bankingItemWide}>
+                  <Text style={styles.bankingLabel}>Titulaire</Text>
+                  <Text style={styles.bankingValue}>{bankAccount.account_holder || company.name}</Text>
+                </View>
+                <View style={styles.bankingItem}>
+                  <Text style={styles.bankingLabel}>Agence</Text>
+                  <Text style={styles.bankingValue}>{bankAccount.branch_name || "—"}</Text>
+                </View>
+                <View style={styles.bankingItem}>
+                  <Text style={styles.bankingLabel}>SWIFT</Text>
+                  <Text style={styles.bankingValue}>{bankAccount.swift_code || "—"}</Text>
+                </View>
+              </View>
+            ) : null}
           </View>
         ) : null}
 

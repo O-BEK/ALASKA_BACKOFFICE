@@ -130,6 +130,9 @@ export interface CompanyBankAccount {
   account_number: string
   rib_key: string | null
   iban: string
+  account_holder: string | null
+  branch_name: string | null
+  swift_code: string | null
   is_active: boolean
   created_at: string
 }

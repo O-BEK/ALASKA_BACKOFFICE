@@ -14,7 +14,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("company_bank_accounts")
-      .select("id, label, bank_name, bank_code, city_code, account_number, rib_key, iban, is_active, created_at")
+      .select("id, label, bank_name, bank_code, city_code, account_number, rib_key, iban, account_holder, branch_name, swift_code, is_active, created_at")
       .eq("is_active", true)
       .order("created_at", { ascending: true })
 
@@ -45,6 +45,9 @@ export async function POST(request: Request) {
         bank_code: body.bank_code || null,
         city_code: body.city_code || null,
         rib_key: body.rib_key || null,
+        account_holder: body.account_holder || null,
+        branch_name: body.branch_name || null,
+        swift_code: body.swift_code || null,
         created_by: user.id,
       })
       .select()
